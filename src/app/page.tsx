@@ -4,13 +4,14 @@ import { Play, Square, MapPin, CalendarClock, Receipt, Settings, Home } from 'lu
 import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
 import { getUpcomingShifts, ShiftRecord } from '@/lib/api/shift';
-import { recordAttendance, getTodayAttendances, AttendanceType } from '@/lib/api/attendance';
+import { recordAttendance, getTodayAttendances, AttendanceType, AttendanceRecord } from '@/lib/api/attendance';
 
 export default function AppDashboard() {
   const { user, loading: liffLoading } = useLiff();
 
   const [isWorking, setIsWorking] = useState(false);
   const [shifts, setShifts] = useState<ShiftRecord[]>([]);
+  const [todayAttendances, setTodayAttendances] = useState<AttendanceRecord[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -30,12 +31,17 @@ export default function AppDashboard() {
         // 今日の打刻状態を取得
         const todayStr = new Date().toISOString().split('T')[0];
         const attendRes = await getTodayAttendances(user.id, todayStr);
-        if (attendRes.success && attendRes.data && attendRes.data.length > 0 && isMounted) {
-          // 最後の打刻実績を確認
-          const lastRecord = attendRes.data[attendRes.data.length - 1];
-          // CLOCK_IN または WAKE_UP 等で業務中とみなす。今回はシンプルにCLOCK_INで判定
-          if (lastRecord.type === 'CLOCK_IN') {
-            setIsWorking(true);
+        if (attendRes.success && attendRes.data && isMounted) {
+          setTodayAttendances(attendRes.data);
+          if (attendRes.data.length > 0) {
+            // 最後の打刻実績を確認
+            const lastRecord = attendRes.data[attendRes.data.length - 1];
+            // CLOCK_IN または WAKE_UP 等で業務中とみなす。今回はシンプルにCLOCK_INで判定
+            if (lastRecord.type === 'CLOCK_IN') {
+              setIsWorking(true);
+            } else {
+              setIsWorking(false);
+            }
           } else {
             setIsWorking(false);
           }
@@ -95,7 +101,9 @@ export default function AppDashboard() {
         longitude: location?.lng || null,
       });
 
-      if (!res.success) {
+      if (res.success && res.data) {
+        setTodayAttendances(prev => [...prev, res.data]);
+      } else {
         alert("打刻の保存に失敗しました。電波の良いところで再度お試しください。");
         setIsWorking(!nextWorkingState); // 失敗時は元に戻す
       }
@@ -220,12 +228,35 @@ export default function AppDashboard() {
         </div>
 
         {/* 本日の記録履歴 */}
-        <div className="mt-10 mb-4 text-center">
-          <div className="inline-flex items-center justify-center space-x-2 text-gray-400 text-xs">
+        <div className="mt-10 mb-8">
+          <div className="flex items-center justify-center space-x-2 text-gray-400 text-xs mb-4">
             <div className="h-px w-8 bg-gray-200"></div>
-            <span>スワイプして過去の記録を確認</span>
+            <span>本日の打刻履歴</span>
             <div className="h-px w-8 bg-gray-200"></div>
           </div>
+
+          {todayAttendances.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm font-bold mt-6">まだ本日の打刻はありません</p>
+          ) : (
+            <div className="space-y-3">
+              {todayAttendances.map((record, index) => {
+                const dateObj = new Date(record.timestamp || new Date());
+                const timeStr = `${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
+                const isClockIn = record.type === 'CLOCK_IN';
+                return (
+                  <div key={record.id || index} className="animate-in fade-in slide-in-from-bottom-2 bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white shadow-sm ${isClockIn ? 'bg-emerald-500 shadow-emerald-200' : 'bg-rose-500 shadow-rose-200'}`}>
+                        {isClockIn ? <Play size={16} className="ml-0.5 flex-shrink-0" /> : <Square size={16} className="flex-shrink-0" />}
+                      </div>
+                      <span className="font-bold text-gray-700">{isClockIn ? '出勤' : '退勤'}</span>
+                    </div>
+                    <span className="font-bold text-gray-800 tracking-wider text-lg">{timeStr}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

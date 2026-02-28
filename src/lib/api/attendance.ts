@@ -3,9 +3,11 @@ import { supabase } from '../supabase';
 export type AttendanceType = 'WAKE_UP' | 'LEAVE' | 'CLOCK_IN' | 'CLOCK_OUT';
 
 export interface AttendanceRecord {
+    id?: string;
     user_id: string;
     date: string; // YYYY-MM-DD
     type: AttendanceType;
+    timestamp?: string;
     latitude?: number | null;
     longitude?: number | null;
 }

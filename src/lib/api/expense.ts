@@ -47,11 +47,15 @@ export async function saveExpense(data: ExpenseRecord) {
  */
 export async function getMonthlyExpenses(userId: string, yearMonthPrefix: string) {
     try {
+        const startDate = `${yearMonthPrefix}-01`;
+        const endDate = `${yearMonthPrefix}-31`; // PostgreSQL handles this gracefully for comparison
+
         const { data, error } = await supabase
             .from('expenses')
             .select('*')
             .eq('user_id', userId)
-            .like('target_date', `${yearMonthPrefix}-%`) // 例: "2026-02-%"
+            .gte('target_date', startDate)
+            .lte('target_date', endDate)
             .order('target_date', { ascending: false })
             .order('created_at', { ascending: false });
 

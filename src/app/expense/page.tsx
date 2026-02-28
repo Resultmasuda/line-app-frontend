@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { Home, CalendarClock, Receipt, Settings, Plus, Train, Bus, ChevronRight, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Home, CalendarClock, Receipt, Settings, Plus, Train, Bus, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
 import { getMonthlyExpenses, saveExpense, ExpenseRecord } from '@/lib/api/expense';
@@ -9,7 +9,7 @@ export default function ExpenseManagement() {
     const { user, loading: liffLoading } = useLiff();
     const [activeTab, setActiveTab] = useState('list'); // 'list' or 'new'
 
-    const [expenses, setExpenses] = useState<any[]>([]);
+    const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // 新規入力用ステート
@@ -22,12 +22,7 @@ export default function ExpenseManagement() {
     const [purpose, setPurpose] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
-    useEffect(() => {
-        if (!user) return;
-        fetchExpenses();
-    }, [user]);
-
-    const fetchExpenses = async () => {
+    const fetchExpenses = useCallback(async () => {
         if (!user) return;
         setIsLoading(true);
         const yearMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
@@ -36,7 +31,12 @@ export default function ExpenseManagement() {
             setExpenses(res.data);
         }
         setIsLoading(false);
-    };
+    }, [user]);
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        fetchExpenses();
+    }, [fetchExpenses]);
 
     const handleSave = async () => {
         if (!user || isSaving) return;
@@ -135,7 +135,7 @@ export default function ExpenseManagement() {
                             <div className="text-center p-5 text-gray-400 text-sm">今月の登録データはありません</div>
                         ) : (
                             <div className="space-y-3">
-                                {expenses.map((item, i) => {
+                                {expenses.map((item) => {
                                     const itemDate = new Date(item.target_date);
                                     const dateStr = `${itemDate.getMonth() + 1}/${itemDate.getDate()}`;
                                     return (

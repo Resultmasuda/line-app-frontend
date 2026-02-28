@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Home, CalendarClock, Receipt, Settings, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
@@ -12,26 +12,25 @@ export default function ShiftSchedule() {
     const [shifts, setShifts] = useState<ShiftRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        if (!user) return;
-        fetchShifts();
-    }, [user, currentDate]);
-
-    const fetchShifts = async () => {
+    const fetchShifts = useCallback(async () => {
         if (!user) return;
         setIsLoading(true);
 
-        // YYYY-MM
-        const year = currentDate.getFullYear();
-        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const yearMonth = `${year}-${month}`;
-
+        const yearMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
         const res = await getMonthlyShifts(user.id, yearMonth);
+
         if (res.success && res.data) {
             setShifts(res.data);
+        } else {
+            console.error("Failed to fetch shifts");
         }
         setIsLoading(false);
-    };
+    }, [user, currentDate]);
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        fetchShifts();
+    }, [fetchShifts]);
 
     const nextMonth = () => {
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
@@ -53,7 +52,7 @@ export default function ShiftSchedule() {
         const firstDay = new Date(year, month, 1).getDay(); // 1日の曜日 (0-6)
         const daysInMonth = new Date(year, month + 1, 0).getDate(); // 当月の日数
 
-        let cells = [];
+        const cells = [];
 
         // 空白セル
         for (let i = 0; i < firstDay; i++) {

@@ -1,6 +1,7 @@
 import { supabase } from '../supabase';
 
 export interface ExpenseRecord {
+    id?: string;
     user_id: string;
     target_date: string;
     transport_type: string;

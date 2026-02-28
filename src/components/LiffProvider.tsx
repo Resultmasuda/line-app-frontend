@@ -53,6 +53,11 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
                         .select()
                         .single();
 
+                    if (sbError) {
+                        console.error('Supabase mock user upsert error:', sbError);
+                        // Continue with mock user even if upsert fails, to allow local development
+                    }
+
                     if (isMounted) {
                         setUser(data ? (data as AppUser) : {
                             id: '00000000-0000-0000-0000-000000000000',
@@ -99,10 +104,14 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
                     setUser(data as AppUser);
                 }
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 if (isMounted) {
                     console.error("LIFF initialization failed", err);
-                    setError(err.message || 'Failed to initialize LIFF');
+                    if (err instanceof Error) {
+                        setError(err.message);
+                    } else {
+                        setError('Failed to initialize LIFF');
+                    }
                 }
             } finally {
                 if (isMounted) {

@@ -251,3 +251,39 @@ export async function deleteStore(id: string) {
         return { success: false, error };
     }
 }
+
+// ==========================================
+// Advanced Shift Builder API
+// ==========================================
+
+export async function bulkUpsertShifts(shifts: Omit<ShiftRecord, 'id'>[]) {
+    try {
+        const { data, error } = await supabase
+            .from('shifts')
+            .upsert(shifts, { onConflict: 'user_id, date' })
+            .select();
+
+        if (error) throw error;
+        return { success: true, data: data as ShiftRecord[] };
+    } catch (error) {
+        console.error('Error bulk upserting shifts:', error);
+        return { success: false, error, data: [] };
+    }
+}
+
+export async function bulkDeleteShifts(shiftIds: string[]) {
+    if (!shiftIds || shiftIds.length === 0) return { success: true };
+    try {
+        const { error } = await supabase
+            .from('shifts')
+            .delete()
+            .in('id', shiftIds);
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error) {
+        console.error('Error bulk deleting shifts:', error);
+        return { success: false, error };
+    }
+}
+

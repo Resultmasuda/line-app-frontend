@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { CalendarClock, Search, Filter, ChevronLeft, ChevronRight, Clock, MapPin, UserCheck, UserX, Sun, Navigation, Building2, Plus, Edit2, Trash2, X, Calendar as CalendarIcon, User as UserIcon } from 'lucide-react';
 import { getAllShifts, getAllAttendances, getAllStores, createStore, updateStore, deleteStore, createShift, updateShift, deleteShift, StoreRecord, getAllUsers, AdminUserRecord } from '@/lib/api/admin';
 type ShiftRecord = {
@@ -41,8 +42,9 @@ export default function AdminShiftsPage() {
     const [editingStore, setEditingStore] = useState<Partial<StoreRecord> | null>(null);
     const [storeFormError, setStoreFormError] = useState('');
 
-    // 現在の表示月 (デフォルトは今月)
+    // 現在の表示月とタブ
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [activeTab, setActiveTab] = useState<'today' | 'tomorrow'>('today');
 
     useEffect(() => {
         async function fetchData() {
@@ -95,10 +97,17 @@ export default function AdminShiftsPage() {
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
     };
 
-    const filteredShifts = shifts.filter(s =>
-        (s.users?.display_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (s.location || '').toLowerCase().includes(searchQuery.toLowerCase())
-    ).sort((a, b) => new Date(`${a.date}T${a.start_time}`).getTime() - new Date(`${b.date}T${b.start_time}`).getTime());
+    const todayJST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+    const tomorrowJST = new Date(todayJST.getTime() + 24 * 60 * 60 * 1000);
+    const todayStr = todayJST.getFullYear() + '-' + String(todayJST.getMonth() + 1).padStart(2, '0') + '-' + String(todayJST.getDate()).padStart(2, '0');
+    const tomorrowStr = tomorrowJST.getFullYear() + '-' + String(tomorrowJST.getMonth() + 1).padStart(2, '0') + '-' + String(tomorrowJST.getDate()).padStart(2, '0');
+
+    const filteredShifts = shifts.filter(s => {
+        const matchesSearch = (s.users?.display_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (s.location || '').toLowerCase().includes(searchQuery.toLowerCase());
+        const targetDate = activeTab === 'today' ? todayStr : tomorrowStr;
+        return matchesSearch && s.date === targetDate;
+    }).sort((a, b) => new Date(`${a.date}T${a.start_time}`).getTime() - new Date(`${b.date}T${b.start_time}`).getTime());
 
     // 販路（店舗）ごとにグループ化
     const groupedShifts = filteredShifts.reduce((acc, shift) => {
@@ -219,15 +228,18 @@ export default function AdminShiftsPage() {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-4 bg-white px-4 py-2 border border-gray-200 rounded-xl shadow-sm">
-                    <button onClick={handlePrevMonth} className="p-1 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
-                        <ChevronLeft size={20} />
+                <div className="flex items-center bg-gray-100 p-1.5 rounded-xl shadow-inner border border-gray-200">
+                    <button
+                        onClick={() => setActiveTab('today')}
+                        className={`px-8 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'today' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                    >
+                        本日 ({todayStr.slice(5).replace('-', '/')})
                     </button>
-                    <span className="font-bold text-gray-800 min-w-[100px] text-center">
-                        {currentDate.getFullYear()}年 {currentDate.getMonth() + 1}月
-                    </span>
-                    <button onClick={handleNextMonth} className="p-1 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
-                        <ChevronRight size={20} />
+                    <button
+                        onClick={() => setActiveTab('tomorrow')}
+                        className={`px-8 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'tomorrow' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                    >
+                        明日 ({tomorrowStr.slice(5).replace('-', '/')})
                     </button>
                 </div>
             </div>
@@ -282,121 +294,128 @@ export default function AdminShiftsPage() {
                         </div>
                     ) : (
                         <div className="space-y-8">
-                            {storeNames.map((store) => (
-                                <div key={store} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                                    <div className="bg-indigo-50 px-4 py-3 flex items-center gap-2 border-b border-indigo-100">
-                                        <MapPin size={18} className="text-indigo-600" />
-                                        <h2 className="font-bold text-indigo-900">{store}</h2>
-                                        <span className="ml-auto text-xs font-bold text-indigo-600 bg-white px-2 py-1 rounded-full shadow-sm">
-                                            {groupedShifts[store].length} シフト
-                                        </span>
-                                    </div>
-                                    <table className="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr className="bg-gray-50/50 text-gray-500 text-[11px] uppercase tracking-wider">
-                                                <th className="px-6 py-3 font-semibold border-b border-gray-100 w-32">日付</th>
-                                                <th className="px-6 py-3 font-semibold border-b border-gray-100 w-48">スタッフ名</th>
-                                                <th className="px-6 py-3 font-semibold border-b border-gray-100">時間</th>
-                                                <th className="px-6 py-3 font-semibold border-b border-gray-100">出退勤状況</th>
-                                                <th className="px-6 py-3 font-semibold border-b border-gray-100 text-right w-24">操作</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100 bg-white">
-                                            {groupedShifts[store].map((shift) => {
-                                                const dateStr = new Date(shift.date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' });
-                                                const atts = getShiftAttendances(shift.user_id, shift.date);
+                            {storeNames.map((store) => {
+                                const storeObj = stores.find(s => s.name === store);
+                                const storeId = storeObj ? storeObj.id : 'unknown';
 
-                                                const clockIn = atts.find(a => a.type === 'CLOCK_IN');
-                                                const clockOut = atts.find(a => a.type === 'CLOCK_OUT');
-                                                const wakeUp = atts.find(a => a.type === 'WAKE_UP');
-                                                const leave = atts.find(a => a.type === 'LEAVE');
-                                                const isFuture = new Date(shift.date) > new Date();
+                                return (
+                                    <div key={store} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                                        <div className="bg-indigo-50 px-4 py-3 flex items-center gap-2 border-b border-indigo-100">
+                                            <Link href={`/admin/shifts/${storeId}`} className="group/link flex items-center gap-2 hover:bg-indigo-100 px-2 py-1 -ml-2 rounded-lg transition-colors">
+                                                <MapPin size={18} className="text-indigo-600" />
+                                                <h2 className="font-bold text-indigo-900 group-hover/link:underline">{store}</h2>
+                                            </Link>
+                                            <span className="ml-auto text-xs font-bold text-indigo-600 bg-white px-2 py-1 rounded-full shadow-sm">
+                                                {groupedShifts[store].length} シフト
+                                            </span>
+                                        </div>
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-gray-50/50 text-gray-500 text-[11px] uppercase tracking-wider">
+                                                    <th className="px-6 py-3 font-semibold border-b border-gray-100 w-32">日付</th>
+                                                    <th className="px-6 py-3 font-semibold border-b border-gray-100 w-48">スタッフ名</th>
+                                                    <th className="px-6 py-3 font-semibold border-b border-gray-100">時間</th>
+                                                    <th className="px-6 py-3 font-semibold border-b border-gray-100">出退勤状況</th>
+                                                    <th className="px-6 py-3 font-semibold border-b border-gray-100 text-right w-24">操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100 bg-white">
+                                                {groupedShifts[store].map((shift) => {
+                                                    const dateStr = new Date(shift.date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' });
+                                                    const atts = getShiftAttendances(shift.user_id, shift.date);
 
-                                                return (
-                                                    <tr key={shift.id} className="group hover:bg-gray-50 transition-colors">
-                                                        <td className="px-6 py-4 text-sm font-bold text-gray-700">
-                                                            {dateStr}
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-[10px]">
-                                                                    {(shift.users?.display_name || '不').slice(0, 2).toUpperCase()}
-                                                                </div>
-                                                                <span className="font-bold text-gray-800 text-sm">{shift.users?.display_name || '不明'}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <span className="text-sm font-bold text-gray-600 flex items-center gap-1">
-                                                                <Clock size={14} className="text-gray-400" />
-                                                                {shift.start_time.slice(0, 5)} 〜 {shift.end_time.slice(0, 5)}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-3">
-                                                                {isFuture ? (
-                                                                    <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
-                                                                        予定
-                                                                    </span>
-                                                                ) : clockIn || wakeUp || leave || clockOut ? (
-                                                                    <div className="flex flex-col gap-1.5">
-                                                                        <div className="flex items-center gap-2">
-                                                                            {wakeUp ? (
-                                                                                <span className="text-[10px] text-amber-500 font-bold bg-amber-50 px-1.5 py-0.5 rounded flex items-center"><Sun size={10} className="mr-0.5" />起 {new Date(wakeUp.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                                            ) : <span className="text-[10px] text-gray-300">起床未</span>}
-                                                                            {leave ? (
-                                                                                <span className="text-[10px] text-blue-500 font-bold bg-blue-50 px-1.5 py-0.5 rounded flex items-center"><Navigation size={10} className="mr-0.5" />発 {new Date(leave.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                                            ) : <span className="text-[10px] text-gray-300">出発未</span>}
-                                                                        </div>
-                                                                        <div className="flex items-center gap-2 text-sm">
-                                                                            {clockIn ? (
-                                                                                <span className="font-bold text-emerald-600 flex items-center gap-1">
-                                                                                    <UserCheck size={14} />
-                                                                                    {new Date(clockIn.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
-                                                                                </span>
-                                                                            ) : <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded"><UserX size={10} className="inline mr-0.5" />未出勤</span>}
-                                                                            <span className="text-gray-300 mx-1">-</span>
-                                                                            {clockOut ? (
-                                                                                <span className="font-bold text-blue-600">
-                                                                                    {new Date(clockOut.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
-                                                                                </span>
-                                                                            ) : clockIn ? (
-                                                                                <span className="text-[10px] font-bold text-amber-500">勤務中</span>
-                                                                            ) : <span className="text-[10px] text-gray-300">--:--</span>}
-                                                                        </div>
+                                                    const clockIn = atts.find(a => a.type === 'CLOCK_IN');
+                                                    const clockOut = atts.find(a => a.type === 'CLOCK_OUT');
+                                                    const wakeUp = atts.find(a => a.type === 'WAKE_UP');
+                                                    const leave = atts.find(a => a.type === 'LEAVE');
+                                                    const isFuture = new Date(shift.date) > new Date();
+
+                                                    return (
+                                                        <tr key={shift.id} className="group hover:bg-gray-50 transition-colors">
+                                                            <td className="px-6 py-4 text-sm font-bold text-gray-700">
+                                                                {dateStr}
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-[10px]">
+                                                                        {(shift.users?.display_name || '不').slice(0, 2).toUpperCase()}
                                                                     </div>
-                                                                ) : (
-                                                                    <span className="text-[11px] font-bold text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full flex items-center gap-1">
-                                                                        <UserX size={12} /> 打刻なし
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setEditingShift(shift);
-                                                                        setIsShiftModalOpen(true);
-                                                                    }}
-                                                                    className="p-1.5 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                                                                >
-                                                                    <Edit2 size={14} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDeleteShift(shift.id)}
-                                                                    className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                                                                >
-                                                                    <Trash2 size={14} />
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ))}
+                                                                    <span className="font-bold text-gray-800 text-sm">{shift.users?.display_name || '不明'}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <span className="text-sm font-bold text-gray-600 flex items-center gap-1">
+                                                                    <Clock size={14} className="text-gray-400" />
+                                                                    {shift.start_time.slice(0, 5)} 〜 {shift.end_time.slice(0, 5)}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex items-center gap-3">
+                                                                    {isFuture ? (
+                                                                        <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
+                                                                            予定
+                                                                        </span>
+                                                                    ) : clockIn || wakeUp || leave || clockOut ? (
+                                                                        <div className="flex flex-col gap-1.5">
+                                                                            <div className="flex items-center gap-2">
+                                                                                {wakeUp ? (
+                                                                                    <span className="text-[10px] text-amber-500 font-bold bg-amber-50 px-1.5 py-0.5 rounded flex items-center"><Sun size={10} className="mr-0.5" />起 {new Date(wakeUp.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                                ) : <span className="text-[10px] text-gray-300">起床未</span>}
+                                                                                {leave ? (
+                                                                                    <span className="text-[10px] text-blue-500 font-bold bg-blue-50 px-1.5 py-0.5 rounded flex items-center"><Navigation size={10} className="mr-0.5" />発 {new Date(leave.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                                ) : <span className="text-[10px] text-gray-300">出発未</span>}
+                                                                            </div>
+                                                                            <div className="flex items-center gap-2 text-sm">
+                                                                                {clockIn ? (
+                                                                                    <span className="font-bold text-emerald-600 flex items-center gap-1">
+                                                                                        <UserCheck size={14} />
+                                                                                        {new Date(clockIn.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                                                                                    </span>
+                                                                                ) : <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded"><UserX size={10} className="inline mr-0.5" />未出勤</span>}
+                                                                                <span className="text-gray-300 mx-1">-</span>
+                                                                                {clockOut ? (
+                                                                                    <span className="font-bold text-blue-600">
+                                                                                        {new Date(clockOut.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                                                                                    </span>
+                                                                                ) : clockIn ? (
+                                                                                    <span className="text-[10px] font-bold text-amber-500">勤務中</span>
+                                                                                ) : <span className="text-[10px] text-gray-300">--:--</span>}
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-[11px] font-bold text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full flex items-center gap-1">
+                                                                            <UserX size={12} /> 打刻なし
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setEditingShift(shift);
+                                                                            setIsShiftModalOpen(true);
+                                                                        }}
+                                                                        className="p-1.5 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                                                    >
+                                                                        <Edit2 size={14} />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleDeleteShift(shift.id)}
+                                                                        className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -405,8 +424,8 @@ export default function AdminShiftsPage() {
             {/* シフト作成・編集モーダル */}
             {isShiftModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl">
-                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
                             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                                 <CalendarClock className="text-emerald-500" size={20} />
                                 {editingShift?.id ? 'シフトを編集' : '新規シフトを作成'}
@@ -511,7 +530,7 @@ export default function AdminShiftsPage() {
             {isStoreModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-xl">
-                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
                             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                                 <Building2 className="text-emerald-500" size={20} />
                                 店舗マスター管理

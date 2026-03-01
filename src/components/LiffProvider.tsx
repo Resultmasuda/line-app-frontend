@@ -45,8 +45,8 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
                         .from('users')
                         .upsert(
                             {
-                                line_user_id: 'mock_line_user_12345',
-                                display_name: 'テスト太郎 (開発用)',
+                                line_user_id: 'U408cf442303ae393c96a27c10a006950',
+                                display_name: '増田 涼太 (PC開発用)',
                             },
                             { onConflict: 'line_user_id' }
                         )
@@ -61,8 +61,8 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
                     if (isMounted) {
                         setUser(data ? (data as AppUser) : {
                             id: '00000000-0000-0000-0000-000000000000',
-                            line_user_id: 'mock_line_user_12345',
-                            display_name: 'テスト太郎 (モック)',
+                            line_user_id: 'U408cf442303ae393c96a27c10a006950',
+                            display_name: '増田 涼太 (PC開発)',
                             role: 'MANAGER',
                         });
                         setLoading(false);

@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, CalendarClock, Receipt, Settings, Plus, Train, Bus, ChevronRight } from 'lucide-react';
+import { Home, CalendarClock, Receipt, Settings, Plus, Train, Bus, ChevronRight, Bookmark, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
-import { getMonthlyExpenses, saveExpense, ExpenseRecord } from '@/lib/api/expense';
+import { getMonthlyExpenses, saveExpense, updateExpense, deleteExpense, ExpenseRecord, ExpenseTemplateRecord, getExpenseTemplates, saveExpenseTemplate } from '@/lib/api/expense';
 
 export default function ExpenseManagement() {
     const { user, loading: liffLoading } = useLiff();
@@ -12,8 +12,17 @@ export default function ExpenseManagement() {
     const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // 新規入力用ステート
-    const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+    const [templates, setTemplates] = useState<ExpenseTemplateRecord[]>([]);
+    const [isSaveTemplate, setIsSaveTemplate] = useState(false);
+    const [templateName, setTemplateName] = useState('');
+
+    const [date, setDate] = useState(() => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    });
     const [transport, setTransport] = useState('TRAIN');
     const [departure, setDeparture] = useState('');
     const [arrival, setArrival] = useState('');
@@ -22,13 +31,26 @@ export default function ExpenseManagement() {
     const [purpose, setPurpose] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
+    // 編集モード用State
+    const [editId, setEditId] = useState<string | null>(null);
+
+    // 確認モーダル用State
+    const [showConfirm, setShowConfirm] = useState(false);
+
     const fetchExpenses = useCallback(async () => {
         if (!user) return;
         setIsLoading(true);
-        const yearMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const yearMonth = `${year}-${month}`; // Local timezone "YYYY-MM"
         const res = await getMonthlyExpenses(user.id, yearMonth);
         if (res.success && res.data) {
             setExpenses(res.data);
+        }
+        const tRes = await getExpenseTemplates(user.id);
+        if (tRes.success && tRes.data) {
+            setTemplates(tRes.data);
         }
         setIsLoading(false);
     }, [user]);
@@ -37,6 +59,32 @@ export default function ExpenseManagement() {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchExpenses();
     }, [fetchExpenses]);
+
+    const handleEdit = (item: ExpenseRecord) => {
+        setDate(item.target_date);
+        setTransport(item.transport_type);
+        setDeparture(item.departure);
+        setArrival(item.arrival);
+        setIsRoundTrip(item.is_round_trip);
+        setAmount(item.amount.toString());
+        setPurpose(item.purpose || '');
+        setEditId(item.id || null);
+        setActiveTab('new');
+    };
+
+    const handleDelete = async (id: string | undefined) => {
+        if (!id || !user) return;
+        if (window.confirm('この交通費データを削除してもよろしいですか？')) {
+            setIsLoading(true);
+            const res = await deleteExpense(id);
+            if (res.success) {
+                fetchExpenses();
+            } else {
+                alert('削除に失敗しました。');
+                setIsLoading(false);
+            }
+        }
+    };
 
     const handleSave = async () => {
         if (!user || isSaving) return;
@@ -59,7 +107,26 @@ export default function ExpenseManagement() {
             purpose
         };
 
-        const res = await saveExpense(record);
+        let res;
+        if (editId) {
+            res = await updateExpense(editId, record);
+        } else {
+            res = await saveExpense(record);
+        }
+
+        if (res.success && !editId && isSaveTemplate) {
+            const tName = templateName.trim() || `${departure}〜${arrival}`;
+            await saveExpenseTemplate({
+                user_id: user.id,
+                template_name: tName,
+                transport_type: transport,
+                departure: departure,
+                arrival: arrival,
+                is_round_trip: isRoundTrip,
+                amount: isNaN(numAmount) ? 0 : numAmount
+            });
+        }
+
         setIsSaving(false);
 
         if (res.success) {
@@ -68,6 +135,10 @@ export default function ExpenseManagement() {
             setArrival('');
             setAmount('');
             setPurpose('');
+            setIsSaveTemplate(false);
+            setTemplateName('');
+            setEditId(null);
+            setShowConfirm(false); // 保存完了後にモーダルを閉じる
             setActiveTab('list');
             fetchExpenses();
         } else {
@@ -75,7 +146,8 @@ export default function ExpenseManagement() {
         }
     };
 
-    const currentMonthStr = `${new Date().getFullYear()}年 ${new Date().getMonth() + 1}月`;
+    const now = new Date();
+    const currentMonthStr = `${now.getFullYear()}年 ${now.getMonth() + 1}月`;
     const totalAmount = expenses.reduce((sum, item) => sum + item.amount, 0);
 
     if (liffLoading) {
@@ -94,7 +166,10 @@ export default function ExpenseManagement() {
                 {/* タブ切り替え */}
                 <div className="flex border-b border-gray-100">
                     <button
-                        onClick={() => setActiveTab('list')}
+                        onClick={() => {
+                            setActiveTab('list');
+                            setEditId(null);
+                        }}
                         className={`flex-1 pb-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'list' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-400'}`}
                     >
                         履歴・一覧
@@ -103,13 +178,12 @@ export default function ExpenseManagement() {
                         onClick={() => setActiveTab('new')}
                         className={`flex-1 pb-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'new' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-400'}`}
                     >
-                        新規入力
+                        {editId ? 'データ編集' : '新規入力'}
                     </button>
                 </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 z-0">
-
                 {activeTab === 'list' ? (
                     /* 履歴一覧タブ */
                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -139,20 +213,30 @@ export default function ExpenseManagement() {
                                     const itemDate = new Date(item.target_date);
                                     const dateStr = `${itemDate.getMonth() + 1}/${itemDate.getDate()}`;
                                     return (
-                                        <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between active:scale-[0.98] transition-all">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
-                                                    {item.transport_type === 'TRAIN' ? <Train size={20} /> : <Bus size={20} />}
+                                        <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 active:scale-[0.98] transition-all">
+                                            <div className="flex items-center justify-between mb-3 border-b border-gray-50 pb-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                                                        {item.transport_type === 'TRAIN' ? <Train size={20} /> : <Bus size={20} />}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-400 font-medium mb-0.5">{dateStr} • {item.is_round_trip ? '往復' : '片道'}</p>
+                                                        <p className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                                                            {item.departure} <ChevronRight size={14} className="text-gray-300" /> {item.arrival}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-400 font-medium mb-0.5">{dateStr} • {item.is_round_trip ? '往復' : '片道'}</p>
-                                                    <p className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
-                                                        {item.departure} <ChevronRight size={14} className="text-gray-300" /> {item.arrival}
-                                                    </p>
+                                                <div className="text-right flex flex-col items-end h-full justify-center">
+                                                    <p className="font-bold text-gray-800 text-lg">¥{item.amount.toLocaleString()}</p>
                                                 </div>
                                             </div>
-                                            <div className="text-right flex items-center h-full">
-                                                <p className="font-bold text-gray-800 text-lg">¥{item.amount.toLocaleString()}</p>
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={() => handleEdit(item)} className="px-3 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs flex items-center gap-1 hover:bg-blue-100 transition-colors">
+                                                    <Pencil size={12} /> 編集
+                                                </button>
+                                                <button onClick={() => handleDelete(item.id)} className="px-3 py-1.5 bg-rose-50 text-rose-600 font-bold rounded-lg text-xs flex items-center gap-1 hover:bg-rose-100 transition-colors">
+                                                    <Trash2 size={12} /> 削除
+                                                </button>
                                             </div>
                                         </div>
                                     );
@@ -163,6 +247,29 @@ export default function ExpenseManagement() {
                 ) : (
                     /* 新規入力フォームタブ */
                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        {templates.length > 0 && !editId && (
+                            <div className="mb-5">
+                                <label className="block text-xs font-bold text-gray-500 mb-2 ml-1">よく使う経路を呼び出す</label>
+                                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none w-full">
+                                    {templates.map((t) => (
+                                        <button
+                                            key={t.id}
+                                            onClick={() => {
+                                                setTransport(t.transport_type);
+                                                setDeparture(t.departure);
+                                                setArrival(t.arrival);
+                                                setIsRoundTrip(t.is_round_trip);
+                                                setAmount(t.amount.toString());
+                                            }}
+                                            className="whitespace-nowrap bg-white border border-emerald-100 text-emerald-700 font-bold text-xs py-2 px-3 rounded-lg shadow-sm active:bg-emerald-50 transition-colors flex items-center gap-1.5 flex-shrink-0"
+                                        >
+                                            <Bookmark size={14} />
+                                            {t.template_name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
 
                             <div className="space-y-5">
@@ -237,22 +344,115 @@ export default function ExpenseManagement() {
                                 </div>
                             </div>
 
-                            {/* 保存ボタン */}
+                            {/* テンプレート登録オプション (新規時のみ) */}
+                            {!editId && (
+                                <div className="mt-6 pt-5 border-t border-gray-100">
+                                    <label className="flex items-center gap-2 cursor-pointer mb-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={isSaveTemplate}
+                                            onChange={(e) => setIsSaveTemplate(e.target.checked)}
+                                            className="w-5 h-5 rounded text-emerald-500 focus:ring-emerald-500 border-gray-300 accent-emerald-500"
+                                        />
+                                        <span className="text-sm font-bold text-gray-700">次回から使えるよう経路を保存する</span>
+                                    </label>
+                                    {isSaveTemplate && (
+                                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                                            <input
+                                                type="text"
+                                                value={templateName}
+                                                onChange={(e) => setTemplateName(e.target.value)}
+                                                placeholder="ルート名 (例: 梅田ルート)"
+                                                className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-emerald-500 text-sm font-bold"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* 保存ボタン (確認モーダルを開く) */}
                             <button
-                                onClick={handleSave}
-                                disabled={isSaving}
+                                onClick={() => setShowConfirm(true)}
+                                disabled={isSaving || !departure || !arrival || !amount}
                                 className="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-70 text-white font-bold py-4 rounded-xl mt-8 shadow-lg shadow-emerald-200 transition-all flex justify-center items-center gap-2"
                             >
-                                {isSaving ? (
-                                    <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
-                                ) : (
-                                    <><Plus size={20} /> 交通費を登録する</>
-                                )}
+                                <Plus size={20} /> 入力内容を確認する
                             </button>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* --- 確認モーダル (登録前セルフチェック) --- */}
+            {showConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="p-6 text-center border-b border-gray-100">
+                            <h3 className="font-bold text-lg text-gray-800">{editId ? '以下の内容で更新しますか？' : '以下の内容で登録しますか？'}</h3>
+                            <p className="text-xs text-rose-500 mt-1 font-bold">※間違いがないか必ずご確認ください</p>
+                        </div>
+
+                        <div className="p-6 bg-gray-50/50 space-y-4">
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span className="text-xs font-bold text-gray-400">利用日</span>
+                                <span className="text-sm font-bold text-gray-800">{new Date(date).toLocaleDateString('ja-JP')}</span>
+                            </div>
+
+                            <div>
+                                <span className="text-xs font-bold text-gray-400 block mb-1">区間</span>
+                                <div className="bg-white border border-gray-100 rounded-lg p-3 flex items-center justify-center gap-2 shadow-sm">
+                                    <span className="font-bold text-gray-800 text-sm truncate max-w-[40%]">{departure}</span>
+                                    <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
+                                    <span className="font-bold text-gray-800 text-sm truncate max-w-[40%]">{arrival}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span className="text-xs font-bold text-gray-400">交通手段</span>
+                                <span className="text-sm font-bold text-gray-800 flex items-center gap-1">
+                                    {transport === 'TRAIN' ? <Train size={14} /> : <Bus size={14} />}
+                                    {transport === 'TRAIN' ? '電車' : 'バス'}
+                                </span>
+                            </div>
+
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span className="text-xs font-bold text-gray-400">区分</span>
+                                <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                                    {isRoundTrip ? '往復' : '片道'}
+                                </span>
+                            </div>
+
+                            <div className="flex justify-between items-end pt-2">
+                                <span className="text-xs font-bold text-gray-400 mb-1">精算金額</span>
+                                <span className="text-2xl font-black text-gray-900 tracking-tight">
+                                    ¥{parseInt(amount).toLocaleString() || 0}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="p-4 flex gap-3 bg-white">
+                            <button
+                                onClick={() => setShowConfirm(false)}
+                                disabled={isSaving}
+                                className="flex-1 py-3.5 bg-gray-100 text-gray-500 font-bold rounded-xl active:bg-gray-200 transition-colors"
+                            >
+                                NO (戻る)
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl active:bg-emerald-700 transition-all flex justify-center items-center shadow-md shadow-emerald-200"
+                            >
+                                {isSaving ? (
+                                    <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                                ) : (
+                                    editId ? 'YES (上書き更新)' : 'YES (登録)'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* フローティングボトムナビゲーション */}
             <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 pt-3 pb-8 flex justify-between items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
@@ -268,10 +468,6 @@ export default function ExpenseManagement() {
                     <Receipt size={24} strokeWidth={2.5} />
                     <span className="text-[10px] mt-1.5 font-bold">交通費</span>
                 </Link>
-                <button className="flex flex-col items-center text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
-                    <Settings size={24} strokeWidth={2} />
-                    <span className="text-[10px] mt-1.5 font-semibold">設定</span>
-                </button>
             </div>
         </div>
     );

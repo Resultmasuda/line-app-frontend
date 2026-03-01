@@ -1,15 +1,32 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Play, Square, MapPin, CalendarClock, Receipt, Settings, Home } from 'lucide-react';
+import { Play, Square, MapPin, CalendarClock, Receipt, Settings, Home, Sun, Navigation } from 'lucide-react';
 import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
 import { getUpcomingShifts, ShiftRecord } from '@/lib/api/shift';
 import { recordAttendance, getTodayAttendances, AttendanceType, AttendanceRecord } from '@/lib/api/attendance';
+import { getAllStores } from '@/lib/api/admin';
+
+// 距離計算用の関数 (Haversine formula)
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371e3; // Earth radius in meters
+  const p1 = lat1 * Math.PI / 180;
+  const p2 = lat2 * Math.PI / 180;
+  const dp = (lat2 - lat1) * Math.PI / 180;
+  const dl = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(dp / 2) * Math.sin(dp / 2) +
+    Math.cos(p1) * Math.cos(p2) *
+    Math.sin(dl / 2) * Math.sin(dl / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // in meters
+}
 
 export default function AppDashboard() {
   const { user, loading: liffLoading } = useLiff();
 
-  const [isWorking, setIsWorking] = useState(false);
+  const [lastAction, setLastAction] = useState<AttendanceType | null>(null);
   const [shifts, setShifts] = useState<ShiftRecord[]>([]);
   const [todayAttendances, setTodayAttendances] = useState<AttendanceRecord[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -36,14 +53,9 @@ export default function AppDashboard() {
           if (attendRes.data.length > 0) {
             // 最後の打刻実績を確認
             const lastRecord = attendRes.data[attendRes.data.length - 1];
-            // CLOCK_IN または WAKE_UP 等で業務中とみなす。今回はシンプルにCLOCK_INで判定
-            if (lastRecord.type === 'CLOCK_IN') {
-              setIsWorking(true);
-            } else {
-              setIsWorking(false);
-            }
+            setLastAction(lastRecord.type);
           } else {
-            setIsWorking(false);
+            setLastAction(null);
           }
         }
       } catch (e) {
@@ -78,20 +90,38 @@ export default function AppDashboard() {
     });
   };
 
-  const handlePunch = async () => {
+  const handlePunch = async (type: AttendanceType) => {
     if (!user || actionLoading) return;
 
     setActionLoading(true);
-    const nextWorkingState = !isWorking;
-    // オプティミスティックにUIを更新
-    setIsWorking(nextWorkingState);
 
     try {
-      // 位置情報を取得
-      const location = await getCurrentLocation();
+      // プライバシー保護のため、起床・出発時の位置情報取得は行わない
+      const shouldFetchLocation = type === 'CLOCK_IN' || type === 'CLOCK_OUT';
+      const location = shouldFetchLocation ? await getCurrentLocation() : null;
 
       const todayStr = new Date().toISOString().split('T')[0];
-      const type: AttendanceType = nextWorkingState ? 'CLOCK_IN' : 'CLOCK_OUT';
+
+      // 距離アラートチェック
+      if (shouldFetchLocation && location) {
+        const todayShift = shifts.find(s => s.date === todayStr);
+        if (todayShift) {
+          const storeRes = await getAllStores();
+          if (storeRes.success && storeRes.data) {
+            const store = storeRes.data.find(s => s.name === todayShift.location);
+            if (store && store.latitude && store.longitude && store.radius_m) {
+              const dist = getDistance(store.latitude, store.longitude, location.lat, location.lng);
+              if (dist > store.radius_m) {
+                const isConfirmed = window.confirm('設定された店舗の付近にいません。本当に打刻しますか？');
+                if (!isConfirmed) {
+                  setActionLoading(false);
+                  return; // 打刻キャンセル
+                }
+              }
+            }
+          }
+        }
+      }
 
       const res = await recordAttendance({
         user_id: user.id,
@@ -103,13 +133,12 @@ export default function AppDashboard() {
 
       if (res.success && res.data) {
         setTodayAttendances(prev => [...prev, res.data]);
+        setLastAction(type);
       } else {
         alert("打刻の保存に失敗しました。電波の良いところで再度お試しください。");
-        setIsWorking(!nextWorkingState); // 失敗時は元に戻す
       }
     } catch (e) {
       alert("通信エラーが発生しました。");
-      setIsWorking(!nextWorkingState);
     } finally {
       setActionLoading(false);
     }
@@ -183,35 +212,77 @@ export default function AppDashboard() {
           )}
         </div>
 
-        {/* 巨大なアクションボタン (出勤/退勤) */}
-        <div className="flex justify-center my-10">
+        {/* 4つのアクションボタン (起床/出発/出勤/退勤) */}
+        <div className="grid grid-cols-2 gap-4 my-8 max-w-sm mx-auto">
+          {/* 起床 */}
           <button
-            onClick={handlePunch}
+            onClick={() => handlePunch('WAKE_UP')}
             disabled={actionLoading}
             className={`
-              relative w-52 h-52 rounded-full flex flex-col items-center justify-center
-              shadow-xl transition-all duration-300 transform active:scale-95 disabled:opacity-70
-              ${isWorking
-                ? 'bg-gradient-to-br from-red-500 to-rose-600 shadow-red-200'
-                : 'bg-gradient-to-tl from-emerald-400 to-teal-500 shadow-emerald-200'}
+              relative w-full aspect-square rounded-3xl flex flex-col items-center justify-center
+              shadow-lg transition-all duration-300 transform active:scale-95 disabled:opacity-70
+              ${lastAction === 'WAKE_UP' ? 'ring-4 ring-amber-200 bg-amber-50' : 'bg-white hover:bg-gray-50 border border-gray-100'}
             `}
           >
-            {isWorking && (
-              <span className="absolute w-full h-full rounded-full animate-ping bg-red-400 opacity-20"></span>
-            )}
-
-            <div className="bg-white/25 p-4 rounded-full mb-3 backdrop-blur-sm">
-              {isWorking ? (
-                <Square fill="currentColor" className="text-white" size={32} />
-              ) : (
-                <Play fill="currentColor" className="text-white ml-1" size={32} />
-              )}
+            <div className={`p-4 rounded-full mb-3 ${lastAction === 'WAKE_UP' ? 'bg-amber-100 text-amber-500' : 'bg-gray-100 text-gray-400'}`}>
+              <Sun fill={lastAction === 'WAKE_UP' ? 'currentColor' : 'none'} size={28} />
             </div>
-            <span className="text-white text-3xl font-black tracking-widest drop-shadow-md">
-              {isWorking ? '退 勤' : '出 勤'}
+            <span className={`text-xl font-black tracking-wider ${lastAction === 'WAKE_UP' ? 'text-amber-600' : 'text-gray-600'}`}>
+              起 床
             </span>
-            <span className="text-white/90 text-xs mt-2 font-medium">
-              {isWorking ? 'タップして業務を終了' : 'タップして業務を開始'}
+          </button>
+
+          {/* 出発 */}
+          <button
+            onClick={() => handlePunch('LEAVE')}
+            disabled={actionLoading}
+            className={`
+              relative w-full aspect-square rounded-3xl flex flex-col items-center justify-center
+              shadow-lg transition-all duration-300 transform active:scale-95 disabled:opacity-70
+              ${lastAction === 'LEAVE' ? 'ring-4 ring-blue-200 bg-blue-50' : 'bg-white hover:bg-gray-50 border border-gray-100'}
+            `}
+          >
+            <div className={`p-4 rounded-full mb-3 ${lastAction === 'LEAVE' ? 'bg-blue-100 text-blue-500' : 'bg-gray-100 text-gray-400'}`}>
+              <Navigation fill={lastAction === 'LEAVE' ? 'currentColor' : 'none'} size={28} />
+            </div>
+            <span className={`text-xl font-black tracking-wider ${lastAction === 'LEAVE' ? 'text-blue-600' : 'text-gray-600'}`}>
+              出 発
+            </span>
+          </button>
+
+          {/* 出勤 */}
+          <button
+            onClick={() => handlePunch('CLOCK_IN')}
+            disabled={actionLoading}
+            className={`
+              relative w-full aspect-square rounded-3xl flex flex-col items-center justify-center
+              shadow-lg transition-all duration-300 transform active:scale-95 disabled:opacity-70
+              ${lastAction === 'CLOCK_IN' ? 'ring-4 ring-emerald-200 bg-emerald-50' : 'bg-white hover:bg-gray-50 border border-gray-100'}
+            `}
+          >
+            <div className={`p-4 rounded-full mb-3 ${lastAction === 'CLOCK_IN' ? 'bg-emerald-100 text-emerald-500' : 'bg-gray-100 text-gray-400'}`}>
+              <Play fill={lastAction === 'CLOCK_IN' ? 'currentColor' : 'none'} className="ml-1" size={28} />
+            </div>
+            <span className={`text-xl font-black tracking-wider ${lastAction === 'CLOCK_IN' ? 'text-emerald-600' : 'text-gray-600'}`}>
+              出 勤
+            </span>
+          </button>
+
+          {/* 退勤 */}
+          <button
+            onClick={() => handlePunch('CLOCK_OUT')}
+            disabled={actionLoading}
+            className={`
+              relative w-full aspect-square rounded-3xl flex flex-col items-center justify-center
+              shadow-lg transition-all duration-300 transform active:scale-95 disabled:opacity-70
+              ${lastAction === 'CLOCK_OUT' ? 'ring-4 ring-rose-200 bg-rose-50' : 'bg-white hover:bg-gray-50 border border-gray-100'}
+            `}
+          >
+            <div className={`p-4 rounded-full mb-3 ${lastAction === 'CLOCK_OUT' ? 'bg-rose-100 text-rose-500' : 'bg-gray-100 text-gray-400'}`}>
+              <Square fill={lastAction === 'CLOCK_OUT' ? 'currentColor' : 'none'} size={28} />
+            </div>
+            <span className={`text-xl font-black tracking-wider ${lastAction === 'CLOCK_OUT' ? 'text-rose-600' : 'text-gray-600'}`}>
+              退 勤
             </span>
           </button>
         </div>
@@ -219,11 +290,14 @@ export default function AppDashboard() {
         {/* ステータスインジケーター */}
         <div className="flex items-center justify-center space-x-2 text-sm bg-white/60 py-2 px-4 rounded-full w-fit mx-auto border border-gray-100">
           <span className="relative flex h-3 w-3">
-            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isWorking ? 'bg-emerald-400' : 'bg-gray-400'}`}></span>
-            <span className={`relative inline-flex rounded-full h-3 w-3 ${isWorking ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>
+            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${lastAction && lastAction !== 'CLOCK_OUT' ? 'bg-emerald-400' : 'bg-gray-400'}`}></span>
+            <span className={`relative inline-flex rounded-full h-3 w-3 ${lastAction && lastAction !== 'CLOCK_OUT' ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>
           </span>
           <span className="text-gray-700 font-bold">
-            {isWorking ? `勤務中${todayShift ? ` (${todayShift.location})` : ''}` : '業務外 (未出勤)'}
+            {lastAction === 'WAKE_UP' ? '起床済み / 出発待ち' :
+              lastAction === 'LEAVE' ? '移動中' :
+                lastAction === 'CLOCK_IN' ? `勤務中${todayShift ? ` (${todayShift.location})` : ''}` :
+                  lastAction === 'CLOCK_OUT' ? '退勤済み' : '業務外 (未稼働)'}
           </span>
         </div>
 
@@ -242,14 +316,23 @@ export default function AppDashboard() {
               {todayAttendances.map((record, index) => {
                 const dateObj = new Date(record.timestamp || new Date());
                 const timeStr = `${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
-                const isClockIn = record.type === 'CLOCK_IN';
+                const getRecordDetails = (type: AttendanceType) => {
+                  switch (type) {
+                    case 'WAKE_UP': return { label: '起床', icon: <Sun size={16} className="flex-shrink-0" />, colorClass: 'bg-amber-500 shadow-amber-200' };
+                    case 'LEAVE': return { label: '出発', icon: <Navigation size={16} className="flex-shrink-0" />, colorClass: 'bg-blue-500 shadow-blue-200' };
+                    case 'CLOCK_IN': return { label: '出勤', icon: <Play size={16} className="ml-0.5 flex-shrink-0" />, colorClass: 'bg-emerald-500 shadow-emerald-200' };
+                    case 'CLOCK_OUT': return { label: '退勤', icon: <Square size={16} className="flex-shrink-0" />, colorClass: 'bg-rose-500 shadow-rose-200' };
+                  }
+                };
+                const details = getRecordDetails(record.type);
+
                 return (
                   <div key={record.id || index} className="animate-in fade-in slide-in-from-bottom-2 bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white shadow-sm ${isClockIn ? 'bg-emerald-500 shadow-emerald-200' : 'bg-rose-500 shadow-rose-200'}`}>
-                        {isClockIn ? <Play size={16} className="ml-0.5 flex-shrink-0" /> : <Square size={16} className="flex-shrink-0" />}
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white shadow-sm ${details.colorClass}`}>
+                        {details.icon}
                       </div>
-                      <span className="font-bold text-gray-700">{isClockIn ? '出勤' : '退勤'}</span>
+                      <span className="font-bold text-gray-700">{details.label}</span>
                     </div>
                     <span className="font-bold text-gray-800 tracking-wider text-lg">{timeStr}</span>
                   </div>
@@ -274,10 +357,6 @@ export default function AppDashboard() {
           <Receipt size={24} strokeWidth={2} />
           <span className="text-[10px] mt-1.5 font-semibold">交通費</span>
         </Link>
-        <button className="flex flex-col items-center text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
-          <Settings size={24} strokeWidth={2} />
-          <span className="text-[10px] mt-1.5 font-semibold">設定</span>
-        </button>
       </div>
     </div>
   );

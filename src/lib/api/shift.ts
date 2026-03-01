@@ -15,11 +15,17 @@ export interface ShiftRecord {
  */
 export async function getMonthlyShifts(userId: string, yearMonthPrefix: string) {
     try {
+        const [year, month] = yearMonthPrefix.split('-');
+        const lastDay = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
+        const startDate = `${yearMonthPrefix}-01`;
+        const endDate = `${yearMonthPrefix}-${lastDay}`;
+
         const { data, error } = await supabase
             .from('shifts')
             .select('*')
             .eq('user_id', userId)
-            .like('date', `${yearMonthPrefix}-%`) // 例: "2026-02-%"
+            .gte('date', startDate)
+            .lte('date', endDate)
             .order('date', { ascending: true });
 
         if (error) throw error;

@@ -12,6 +12,17 @@ export interface ExpenseRecord {
     purpose?: string;
 }
 
+export interface ExpenseTemplateRecord {
+    id?: string;
+    user_id: string;
+    template_name: string;
+    transport_type: string;
+    departure: string;
+    arrival: string;
+    is_round_trip: boolean;
+    amount: number;
+}
+
 /**
  * 交通費入力データをSupabaseに保存する関数
  */
@@ -47,8 +58,10 @@ export async function saveExpense(data: ExpenseRecord) {
  */
 export async function getMonthlyExpenses(userId: string, yearMonthPrefix: string) {
     try {
+        const [year, month] = yearMonthPrefix.split('-');
+        const lastDay = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
         const startDate = `${yearMonthPrefix}-01`;
-        const endDate = `${yearMonthPrefix}-31`; // PostgreSQL handles this gracefully for comparison
+        const endDate = `${yearMonthPrefix}-${lastDay}`;
 
         const { data, error } = await supabase
             .from('expenses')
@@ -64,5 +77,91 @@ export async function getMonthlyExpenses(userId: string, yearMonthPrefix: string
     } catch (error) {
         console.error('Error fetching expenses:', error);
         return { success: false, error, data: [] };
+    }
+}
+
+/**
+ * よく使う経路（テンプレート）を保存する関数
+ */
+export async function saveExpenseTemplate(data: ExpenseTemplateRecord) {
+    try {
+        const { data: result, error } = await supabase
+            .from('expense_templates')
+            .insert([
+                {
+                    user_id: data.user_id,
+                    template_name: data.template_name,
+                    transport_type: data.transport_type,
+                    departure: data.departure,
+                    arrival: data.arrival,
+                    is_round_trip: data.is_round_trip,
+                    amount: data.amount,
+                }
+            ])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return { success: true, data: result };
+    } catch (error) {
+        console.error('Error saving expense template:', error);
+        return { success: false, error };
+    }
+}
+
+/**
+ * 指定したユーザーのよく使う経路（テンプレート）を取得する関数
+ */
+export async function getExpenseTemplates(userId: string) {
+    try {
+        const { data, error } = await supabase
+            .from('expense_templates')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error fetching expense templates:', error);
+        return { success: false, error, data: [] };
+    }
+}
+
+/**
+ * 交通費入力データを更新する関数
+ */
+export async function updateExpense(id: string, data: Partial<ExpenseRecord>) {
+    try {
+        const { data: result, error } = await supabase
+            .from('expenses')
+            .update(data)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return { success: true, data: result };
+    } catch (error) {
+        console.error('Error updating expense:', error);
+        return { success: false, error };
+    }
+}
+
+/**
+ * 交通費入力データを削除する関数
+ */
+export async function deleteExpense(id: string) {
+    try {
+        const { error } = await supabase
+            .from('expenses')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting expense:', error);
+        return { success: false, error };
     }
 }

@@ -203,10 +203,6 @@ export default function ShiftSchedule() {
                     <Receipt size={24} strokeWidth={2} />
                     <span className="text-[10px] mt-1.5 font-semibold">交通費</span>
                 </Link>
-                <button className="flex flex-col items-center text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
-                    <Settings size={24} strokeWidth={2} />
-                    <span className="text-[10px] mt-1.5 font-semibold">設定</span>
-                </button>
             </div>
         </div>
     );

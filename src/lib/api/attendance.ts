@@ -58,3 +58,29 @@ export async function getTodayAttendances(userId: string, dateStr: string) {
         return { success: false, error, data: [] };
     }
 }
+
+/**
+ * 指定したユーザーの月間打刻履歴を取得する関数 (管理画面・詳細ページ用)
+ */
+export async function getMonthlyAttendances(userId: string, yearMonthPrefix: string) {
+    try {
+        const [year, month] = yearMonthPrefix.split('-');
+        const lastDay = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
+        const startDate = `${yearMonthPrefix}-01`;
+        const endDate = `${yearMonthPrefix}-${lastDay}`;
+
+        const { data, error } = await supabase
+            .from('attendances')
+            .select('*')
+            .eq('user_id', userId)
+            .gte('date', startDate)
+            .lte('date', endDate)
+            .order('timestamp', { ascending: true });
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error fetching monthly attendances:', error);
+        return { success: false, error, data: [] };
+    }
+}

@@ -193,15 +193,15 @@ export default function AdminExpensesPage() {
                                         </button>
 
                                         {isExpanded && (
-                                            <div className="bg-gray-50 border-t border-gray-100">
-                                                <table className="w-full text-left border-collapse">
+                                            <div className="bg-gray-50 border-t border-gray-100 overflow-x-auto">
+                                                <table className="w-full text-left border-collapse min-w-[600px]">
                                                     <thead>
                                                         <tr className="bg-gray-100/50 text-gray-400 text-[11px] uppercase tracking-wider">
-                                                            <th className="px-6 py-3 font-semibold w-32">利用日</th>
-                                                            <th className="px-6 py-3 font-semibold text-center w-20">区分</th>
-                                                            <th className="px-6 py-3 font-semibold">経路 / 区間</th>
-                                                            <th className="px-6 py-3 font-semibold">目的</th>
-                                                            <th className="px-6 py-3 font-semibold text-right w-32">金額</th>
+                                                            <th className="px-6 py-3 font-semibold whitespace-nowrap">利用日</th>
+                                                            <th className="px-6 py-3 font-semibold text-center whitespace-nowrap">区分</th>
+                                                            <th className="px-6 py-3 font-semibold whitespace-nowrap">経路 / 区間</th>
+                                                            <th className="px-6 py-3 font-semibold whitespace-nowrap">目的</th>
+                                                            <th className="px-6 py-3 font-semibold text-right whitespace-nowrap">金額</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-100 bg-white">
@@ -212,7 +212,7 @@ export default function AdminExpensesPage() {
                                                                     <td className="px-6 py-4 text-sm font-bold text-gray-700 whitespace-nowrap">
                                                                         {dateStr}
                                                                     </td>
-                                                                    <td className="px-6 py-4 text-center">
+                                                                    <td className="px-6 py-4 text-center whitespace-nowrap">
                                                                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${exp.is_round_trip
                                                                             ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                                                                             : 'bg-blue-50 text-blue-600 border border-blue-100'
@@ -220,7 +220,7 @@ export default function AdminExpensesPage() {
                                                                             {exp.is_round_trip ? '往復' : '片道'}
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-6 py-4">
+                                                                    <td className="px-6 py-4 whitespace-nowrap">
                                                                         <div className="flex items-center gap-2">
                                                                             {exp.transport_type === 'TRAIN' ? (
                                                                                 <Train size={14} className="text-gray-400" />
@@ -232,10 +232,10 @@ export default function AdminExpensesPage() {
                                                                             </span>
                                                                         </div>
                                                                     </td>
-                                                                    <td className="px-6 py-4 text-xs text-gray-500 truncate max-w-[150px]">
+                                                                    <td className="px-6 py-4 text-xs text-gray-500 truncate max-w-[150px] whitespace-nowrap">
                                                                         {exp.purpose || '-'}
                                                                     </td>
-                                                                    <td className="px-6 py-4 text-right">
+                                                                    <td className="px-6 py-4 text-right whitespace-nowrap">
                                                                         <span className="font-bold text-gray-800">¥{exp.amount.toLocaleString()}</span>
                                                                     </td>
                                                                 </tr>

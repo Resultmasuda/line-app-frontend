@@ -9,10 +9,12 @@ export interface AdminUserRecord {
 export interface StoreRecord {
     id: string;
     name: string;
-    latitude: number;
-    longitude: number;
-    radius_m: number;
+    latitude?: number | null;
+    longitude?: number | null;
+    radius_m?: number | null;
+    affiliated_staff?: string[];
 }
+
 
 export type ShiftRecord = {
     id: string;
@@ -24,9 +26,21 @@ export type ShiftRecord = {
     users?: { display_name: string };
 };
 
+// RLSの「authenticatedユーザーは自分の情報しか見れない」制限を回避するため、
+// 管理者画面用のスタッフ一覧取得は、認証セッションを持たない（anonとなる）別クライアントを使います。
+import { createClient } from '@supabase/supabase-js';
+const supabaseAnon = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
+    }
+);
+
 export async function getAllUsers() {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAnon
             .from('users')
             .select('id, display_name, role')
             .order('display_name', { ascending: true });
@@ -256,11 +270,11 @@ export async function deleteStore(id: string) {
 // Advanced Shift Builder API
 // ==========================================
 
-export async function bulkUpsertShifts(shifts: Omit<ShiftRecord, 'id'>[]) {
+export async function bulkUpsertShifts(shifts: (Omit<ShiftRecord, 'id'> & { id?: string })[]) {
     try {
         const { data, error } = await supabase
             .from('shifts')
-            .upsert(shifts, { onConflict: 'user_id, date' })
+            .upsert(shifts)
             .select();
 
         if (error) throw error;

@@ -32,6 +32,9 @@ export default function AppDashboard() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // カスタム確認モーダル用
+  const [pendingConfirm, setPendingConfirm] = useState<{ message: string, action: () => void } | null>(null);
+
   useEffect(() => {
     if (!user) return;
 
@@ -90,7 +93,7 @@ export default function AppDashboard() {
     });
   };
 
-  const handlePunch = async (type: AttendanceType) => {
+  const handlePunch = async (type: AttendanceType, bypassDistanceCheck: boolean = false) => {
     if (!user || actionLoading) return;
 
     setActionLoading(true);
@@ -112,10 +115,13 @@ export default function AppDashboard() {
             if (store && store.latitude && store.longitude && store.radius_m) {
               const dist = getDistance(store.latitude, store.longitude, location.lat, location.lng);
               if (dist > store.radius_m) {
-                const isConfirmed = window.confirm('設定された店舗の付近にいません。本当に打刻しますか？');
-                if (!isConfirmed) {
+                if (!bypassDistanceCheck) {
+                  setPendingConfirm({
+                    message: '設定された店舗の付近にいません。本当に打刻しますか？',
+                    action: () => handlePunch(type, true)
+                  });
                   setActionLoading(false);
-                  return; // 打刻キャンセル
+                  return; // ここで処理を中断
                 }
               }
             }
@@ -342,6 +348,35 @@ export default function AppDashboard() {
           )}
         </div>
       </div>
+
+      {/* --- カスタム確認モーダル --- */}
+      {pendingConfirm && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center border-b border-gray-100">
+              <h3 className="font-bold text-lg text-gray-800">確認</h3>
+              <p className="text-sm text-gray-600 mt-2 font-medium">{pendingConfirm.message}</p>
+            </div>
+            <div className="p-4 flex gap-3 bg-white">
+              <button
+                onClick={() => setPendingConfirm(null)}
+                className="flex-1 py-3.5 bg-gray-100 text-gray-500 font-bold rounded-xl active:bg-gray-200 transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => {
+                  pendingConfirm.action();
+                  setPendingConfirm(null);
+                }}
+                className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl active:bg-emerald-700 transition-all shadow-md shadow-emerald-200"
+              >
+                実行する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* フローティングボトムナビゲーション */}
       <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 pt-3 pb-8 flex justify-between items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">

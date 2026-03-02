@@ -86,7 +86,7 @@ export default function AdminStaffPage() {
                             ) : (
                                 filteredUsers.map((user) => (
                                     <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs">
                                                     {user.display_name.slice(0, 2).toUpperCase()}
@@ -94,7 +94,7 @@ export default function AdminStaffPage() {
                                                 <span className="font-bold text-gray-800">{user.display_name}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${user.role === 'admin'
                                                 ? 'bg-rose-50 text-rose-600 border border-rose-100'
                                                 : 'bg-gray-100 text-gray-600 border border-gray-200'
@@ -102,11 +102,11 @@ export default function AdminStaffPage() {
                                                 {user.role === 'admin' ? '管理者' : 'スタッフ'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-xs font-mono text-gray-400">
+                                        <td className="px-6 py-4 text-xs font-mono text-gray-400 whitespace-nowrap">
                                             {user.id}
                                         </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <Link href={`/admin/staff/${user.id}`} className="text-emerald-600 font-bold text-xs hover:text-emerald-700 transition-colors">
+                                        <td className="px-6 py-4 text-center whitespace-nowrap">
+                                            <Link href={`/admin/staff/${user.id}`} className="text-emerald-600 font-bold text-[11px] sm:text-xs hover:text-emerald-700 transition-colors bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
                                                 詳細を見る
                                             </Link>
                                         </td>

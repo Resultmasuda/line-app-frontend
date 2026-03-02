@@ -129,6 +129,24 @@ export async function getExpenseTemplates(userId: string) {
 }
 
 /**
+ * よく使う経路（テンプレート）を削除する関数
+ */
+export async function deleteExpenseTemplate(id: string) {
+    try {
+        const { error } = await supabase
+            .from('expense_templates')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting expense template:', error);
+        return { success: false, error };
+    }
+}
+
+/**
  * 交通費入力データを更新する関数
  */
 export async function updateExpense(id: string, data: Partial<ExpenseRecord>) {

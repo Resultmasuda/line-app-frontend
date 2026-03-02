@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, CalendarClock, Receipt, Settings, Plus, Train, Bus, ChevronRight, Bookmark, Pencil, Trash2 } from 'lucide-react';
+import { Home, CalendarClock, Receipt, Settings, Plus, Train, Bus, ChevronRight, Bookmark, Pencil, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
-import { getMonthlyExpenses, saveExpense, updateExpense, deleteExpense, ExpenseRecord, ExpenseTemplateRecord, getExpenseTemplates, saveExpenseTemplate } from '@/lib/api/expense';
+import { getMonthlyExpenses, saveExpense, updateExpense, deleteExpense, ExpenseRecord, ExpenseTemplateRecord, getExpenseTemplates, saveExpenseTemplate, deleteExpenseTemplate } from '@/lib/api/expense';
 
 export default function ExpenseManagement() {
     const { user, loading: liffLoading } = useLiff();
@@ -36,6 +36,7 @@ export default function ExpenseManagement() {
 
     // 確認モーダル用State
     const [showConfirm, setShowConfirm] = useState(false);
+    const [pendingConfirm, setPendingConfirm] = useState<{ message: string, action: () => void } | null>(null);
 
     const fetchExpenses = useCallback(async () => {
         if (!user) return;
@@ -74,16 +75,34 @@ export default function ExpenseManagement() {
 
     const handleDelete = async (id: string | undefined) => {
         if (!id || !user) return;
-        if (window.confirm('この交通費データを削除してもよろしいですか？')) {
-            setIsLoading(true);
-            const res = await deleteExpense(id);
-            if (res.success) {
-                fetchExpenses();
-            } else {
-                alert('削除に失敗しました。');
-                setIsLoading(false);
+        setPendingConfirm({
+            message: 'この交通費データを削除してもよろしいですか？',
+            action: async () => {
+                setIsLoading(true);
+                const res = await deleteExpense(id);
+                if (res.success) {
+                    fetchExpenses();
+                } else {
+                    alert('削除に失敗しました。');
+                    setIsLoading(false);
+                }
             }
-        }
+        });
+    };
+
+    const handleDeleteTemplate = async (id: string | undefined) => {
+        if (!id || !user) return;
+        setPendingConfirm({
+            message: 'このよく使う経路を削除してもよろしいですか？',
+            action: async () => {
+                const res = await deleteExpenseTemplate(id);
+                if (res.success) {
+                    setTemplates(templates.filter(t => t.id !== id));
+                } else {
+                    alert('経路の削除に失敗しました。');
+                }
+            }
+        });
     };
 
     const handleSave = async () => {
@@ -252,20 +271,30 @@ export default function ExpenseManagement() {
                                 <label className="block text-xs font-bold text-gray-500 mb-2 ml-1">よく使う経路を呼び出す</label>
                                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none w-full">
                                     {templates.map((t) => (
-                                        <button
-                                            key={t.id}
-                                            onClick={() => {
-                                                setTransport(t.transport_type);
-                                                setDeparture(t.departure);
-                                                setArrival(t.arrival);
-                                                setIsRoundTrip(t.is_round_trip);
-                                                setAmount(t.amount.toString());
-                                            }}
-                                            className="whitespace-nowrap bg-white border border-emerald-100 text-emerald-700 font-bold text-xs py-2 px-3 rounded-lg shadow-sm active:bg-emerald-50 transition-colors flex items-center gap-1.5 flex-shrink-0"
-                                        >
-                                            <Bookmark size={14} />
-                                            {t.template_name}
-                                        </button>
+                                        <div key={t.id} className="relative flex-shrink-0 flex group">
+                                            <button
+                                                onClick={() => {
+                                                    setTransport(t.transport_type);
+                                                    setDeparture(t.departure);
+                                                    setArrival(t.arrival);
+                                                    setIsRoundTrip(t.is_round_trip);
+                                                    setAmount(t.amount.toString());
+                                                }}
+                                                className="whitespace-nowrap bg-white border border-emerald-100 text-emerald-700 font-bold text-xs py-2 pl-3 pr-8 rounded-lg shadow-sm active:bg-emerald-50 transition-colors flex items-center gap-1.5"
+                                            >
+                                                <Bookmark size={14} />
+                                                {t.template_name}
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteTemplate(t.id);
+                                                }}
+                                                className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-red-500 rounded-full transition-colors"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
                                     ))}
                                 </div>
                             </div>
@@ -382,6 +411,35 @@ export default function ExpenseManagement() {
                     </div>
                 )}
             </div>
+
+            {/* --- カスタム確認（削除等）モーダル --- */}
+            {pendingConfirm && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="p-6 text-center border-b border-gray-100">
+                            <h3 className="font-bold text-lg text-gray-800">確認</h3>
+                            <p className="text-sm text-gray-600 mt-2 font-medium">{pendingConfirm.message}</p>
+                        </div>
+                        <div className="p-4 flex gap-3 bg-white">
+                            <button
+                                onClick={() => setPendingConfirm(null)}
+                                className="flex-1 py-3.5 bg-gray-100 text-gray-500 font-bold rounded-xl active:bg-gray-200 transition-colors"
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                onClick={() => {
+                                    pendingConfirm.action();
+                                    setPendingConfirm(null);
+                                }}
+                                className="flex-1 py-3.5 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl active:bg-rose-700 transition-all shadow-md shadow-rose-200"
+                            >
+                                実行する
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* --- 確認モーダル (登録前セルフチェック) --- */}
             {showConfirm && (

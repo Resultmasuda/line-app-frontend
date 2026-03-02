@@ -29,6 +29,7 @@ export default function AdminShiftsPage() {
     const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
     const [stores, setStores] = useState<StoreRecord[]>([]);
     const [users, setUsers] = useState<AdminUserRecord[]>([]);
+    const [userFetchError, setUserFetchError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -45,6 +46,9 @@ export default function AdminShiftsPage() {
     // 現在の表示月とタブ
     const [currentDate, setCurrentDate] = useState(new Date());
     const [activeTab, setActiveTab] = useState<'today' | 'tomorrow'>('today');
+
+    // カスタム確認モーダル用
+    const [pendingConfirm, setPendingConfirm] = useState<{ message: string, action: () => void } | null>(null);
 
     useEffect(() => {
         async function fetchData() {
@@ -80,8 +84,10 @@ export default function AdminShiftsPage() {
 
             if (userRes.success && userRes.data) {
                 setUsers(userRes.data);
+                setUserFetchError(null);
             } else {
                 setUsers([]);
+                setUserFetchError(JSON.stringify(userRes.error) || 'Unknown error');
             }
 
             setIsLoading(false);
@@ -109,13 +115,18 @@ export default function AdminShiftsPage() {
         return matchesSearch && s.date === targetDate;
     }).sort((a, b) => new Date(`${a.date}T${a.start_time}`).getTime() - new Date(`${b.date}T${b.start_time}`).getTime());
 
-    // 販路（店舗）ごとにグループ化
-    const groupedShifts = filteredShifts.reduce((acc, shift) => {
-        const loc = shift.location || '店舗未定';
-        if (!acc[loc]) acc[loc] = [];
-        acc[loc].push(shift);
+    // 全ての店舗名を配列のキーとして初期化（シフトが0件でも表示するため）
+    const groupedShifts = stores.reduce((acc, store) => {
+        acc[store.name] = [];
         return acc;
     }, {} as Record<string, ShiftRecord[]>);
+
+    // 実際のシフトを割り当て
+    filteredShifts.forEach(shift => {
+        const loc = shift.location || '店舗未定';
+        if (!groupedShifts[loc]) groupedShifts[loc] = [];
+        groupedShifts[loc].push(shift);
+    });
 
     const storeNames = Object.keys(groupedShifts).sort();
 
@@ -126,16 +137,17 @@ export default function AdminShiftsPage() {
 
     // 店舗保存処理
     const handleSaveStore = async () => {
-        if (!editingStore?.name || !editingStore.latitude || !editingStore.longitude || !editingStore.radius_m) {
-            setStoreFormError('すべての項目を入力してください');
+        if (!editingStore?.name) {
+            setStoreFormError('店舗名を入力してください');
             return;
         }
 
         const payload = {
             name: editingStore.name,
-            latitude: Number(editingStore.latitude),
-            longitude: Number(editingStore.longitude),
-            radius_m: Number(editingStore.radius_m)
+            latitude: editingStore.latitude ? Number(editingStore.latitude) : null,
+            longitude: editingStore.longitude ? Number(editingStore.longitude) : null,
+            radius_m: editingStore.radius_m ? Number(editingStore.radius_m) : null,
+            affiliated_staff: editingStore.affiliated_staff || []
         };
 
         if (editingStore.id) {
@@ -159,13 +171,17 @@ export default function AdminShiftsPage() {
 
     // 店舗削除処理
     const handleDeleteStore = async (id: string, name: string) => {
-        if (!confirm(`本当に店舗「${name}」を削除しますか？`)) return;
-        const res = await deleteStore(id);
-        if (res.success) {
-            setStores(stores.filter(s => s.id !== id));
-        } else {
-            alert('削除に失敗しました');
-        }
+        setPendingConfirm({
+            message: `本当に店舗「${name}」を削除しますか？`,
+            action: async () => {
+                const res = await deleteStore(id);
+                if (res.success) {
+                    setStores(stores.filter(s => s.id !== id));
+                } else {
+                    alert('削除に失敗しました');
+                }
+            }
+        });
     };
 
     // シフト保存処理
@@ -206,13 +222,17 @@ export default function AdminShiftsPage() {
 
     // シフト削除処理
     const handleDeleteShift = async (id: string) => {
-        if (!confirm(`本当にこのシフトを削除しますか？`)) return;
-        const res = await deleteShift(id);
-        if (res.success) {
-            setShifts(shifts.filter(s => s.id !== id));
-        } else {
-            alert('削除に失敗しました');
-        }
+        setPendingConfirm({
+            message: '本当にこのシフトを削除しますか？',
+            action: async () => {
+                const res = await deleteShift(id);
+                if (res.success) {
+                    setShifts(shifts.filter(s => s.id !== id));
+                } else {
+                    alert('削除に失敗しました');
+                }
+            }
+        });
     };
 
     return (
@@ -245,6 +265,11 @@ export default function AdminShiftsPage() {
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-6xl">
+                {userFetchError && (
+                    <div className="p-4 bg-red-100 text-red-700 font-bold">
+                        API Error fetching users: {userFetchError}
+                    </div>
+                )}
                 <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center bg-gray-50/50 gap-4">
                     <div className="relative w-full md:w-80 flex items-center gap-3">
                         <div className="relative w-full">
@@ -300,119 +325,132 @@ export default function AdminShiftsPage() {
 
                                 return (
                                     <div key={store} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                                        <div className="bg-indigo-50 px-4 py-3 flex items-center gap-2 border-b border-indigo-100">
-                                            <Link href={`/admin/shifts/${storeId}`} className="group/link flex items-center gap-2 hover:bg-indigo-100 px-2 py-1 -ml-2 rounded-lg transition-colors">
-                                                <MapPin size={18} className="text-indigo-600" />
-                                                <h2 className="font-bold text-indigo-900 group-hover/link:underline">{store}</h2>
-                                            </Link>
-                                            <span className="ml-auto text-xs font-bold text-indigo-600 bg-white px-2 py-1 rounded-full shadow-sm">
+                                        <div className="bg-indigo-50 px-4 py-3 flex items-center gap-4 border-b border-indigo-100 flex-wrap">
+                                            <div className="flex items-center gap-2 -ml-2">
+                                                <MapPin size={18} className="text-indigo-600 ml-2" />
+                                                <h2 className="font-bold text-indigo-900">{store}</h2>
+                                            </div>
+                                            <span className="text-xs font-bold text-indigo-600 bg-white px-2 py-1 rounded-full shadow-sm">
                                                 {groupedShifts[store].length} シフト
                                             </span>
+
+                                            {/* シフトビルダーへの導線ボタン */}
+                                            {storeObj && (
+                                                <Link
+                                                    href={`/admin/shifts/${storeId}/builder`}
+                                                    className="ml-auto flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition-colors"
+                                                >
+                                                    <CalendarIcon size={16} />
+                                                    シフトビルダーを開く
+                                                </Link>
+                                            )}
                                         </div>
-                                        <table className="w-full text-left border-collapse">
-                                            <thead>
-                                                <tr className="bg-gray-50/50 text-gray-500 text-[11px] uppercase tracking-wider">
-                                                    <th className="px-6 py-3 font-semibold border-b border-gray-100 w-32">日付</th>
-                                                    <th className="px-6 py-3 font-semibold border-b border-gray-100 w-48">スタッフ名</th>
-                                                    <th className="px-6 py-3 font-semibold border-b border-gray-100">時間</th>
-                                                    <th className="px-6 py-3 font-semibold border-b border-gray-100">出退勤状況</th>
-                                                    <th className="px-6 py-3 font-semibold border-b border-gray-100 text-right w-24">操作</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-gray-100 bg-white">
-                                                {groupedShifts[store].map((shift) => {
-                                                    const dateStr = new Date(shift.date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' });
-                                                    const atts = getShiftAttendances(shift.user_id, shift.date);
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left border-collapse min-w-[700px]">
+                                                <thead>
+                                                    <tr className="bg-gray-50/50 text-gray-500 text-[11px] uppercase tracking-wider">
+                                                        <th className="px-6 py-3 font-semibold border-b border-gray-100 whitespace-nowrap">日付</th>
+                                                        <th className="px-6 py-3 font-semibold border-b border-gray-100 whitespace-nowrap">スタッフ名</th>
+                                                        <th className="px-6 py-3 font-semibold border-b border-gray-100 whitespace-nowrap">時間</th>
+                                                        <th className="px-6 py-3 font-semibold border-b border-gray-100 whitespace-nowrap">出退勤状況</th>
+                                                        <th className="px-6 py-3 font-semibold border-b border-gray-100 text-right whitespace-nowrap">操作</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-100 bg-white">
+                                                    {groupedShifts[store].map((shift) => {
+                                                        const dateStr = new Date(shift.date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' });
+                                                        const atts = getShiftAttendances(shift.user_id, shift.date);
 
-                                                    const clockIn = atts.find(a => a.type === 'CLOCK_IN');
-                                                    const clockOut = atts.find(a => a.type === 'CLOCK_OUT');
-                                                    const wakeUp = atts.find(a => a.type === 'WAKE_UP');
-                                                    const leave = atts.find(a => a.type === 'LEAVE');
-                                                    const isFuture = new Date(shift.date) > new Date();
+                                                        const clockIn = atts.find(a => a.type === 'CLOCK_IN');
+                                                        const clockOut = atts.find(a => a.type === 'CLOCK_OUT');
+                                                        const wakeUp = atts.find(a => a.type === 'WAKE_UP');
+                                                        const leave = atts.find(a => a.type === 'LEAVE');
+                                                        const isFuture = new Date(shift.date) > new Date();
 
-                                                    return (
-                                                        <tr key={shift.id} className="group hover:bg-gray-50 transition-colors">
-                                                            <td className="px-6 py-4 text-sm font-bold text-gray-700">
-                                                                {dateStr}
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-[10px]">
-                                                                        {(shift.users?.display_name || '不').slice(0, 2).toUpperCase()}
-                                                                    </div>
-                                                                    <span className="font-bold text-gray-800 text-sm">{shift.users?.display_name || '不明'}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                <span className="text-sm font-bold text-gray-600 flex items-center gap-1">
-                                                                    <Clock size={14} className="text-gray-400" />
-                                                                    {shift.start_time.slice(0, 5)} 〜 {shift.end_time.slice(0, 5)}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                <div className="flex items-center gap-3">
-                                                                    {isFuture ? (
-                                                                        <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
-                                                                            予定
-                                                                        </span>
-                                                                    ) : clockIn || wakeUp || leave || clockOut ? (
-                                                                        <div className="flex flex-col gap-1.5">
-                                                                            <div className="flex items-center gap-2">
-                                                                                {wakeUp ? (
-                                                                                    <span className="text-[10px] text-amber-500 font-bold bg-amber-50 px-1.5 py-0.5 rounded flex items-center"><Sun size={10} className="mr-0.5" />起 {new Date(wakeUp.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                                                ) : <span className="text-[10px] text-gray-300">起床未</span>}
-                                                                                {leave ? (
-                                                                                    <span className="text-[10px] text-blue-500 font-bold bg-blue-50 px-1.5 py-0.5 rounded flex items-center"><Navigation size={10} className="mr-0.5" />発 {new Date(leave.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                                                ) : <span className="text-[10px] text-gray-300">出発未</span>}
-                                                                            </div>
-                                                                            <div className="flex items-center gap-2 text-sm">
-                                                                                {clockIn ? (
-                                                                                    <span className="font-bold text-emerald-600 flex items-center gap-1">
-                                                                                        <UserCheck size={14} />
-                                                                                        {new Date(clockIn.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
-                                                                                    </span>
-                                                                                ) : <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded"><UserX size={10} className="inline mr-0.5" />未出勤</span>}
-                                                                                <span className="text-gray-300 mx-1">-</span>
-                                                                                {clockOut ? (
-                                                                                    <span className="font-bold text-blue-600">
-                                                                                        {new Date(clockOut.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
-                                                                                    </span>
-                                                                                ) : clockIn ? (
-                                                                                    <span className="text-[10px] font-bold text-amber-500">勤務中</span>
-                                                                                ) : <span className="text-[10px] text-gray-300">--:--</span>}
-                                                                            </div>
+                                                        return (
+                                                            <tr key={shift.id} className="group hover:bg-gray-50 transition-colors">
+                                                                <td className="px-6 py-4 text-sm font-bold text-gray-700 whitespace-nowrap">
+                                                                    {dateStr}
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-[10px]">
+                                                                            {(shift.users?.display_name || '不').slice(0, 2).toUpperCase()}
                                                                         </div>
-                                                                    ) : (
-                                                                        <span className="text-[11px] font-bold text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full flex items-center gap-1">
-                                                                            <UserX size={12} /> 打刻なし
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setEditingShift(shift);
-                                                                            setIsShiftModalOpen(true);
-                                                                        }}
-                                                                        className="p-1.5 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                                                                    >
-                                                                        <Edit2 size={14} />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleDeleteShift(shift.id)}
-                                                                        className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                                                                    >
-                                                                        <Trash2 size={14} />
-                                                                    </button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
+                                                                        <span className="font-bold text-gray-800 text-sm">{shift.users?.display_name || '不明'}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <span className="text-sm font-bold text-gray-600 flex items-center gap-1">
+                                                                        <Clock size={14} className="text-gray-400" />
+                                                                        {shift.start_time.slice(0, 5)} 〜 {shift.end_time.slice(0, 5)}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <div className="flex items-center gap-3">
+                                                                        {isFuture ? (
+                                                                            <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
+                                                                                予定
+                                                                            </span>
+                                                                        ) : clockIn || wakeUp || leave || clockOut ? (
+                                                                            <div className="flex flex-col gap-1.5">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    {wakeUp ? (
+                                                                                        <span className="text-[10px] text-amber-500 font-bold bg-amber-50 px-1.5 py-0.5 rounded flex items-center"><Sun size={10} className="mr-0.5" />起 {new Date(wakeUp.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                                    ) : <span className="text-[10px] text-gray-300">起床未</span>}
+                                                                                    {leave ? (
+                                                                                        <span className="text-[10px] text-blue-500 font-bold bg-blue-50 px-1.5 py-0.5 rounded flex items-center"><Navigation size={10} className="mr-0.5" />発 {new Date(leave.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                                    ) : <span className="text-[10px] text-gray-300">出発未</span>}
+                                                                                </div>
+                                                                                <div className="flex items-center gap-2 text-sm">
+                                                                                    {clockIn ? (
+                                                                                        <span className="font-bold text-emerald-600 flex items-center gap-1">
+                                                                                            <UserCheck size={14} />
+                                                                                            {new Date(clockIn.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                                                                                        </span>
+                                                                                    ) : <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded"><UserX size={10} className="inline mr-0.5" />未出勤</span>}
+                                                                                    <span className="text-gray-300 mx-1">-</span>
+                                                                                    {clockOut ? (
+                                                                                        <span className="font-bold text-blue-600">
+                                                                                            {new Date(clockOut.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                                                                                        </span>
+                                                                                    ) : clockIn ? (
+                                                                                        <span className="text-[10px] font-bold text-amber-500">勤務中</span>
+                                                                                    ) : <span className="text-[10px] text-gray-300">--:--</span>}
+                                                                                </div>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-[11px] font-bold text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full flex items-center gap-1">
+                                                                                <UserX size={12} /> 打刻なし
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setEditingShift(shift);
+                                                                                setIsShiftModalOpen(true);
+                                                                            }}
+                                                                            className="p-1.5 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                                                        >
+                                                                            <Edit2 size={14} />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDeleteShift(shift.id)}
+                                                                            className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                                                        >
+                                                                            <Trash2 size={14} />
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -463,17 +501,19 @@ export default function AdminShiftsPage() {
                                         ))}
                                     </select>
                                 </div>
+
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-600 mb-1 flex items-center gap-1"><Building2 size={14} /> 勤務店舗(販路)</label>
+                                    <label className="block text-xs font-bold text-gray-600 mb-1 flex items-center gap-1"><MapPin size={14} /> 勤務店舗 (Location)</label>
                                     <select
                                         value={editingShift?.location || ''}
                                         onChange={e => setEditingShift({ ...editingShift, location: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
                                     >
-                                        <option value="">選択してください</option>
+                                        <option value="">店舗を選択してください</option>
                                         {stores.map(s => (
                                             <option key={s.id} value={s.name}>{s.name}</option>
                                         ))}
+                                        <option value="店舗未定">店舗未定</option>
                                     </select>
                                 </div>
                                 <div>
@@ -551,7 +591,7 @@ export default function AdminShiftsPage() {
                             <div className="mb-6 flex justify-end">
                                 <button
                                     onClick={() => {
-                                        setEditingStore({ name: '', latitude: 0, longitude: 0, radius_m: 500 });
+                                        setEditingStore({ name: '', latitude: null, longitude: null, radius_m: null, affiliated_staff: [] });
                                         setStoreFormError('');
                                     }}
                                     className="flex items-center gap-2 bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-600 transition-colors"
@@ -583,32 +623,58 @@ export default function AdminShiftsPage() {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-600 mb-1">緯度 (Latitude)</label>
+                                            <label className="block text-xs font-bold text-gray-600 mb-1">緯度 (Latitude) <span className="text-gray-400 font-normal">※任意</span></label>
                                             <input
                                                 type="number" step="0.0000001"
-                                                value={editingStore.latitude || ''}
-                                                onChange={(e) => setEditingStore({ ...editingStore, latitude: parseFloat(e.target.value) })}
+                                                value={editingStore.latitude === null || editingStore.latitude === undefined ? '' : editingStore.latitude}
+                                                onChange={(e) => setEditingStore({ ...editingStore, latitude: e.target.value === '' ? null : parseFloat(e.target.value) })}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-600 mb-1">経度 (Longitude)</label>
+                                            <label className="block text-xs font-bold text-gray-600 mb-1">経度 (Longitude) <span className="text-gray-400 font-normal">※任意</span></label>
                                             <input
                                                 type="number" step="0.0000001"
-                                                value={editingStore.longitude || ''}
-                                                onChange={(e) => setEditingStore({ ...editingStore, longitude: parseFloat(e.target.value) })}
+                                                value={editingStore.longitude === null || editingStore.longitude === undefined ? '' : editingStore.longitude}
+                                                onChange={(e) => setEditingStore({ ...editingStore, longitude: e.target.value === '' ? null : parseFloat(e.target.value) })}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                                             />
                                         </div>
-                                        <div className="md:col-span-2">
-                                            <label className="block text-xs font-bold text-gray-600 mb-1">許容打刻範囲(メートル)</label>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-600 mb-1">許容打刻範囲(m) <span className="text-gray-400 font-normal">※任意</span></label>
                                             <input
                                                 type="number"
-                                                value={editingStore.radius_m || ''}
-                                                onChange={(e) => setEditingStore({ ...editingStore, radius_m: parseInt(e.target.value) || 0 })}
+                                                value={editingStore.radius_m === null || editingStore.radius_m === undefined ? '' : editingStore.radius_m}
+                                                onChange={(e) => setEditingStore({ ...editingStore, radius_m: e.target.value === '' ? null : parseInt(e.target.value) })}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                                             />
                                             <p className="text-[10px] text-gray-500 mt-1">この店舗での出退勤打刻を許可する、中心座標からの半径を設定します。</p>
+                                        </div>
+
+                                        <div className="md:col-span-2 mt-2">
+                                            <label className="block text-xs font-bold text-gray-600 mb-2">所属スタッフ (デバッグ: {users.length}名) <span className="text-gray-400 font-normal">※シフト作成時に上位表示されます</span></label>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-white p-3 border border-gray-200 rounded-lg">
+                                                {users.map(u => {
+                                                    const isAffiliated = editingStore.affiliated_staff?.includes(u.id);
+                                                    return (
+                                                        <label key={u.id} className={`flex items-center gap-2 text-sm p-1.5 rounded-md cursor-pointer transition-colors ${isAffiliated ? 'bg-emerald-50' : 'hover:bg-gray-50'}`}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isAffiliated || false}
+                                                                onChange={(e) => {
+                                                                    const curr = editingStore.affiliated_staff || [];
+                                                                    const next = e.target.checked
+                                                                        ? [...curr, u.id]
+                                                                        : curr.filter(id => id !== u.id);
+                                                                    setEditingStore({ ...editingStore, affiliated_staff: next });
+                                                                }}
+                                                                className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                                                            />
+                                                            <span className={`font-bold ${isAffiliated ? 'text-emerald-800' : 'text-gray-700'}`}>{u.display_name}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex justify-end gap-2 mt-4">
@@ -646,13 +712,19 @@ export default function AdminShiftsPage() {
                                             <tr key={store.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-4 py-3 font-bold text-gray-800 text-sm">{store.name}</td>
                                                 <td className="px-4 py-3">
-                                                    <div className="text-[11px] text-gray-500 font-mono">
-                                                        Lat: {store.latitude.toFixed(5)}<br />
-                                                        Lng: {store.longitude.toFixed(5)}
-                                                    </div>
-                                                    <div className="text-[10px] text-emerald-600 font-bold mt-0.5">
-                                                        半径 {store.radius_m}m
-                                                    </div>
+                                                    {(store.latitude !== null && store.longitude !== null) ? (
+                                                        <>
+                                                            <div className="text-[11px] text-gray-500 font-mono">
+                                                                Lat: {store.latitude}<br />
+                                                                Lng: {store.longitude}
+                                                            </div>
+                                                            <div className="text-[10px] text-emerald-600 font-bold mt-0.5">
+                                                                半径 {store.radius_m || 500}m
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400 font-bold">未設定</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex justify-end gap-2">
@@ -675,6 +747,35 @@ export default function AdminShiftsPage() {
                                     </tbody>
                                 </table>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* カスタム確認モーダル */}
+            {pendingConfirm && (
+                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-5 text-center">
+                            <h3 className="text-lg font-bold text-gray-800 mb-2">確認</h3>
+                            <p className="text-sm text-gray-600 font-medium leading-relaxed">{pendingConfirm.message}</p>
+                        </div>
+                        <div className="flex border-t border-gray-100">
+                            <button
+                                onClick={() => setPendingConfirm(null)}
+                                className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-50 transition-colors border-r border-gray-100"
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                onClick={() => {
+                                    pendingConfirm.action();
+                                    setPendingConfirm(null);
+                                }}
+                                className="flex-1 py-3 text-red-500 font-bold hover:bg-red-50 transition-colors"
+                            >
+                                実行
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -282,7 +282,7 @@ export default function AdvancedShiftBuilder() {
                                     <Building2 size={12} className="md:w-3.5 md:h-3.5" /> {store.name}
                                 </span>
                             </h1>
-                            <p className="text-xs text-gray-500 font-bold mt-1">
+                            <p className="text-xs text-gray-500 font-bold mt-1 hidden md:block">
                                 マウスとキーボードでエクセルのように高速入力。変更後は右上の「保存」を押してください。
                             </p>
                         </div>
@@ -302,14 +302,14 @@ export default function AdvancedShiftBuilder() {
                         </div>
 
                         {unsavedChangesCount > 0 && (
-                            <span className="text-sm font-bold text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200 hidden md:inline-block">
+                            <span className="text-sm font-bold text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200 hidden md:inline-block shrink-0 whitespace-nowrap">
                                 未保存: {unsavedChangesCount}件
                             </span>
                         )}
 
                         <button
                             onClick={() => setShowAllStaff(!showAllStaff)}
-                            className={`flex justify-center items-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm border ${showAllStaff
+                            className={`flex shrink-0 whitespace-nowrap justify-center items-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm border ${showAllStaff
                                 ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
                                 : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
                                 }`}
@@ -324,7 +324,7 @@ export default function AdvancedShiftBuilder() {
                                 setIsStampMode(!isStampMode);
                                 if (isStampMode) setCopiedTime(null);
                             }}
-                            className={`flex justify-center items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm border ${isStampMode
+                            className={`flex shrink-0 whitespace-nowrap justify-center items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm border ${isStampMode
                                 ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'
                                 : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
                                 }`}

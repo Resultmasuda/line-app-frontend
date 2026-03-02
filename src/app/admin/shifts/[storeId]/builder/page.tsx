@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Save, X, Building2, UserCircle2, ArrowLeft, Copy } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, X, Building2, UserCircle2, ArrowLeft, Copy, Search } from 'lucide-react';
 import { getAllShifts, getAllStores, getAllUsers, StoreRecord, AdminUserRecord, bulkUpsertShifts, bulkDeleteShifts } from '@/lib/api/admin';
 
 type ShiftRecord = {
@@ -35,6 +35,7 @@ export default function AdvancedShiftBuilder() {
     const [copiedTime, setCopiedTime] = useState<{ start: string, end: string } | null>(null);
     const [isStampMode, setIsStampMode] = useState(false);
     const [showAllStaff, setShowAllStaff] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const [pendingConfirm, setPendingConfirm] = useState<{ message: string, action: () => void } | null>(null);
 
     // Get days in the selected month
@@ -254,6 +255,24 @@ export default function AdvancedShiftBuilder() {
 
     const unsavedChangesCount = Object.values(gridState).filter(c => c.isModified || c.isDeleted).length;
 
+    const filteredUsers = users.filter(user => {
+        // 1. Text Search Filter
+        if (searchQuery && !user.display_name.toLowerCase().includes(searchQuery.toLowerCase())) {
+            return false;
+        }
+
+        // 2. Display Mode Filter
+        if (showAllStaff) return true;
+        if (store?.affiliated_staff?.includes(user.id)) return true;
+
+        // 3. Auto-show users who have at least one active shift in the current view
+        return dates.some(d => {
+            const key = `${user.id}_${d.dateStr}`;
+            const cell = gridState[key];
+            return cell && (cell.start_time || cell.end_time) && !cell.isDeleted;
+        });
+    });
+
     return (
         <div className="h-[calc(100vh-theme(spacing.24))] flex flex-col">
             {/* ヘッダー領域 */}
@@ -316,8 +335,19 @@ export default function AdvancedShiftBuilder() {
                             title="全スタッフ表示切替"
                         >
                             <UserCircle2 size={16} />
-                            <span className="hidden sm:inline">{showAllStaff ? '全スタッフ表示中' : '所属スタッフのみ'}</span>
+                            <span className="hidden sm:inline">{showAllStaff ? '全スタッフ表示中' : '所属スタッフ優先'}</span>
                         </button>
+
+                        <div className="relative shrink-0">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                            <input
+                                type="text"
+                                placeholder="名前で検索..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-8 pr-3 py-2 w-32 md:w-48 rounded-lg text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm transition-all bg-white"
+                            />
+                        </div>
 
                         <button
                             onClick={() => {
@@ -380,98 +410,107 @@ export default function AdvancedShiftBuilder() {
 
                         {/* ボディ：スタッフ行ごと */}
                         <tbody className="bg-white">
-                            {users.filter(user => showAllStaff ? true : store?.affiliated_staff?.includes(user.id)).map(user => {
-                                const isAffiliated = store?.affiliated_staff?.includes(user.id);
-                                return (
-                                    <tr key={user.id} className="hover:bg-blue-50/20 group">
-                                        {/* 固定列：スタッフ名 */}
-                                        <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 border-b border-r border-gray-200 p-3 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                                            <div className="flex items-center gap-2">
-                                                {isAffiliated ? (
-                                                    <div className="w-4 h-4 rounded bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0" title="所属スタッフ">
-                                                        <span className="text-[10px] font-bold">属</span>
-                                                    </div>
-                                                ) : (
-                                                    <UserCircle2 size={16} className="text-gray-400 flex-shrink-0" />
-                                                )}
-                                                <span className={`font-bold truncate ${isAffiliated ? 'text-emerald-800' : 'text-gray-700'}`}>{user.display_name}</span>
-                                            </div>
-                                        </td>
+                            {filteredUsers.length === 0 ? (
+                                <tr>
+                                    <td colSpan={dates.length + 1} className="p-8 text-center text-gray-500 bg-gray-50/50">
+                                        <p className="font-bold">該当するスタッフが見つかりません</p>
+                                        <p className="text-xs mt-1 text-gray-400">検索条件を変更するか、「全スタッフ表示」に切り替えてください。</p>
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredUsers.map(user => {
+                                    const isAffiliated = store?.affiliated_staff?.includes(user.id);
+                                    return (
+                                        <tr key={user.id} className="hover:bg-blue-50/20 group">
+                                            {/* 固定列：スタッフ名 */}
+                                            <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 border-b border-r border-gray-200 p-3 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                                                <div className="flex items-center gap-2">
+                                                    {isAffiliated ? (
+                                                        <div className="w-4 h-4 rounded bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0" title="所属スタッフ">
+                                                            <span className="text-[10px] font-bold">属</span>
+                                                        </div>
+                                                    ) : (
+                                                        <UserCircle2 size={16} className="text-gray-400 flex-shrink-0" />
+                                                    )}
+                                                    <span className={`font-bold truncate ${isAffiliated ? 'text-emerald-800' : 'text-gray-700'}`}>{user.display_name}</span>
+                                                </div>
+                                            </td>
 
-                                        {/* 日付セル群 */}
-                                        {dates.map(d => {
-                                            const key = `${user.id}_${d.dateStr}`;
-                                            const cell = gridState[key];
-                                            const isEmpty = !cell || (!cell.start_time && !cell.end_time);
-                                            const isDeleted = cell?.isDeleted;
-                                            const isModified = cell?.isModified;
+                                            {/* 日付セル群 */}
+                                            {dates.map(d => {
+                                                const key = `${user.id}_${d.dateStr}`;
+                                                const cell = gridState[key];
+                                                const isEmpty = !cell || (!cell.start_time && !cell.end_time);
+                                                const isDeleted = cell?.isDeleted;
+                                                const isModified = cell?.isModified;
 
-                                            return (
-                                                <td key={d.dateStr}
-                                                    className={`border-b border-r border-gray-200 p-1 relative
+                                                return (
+                                                    <td key={d.dateStr}
+                                                        className={`border-b border-r border-gray-200 p-1 relative
                                                     ${d.weekday === 0 ? 'bg-red-50/30' : d.weekday === 6 ? 'bg-blue-50/30' : ''}
                                                     ${isModified && !isDeleted ? 'bg-emerald-50/50' : ''}
                                                     ${isDeleted ? 'bg-gray-100 opacity-50' : ''}
                                                 `}
-                                                    onContextMenu={(e) => {
-                                                        // 右クリックでコピー/ペースト
-                                                        e.preventDefault();
-                                                        if (copiedTime) {
-                                                            pasteCell(user.id, d.dateStr);
-                                                        } else if (!isEmpty) {
-                                                            copyCell(user.id, d.dateStr);
-                                                        }
-                                                    }}
-                                                    onClick={(e) => {
-                                                        if (!isStampMode) return;
-                                                        if (copiedTime) {
-                                                            pasteCell(user.id, d.dateStr);
-                                                        } else if (!isEmpty) {
-                                                            copyCell(user.id, d.dateStr);
-                                                        }
-                                                    }}
-                                                >
-                                                    <div className="flex flex-col gap-1 w-full justify-center">
-                                                        <input
-                                                            type="time"
-                                                            value={isDeleted ? '' : cell?.start_time || ''}
-                                                            onChange={(e) => handleCellChange(user.id, d.dateStr, 'start_time', e.target.value)}
-                                                            className={`w-[85px] mx-auto text-[11px] p-0.5 border border-transparent hover:border-gray-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded bg-transparent text-center transition-colors ${isStampMode ? 'pointer-events-none' : ''}`}
-                                                            readOnly={isStampMode}
-                                                        />
-                                                        <input
-                                                            type="time"
-                                                            value={isDeleted ? '' : cell?.end_time || ''}
-                                                            onChange={(e) => handleCellChange(user.id, d.dateStr, 'end_time', e.target.value)}
-                                                            className={`w-[85px] mx-auto text-[11px] p-0.5 border border-transparent hover:border-gray-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded bg-transparent text-center transition-colors ${isStampMode ? 'pointer-events-none' : ''}`}
-                                                            readOnly={isStampMode}
-                                                        />
-                                                    </div>
+                                                        onContextMenu={(e) => {
+                                                            // 右クリックでコピー/ペースト
+                                                            e.preventDefault();
+                                                            if (copiedTime) {
+                                                                pasteCell(user.id, d.dateStr);
+                                                            } else if (!isEmpty) {
+                                                                copyCell(user.id, d.dateStr);
+                                                            }
+                                                        }}
+                                                        onClick={(e) => {
+                                                            if (!isStampMode) return;
+                                                            if (copiedTime) {
+                                                                pasteCell(user.id, d.dateStr);
+                                                            } else if (!isEmpty) {
+                                                                copyCell(user.id, d.dateStr);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <div className="flex flex-col gap-1 w-full justify-center">
+                                                            <input
+                                                                type="time"
+                                                                value={isDeleted ? '' : cell?.start_time || ''}
+                                                                onChange={(e) => handleCellChange(user.id, d.dateStr, 'start_time', e.target.value)}
+                                                                className={`w-[85px] mx-auto text-[11px] p-0.5 border border-transparent hover:border-gray-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded bg-transparent text-center transition-colors ${isStampMode ? 'pointer-events-none' : ''}`}
+                                                                readOnly={isStampMode}
+                                                            />
+                                                            <input
+                                                                type="time"
+                                                                value={isDeleted ? '' : cell?.end_time || ''}
+                                                                onChange={(e) => handleCellChange(user.id, d.dateStr, 'end_time', e.target.value)}
+                                                                className={`w-[85px] mx-auto text-[11px] p-0.5 border border-transparent hover:border-gray-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded bg-transparent text-center transition-colors ${isStampMode ? 'pointer-events-none' : ''}`}
+                                                                readOnly={isStampMode}
+                                                            />
+                                                        </div>
 
-                                                    {/* 削除（クリア）ボタン。スマホでも見えるように調整 */}
-                                                    {!isEmpty && !isDeleted && (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                clearCell(user.id, d.dateStr);
-                                                            }}
-                                                            className="absolute top-0.5 right-0.5 sm:opacity-0 opacity-100 group-hover:opacity-100 hover:text-red-500 text-gray-400 transition-opacity bg-white/90 rounded shadow-sm"
-                                                            title="シフトを削除"
-                                                        >
-                                                            <X size={12} />
-                                                        </button>
-                                                    )}
+                                                        {/* 削除（クリア）ボタン。スマホでも見えるように調整 */}
+                                                        {!isEmpty && !isDeleted && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    clearCell(user.id, d.dateStr);
+                                                                }}
+                                                                className="absolute top-0.5 right-0.5 sm:opacity-0 opacity-100 group-hover:opacity-100 hover:text-red-500 text-gray-400 transition-opacity bg-white/90 rounded shadow-sm"
+                                                                title="シフトを削除"
+                                                            >
+                                                                <X size={12} />
+                                                            </button>
+                                                        )}
 
-                                                    {/* 状態インジケータ */}
-                                                    {isModified && !isDeleted && (
-                                                        <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500" title="未保存の変更" />
-                                                    )}
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
-                                );
-                            })}
+                                                        {/* 状態インジケータ */}
+                                                        {isModified && !isDeleted && (
+                                                            <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500" title="未保存の変更" />
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    );
+                                })
+                            )}
                         </tbody>
                     </table>
                 </div>

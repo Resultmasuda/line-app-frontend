@@ -88,21 +88,22 @@ export default function RegistrationScreen({ onSubmit, error }: RegistrationScre
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
+                        </div>
 
-                            <button
-                                type="submit"
-                                disabled={isSubmitting || !phoneNumber || !pinCode}
-                                className="w-full mt-8 py-3.5 bg-emerald-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:shadow-emerald-700/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2 size={18} className="animate-spin" />
-                                        認証中...
-                                    </>
-                                ) : (
-                                    '認証して連携する'
-                                )}
-                            </button>
+                        <button
+                            type="submit"
+                            disabled={isSubmitting || !phoneNumber || !pinCode}
+                            className="w-full mt-8 py-3.5 bg-emerald-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:shadow-emerald-700/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 size={18} className="animate-spin" />
+                                    認証中...
+                                </>
+                            ) : (
+                                '認証して連携する'
+                            )}
+                        </button>
                     </form>
                 </div>
             </div>

@@ -747,56 +747,38 @@ export default function ShiftSchedule() {
                                 </button>
                             </div>
 
-                            {/* 役職・グループ */}
-                            {(['PRESIDENT', 'EXECUTIVE', 'MANAGER', 'STAFF', 'ADMIN'] as const).map((role) => {
-                                const roleUsers = allUsers.filter(u => u.role.toUpperCase() === role && u.id !== user?.id);
-                                // 自分もこのロールなら含めてカウント
+                            {/* ロール別カレンダー */}
+                            {(['PRESIDENT', 'EXECUTIVE', 'MANAGER', 'STAFF'] as const).map((role) => {
+                                const roleUsers = allUsers.filter(u => u.role.toUpperCase() === role);
                                 const selfInRole = user && user.role.toUpperCase() === role;
-                                const totalCount = roleUsers.length + (selfInRole ? 1 : 0);
+                                const totalCount = roleUsers.length + (selfInRole && !roleUsers.find(u => u.id === user?.id) ? 1 : 0);
                                 if (totalCount === 0) return null;
 
-                                const labels: Record<string, string> = { PRESIDENT: '社長', EXECUTIVE: '幹部', MANAGER: '役職社員', STAFF: '社員', ADMIN: '管理者' };
+                                const labels: Record<string, string> = { PRESIDENT: '社長', EXECUTIVE: '幹部', MANAGER: '役職社員', STAFF: '社員' };
+                                const isActive = selectedGroupRole === role;
 
                                 return (
-                                    <div key={role} className="space-y-3">
-                                        <div className="flex items-center justify-between px-1">
-                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                                {labels[role] || role}
-                                            </h4>
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedGroupRole(role);
-                                                    setTargetUser(null);
-                                                    setShowCalendarList(false);
-                                                }}
-                                                className={`text-[9px] font-black px-3 py-1 rounded-full transition-all ${selectedGroupRole === role
-                                                        ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
-                                                        : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
-                                                    }`}
-                                            >
-                                                <Users size={10} className="inline mr-1" />
-                                                全員のシフト ({totalCount})
-                                            </button>
+                                    <button
+                                        key={role}
+                                        onClick={() => {
+                                            setSelectedGroupRole(role);
+                                            setTargetUser(null);
+                                            setShowCalendarList(false);
+                                        }}
+                                        className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${isActive
+                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20'
+                                                : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
+                                            }`}
+                                    >
+                                        <div className={`p-2 rounded-xl ${isActive ? 'bg-white/20' : 'bg-indigo-50 text-indigo-600'}`}>
+                                            <Users size={20} />
                                         </div>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {roleUsers.map((u) => (
-                                                <button
-                                                    key={u.id}
-                                                    onClick={() => { setTargetUser(u); setSelectedGroupRole(null); setShowCalendarList(false); }}
-                                                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${targetUser?.id === u.id && !selectedGroupRole ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20' : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'}`}
-                                                >
-                                                    <div className={`p-2 rounded-xl ${targetUser?.id === u.id && !selectedGroupRole ? 'bg-white/20' : 'bg-indigo-50 text-indigo-600'}`}>
-                                                        <UserIcon size={20} />
-                                                    </div>
-                                                    <div className="flex-1 text-left">
-                                                        <span className="font-bold block">{u.display_name}</span>
-                                                        <span className={`text-[9px] font-black uppercase ${targetUser?.id === u.id && !selectedGroupRole ? 'text-indigo-200' : 'text-gray-400'}`}>{labels[u.role.toUpperCase()] || u.role}</span>
-                                                    </div>
-                                                    {targetUser?.id === u.id && !selectedGroupRole && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
-                                                </button>
-                                            ))}
+                                        <div className="flex-1 text-left">
+                                            <span className="font-bold block">{labels[role]}カレンダー</span>
+                                            <span className={`text-[9px] font-black ${isActive ? 'text-indigo-200' : 'text-gray-400'}`}>{totalCount}名</span>
                                         </div>
-                                    </div>
+                                        {isActive && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
+                                    </button>
                                 );
                             })}
 

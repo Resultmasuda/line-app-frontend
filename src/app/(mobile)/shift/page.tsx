@@ -41,6 +41,7 @@ export default function ShiftSchedule() {
     const [allUsers, setAllUsers] = useState<AdminUserRecord[]>([]);
     const [showCalendarList, setShowCalendarList] = useState(false);
     const [selectedGroupRole, setSelectedGroupRole] = useState<string | null>(null);
+    const [expandedRole, setExpandedRole] = useState<string | null>(null);
 
     // Forms
     const [shiftFormData, setShiftFormData] = useState({
@@ -749,36 +750,76 @@ export default function ShiftSchedule() {
 
                             {/* ロール別カレンダー */}
                             {(['PRESIDENT', 'EXECUTIVE', 'MANAGER', 'STAFF'] as const).map((role) => {
-                                const roleUsers = allUsers.filter(u => u.role.toUpperCase() === role);
+                                const roleUsers = allUsers.filter(u => u.role.toUpperCase() === role && u.id !== user?.id);
                                 const selfInRole = user && user.role.toUpperCase() === role;
-                                const totalCount = roleUsers.length + (selfInRole && !roleUsers.find(u => u.id === user?.id) ? 1 : 0);
+                                const totalCount = roleUsers.length + (selfInRole ? 1 : 0);
                                 if (totalCount === 0) return null;
 
                                 const labels: Record<string, string> = { PRESIDENT: '社長', EXECUTIVE: '幹部', MANAGER: '役職社員', STAFF: '社員' };
-                                const isActive = selectedGroupRole === role;
+                                const isExpanded = expandedRole === role;
 
                                 return (
-                                    <button
-                                        key={role}
-                                        onClick={() => {
-                                            setSelectedGroupRole(role);
-                                            setTargetUser(null);
-                                            setShowCalendarList(false);
-                                        }}
-                                        className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${isActive
-                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20'
-                                                : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
-                                            }`}
-                                    >
-                                        <div className={`p-2 rounded-xl ${isActive ? 'bg-white/20' : 'bg-indigo-50 text-indigo-600'}`}>
-                                            <Users size={20} />
-                                        </div>
-                                        <div className="flex-1 text-left">
-                                            <span className="font-bold block">{labels[role]}カレンダー</span>
-                                            <span className={`text-[9px] font-black ${isActive ? 'text-indigo-200' : 'text-gray-400'}`}>{totalCount}名</span>
-                                        </div>
-                                        {isActive && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
-                                    </button>
+                                    <div key={role} className="space-y-2">
+                                        {/* ロールヘッダー（タップで展開） */}
+                                        <button
+                                            onClick={() => setExpandedRole(isExpanded ? null : role)}
+                                            className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${selectedGroupRole === role
+                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
+                                                    : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
+                                                }`}
+                                        >
+                                            <div className={`p-2 rounded-xl ${selectedGroupRole === role ? 'bg-white/20' : 'bg-indigo-50 text-indigo-600'}`}>
+                                                <Users size={20} />
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                                <span className="font-bold block">{labels[role]}カレンダー</span>
+                                                <span className={`text-[9px] font-black ${selectedGroupRole === role ? 'text-indigo-200' : 'text-gray-400'}`}>{totalCount}名</span>
+                                            </div>
+                                            <span className={`text-xs transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                                        </button>
+
+                                        {/* 展開時: まとめ + 個別 */}
+                                        {isExpanded && (
+                                            <div className="pl-4 space-y-2 animate-in slide-in-from-top">
+                                                {/* まとめ表示ボタン */}
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedGroupRole(role);
+                                                        setTargetUser(null);
+                                                        setShowCalendarList(false);
+                                                    }}
+                                                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-sm ${selectedGroupRole === role
+                                                            ? 'bg-amber-500 text-white border-amber-500 shadow-md'
+                                                            : 'bg-amber-50 border-amber-100 text-amber-700 hover:bg-amber-100'
+                                                        }`}
+                                                >
+                                                    <Users size={16} />
+                                                    <span className="font-bold">全員のシフト</span>
+                                                </button>
+
+                                                {/* 個別ユーザー */}
+                                                {roleUsers.map((u) => (
+                                                    <button
+                                                        key={u.id}
+                                                        onClick={() => {
+                                                            setTargetUser(u);
+                                                            setSelectedGroupRole(null);
+                                                            setShowCalendarList(false);
+                                                        }}
+                                                        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-sm ${targetUser?.id === u.id && !selectedGroupRole
+                                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                                                                : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
+                                                            }`}
+                                                    >
+                                                        <div className={`p-1.5 rounded-lg ${targetUser?.id === u.id && !selectedGroupRole ? 'bg-white/20' : 'bg-gray-50 text-gray-500'}`}>
+                                                            <UserIcon size={16} />
+                                                        </div>
+                                                        <span className="font-bold">{u.display_name}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 );
                             })}
 

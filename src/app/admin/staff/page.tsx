@@ -145,11 +145,12 @@ export default function AdminStaffPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <select
-                                                value={user.role.toUpperCase() === 'ADMIN' ? 'ADMIN' : (user.role.toUpperCase() === 'MANAGER' ? 'MANAGER' : 'STAFF')}
+                                                value={user.role.toUpperCase()}
                                                 onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer ${user.role.toUpperCase() === 'ADMIN' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                                    user.role.toUpperCase() === 'MANAGER' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                                        'bg-gray-50 text-gray-700 border-gray-200'
+                                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer ${user.role.toUpperCase() === 'PRESIDENT' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                        user.role.toUpperCase() === 'EXECUTIVE' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                                            user.role.toUpperCase() === 'MANAGER' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                                'bg-gray-50 text-gray-700 border-gray-200'
                                                     }`}
                                             >
                                                 {ROLE_OPTIONS.map(opt => (

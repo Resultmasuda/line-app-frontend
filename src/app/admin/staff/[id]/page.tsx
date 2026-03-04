@@ -389,6 +389,59 @@ export default function StaffDetailView() {
                                                 </div>
                                             )}
                                         </div>
+
+                                        {/* プランニング情報 */}
+                                        {(shift.planned_wake_up_time || shift.planned_leave_time || shift.daily_memo) && (
+                                            <div className="mt-3 pt-3 border-t border-gray-50">
+                                                <span className="text-xs font-bold text-gray-400 block mb-2">プランニング</span>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {shift.planned_wake_up_time && (
+                                                        <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-full border border-purple-100">
+                                                            ⏰ 起床予定 {shift.planned_wake_up_time.substring(0, 5)}
+                                                        </span>
+                                                    )}
+                                                    {shift.planned_leave_time && (
+                                                        <span className="text-[10px] font-bold text-cyan-600 bg-cyan-50 px-2 py-1 rounded-full border border-cyan-100">
+                                                            🚗 出発予定 {shift.planned_leave_time.substring(0, 5)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {shift.daily_memo && (
+                                                    <p className="text-[11px] text-gray-600 mt-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100">
+                                                        📝 {shift.daily_memo}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* 位置情報 */}
+                                        {!isFuture && (() => {
+                                            const locationAtts = atts.filter(a => a.latitude && a.longitude);
+                                            if (locationAtts.length === 0) return null;
+                                            return (
+                                                <div className="mt-3 pt-3 border-t border-gray-50">
+                                                    <span className="text-xs font-bold text-gray-400 block mb-2">📍 位置情報</span>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {locationAtts.map((att, i) => {
+                                                            const typeLabel = att.type === 'CLOCK_IN' ? '出勤' : att.type === 'CLOCK_OUT' ? '退勤' : att.type === 'WAKE_UP' ? '起床' : '出発';
+                                                            const mapsUrl = `https://www.google.com/maps?q=${att.latitude},${att.longitude}`;
+                                                            return (
+                                                                <a
+                                                                    key={i}
+                                                                    href={mapsUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100 hover:bg-emerald-100 transition-colors flex items-center gap-1"
+                                                                >
+                                                                    <MapPin size={10} />
+                                                                    {typeLabel} 地点を確認
+                                                                </a>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 );
                             })

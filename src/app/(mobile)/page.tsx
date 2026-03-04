@@ -534,7 +534,7 @@ export default function AppDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-600 mb-1.5 ml-1">一言メモ（共有事項や目標など）</label>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1.5 ml-1">メモ（共有事項など）</label>
                   <textarea
                     value={dailyMemo}
                     onChange={e => setDailyMemo(e.target.value)}
@@ -577,7 +577,7 @@ export default function AppDashboard() {
                 disabled={isSavingPlan}
                 className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl active:bg-emerald-700 transition-all shadow-md shadow-emerald-200 disabled:opacity-70 flex items-center justify-center"
               >
-                {isSavingPlan ? <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> : "宣言する"}
+                {isSavingPlan ? <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> : "保存する"}
               </button>
             </div>
           </div>

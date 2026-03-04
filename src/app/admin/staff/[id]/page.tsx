@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, CalendarClock, Receipt, MapPin, Play, Square, UserCheck, UserX, Sun, Navigation, Edit2, Unlink, KeyRound, User, Trash2 } from 'lucide-react';
-import { getUserProfile, AdminUserRecord, updateUserRole, updateUserPhoneNumber, unlinkUserLineId, updateUserPinCode, updateUserDisplayName, deleteUser } from '@/lib/api/admin';
+import { getUserProfile, AdminUserRecord, updateUserRole, updateUserPhoneNumber, unlinkUserLineId, updateUserPinCode, updateUserDisplayName, deleteUser, getAllStores, StoreRecord, updateStore } from '@/lib/api/admin';
 import { getMonthlyShifts, ShiftRecord } from '@/lib/api/shift';
 import { getMonthlyAttendances, AttendanceRecord } from '@/lib/api/attendance';
 import { getMonthlyExpenses, ExpenseRecord } from '@/lib/api/expense';
@@ -19,8 +19,10 @@ export default function StaffDetailView() {
     const [shifts, setShifts] = useState<ShiftRecord[]>([]);
     const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
     const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+    const [stores, setStores] = useState<StoreRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdatingRole, setIsUpdatingRole] = useState(false);
+    const [isUpdatingStore, setIsUpdatingStore] = useState(false);
 
     const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -29,22 +31,24 @@ export default function StaffDetailView() {
             if (!userId) return;
             setIsLoading(true);
 
-            // 並列でユーザー情報、シフト、打刻、交通費を取得
+            // 並列でユーザー情報、シフト、打刻、交通費、店舗一覧を取得
             const year = currentDate.getFullYear();
             const month = String(currentDate.getMonth() + 1).padStart(2, '0');
             const ym = `${year}-${month}`;
 
-            const [userRes, shiftRes, attRes, expRes] = await Promise.all([
+            const [userRes, shiftRes, attRes, expRes, storeRes] = await Promise.all([
                 getUserProfile(userId),
                 getMonthlyShifts(userId, ym),
                 getMonthlyAttendances(userId, ym),
-                getMonthlyExpenses(userId, ym)
+                getMonthlyExpenses(userId, ym),
+                getAllStores()
             ]);
 
             if (userRes.success && userRes.data) setUser(userRes.data);
             if (shiftRes.success && shiftRes.data) setShifts(shiftRes.data);
             if (attRes.success && attRes.data) setAttendances(attRes.data);
             if (expRes.success && expRes.data) setExpenses(expRes.data);
+            if (storeRes.success && storeRes.data) setStores(storeRes.data);
 
             setIsLoading(false);
         }
@@ -177,7 +181,48 @@ export default function StaffDetailView() {
         }
     };
 
+    const toggleStoreAffiliation = async (storeId: string) => {
+        if (!user || (!isAdminUser(currentUser) && currentUser?.role !== 'MANAGER')) return;
+
+        setIsUpdatingStore(true);
+        try {
+            const targetStore = stores.find(s => s.id === storeId);
+            if (!targetStore) throw new Error('Store not found');
+
+            let currentStaffList: string[] = [];
+            if (targetStore.affiliated_staff) {
+                if (typeof targetStore.affiliated_staff === 'string') {
+                    currentStaffList = JSON.parse(targetStore.affiliated_staff);
+                } else if (Array.isArray(targetStore.affiliated_staff)) {
+                    currentStaffList = targetStore.affiliated_staff;
+                }
+            }
+
+            const staffName = user.display_name;
+            const isAffiliated = currentStaffList.includes(staffName);
+
+            const newStaffList = isAffiliated
+                ? currentStaffList.filter(name => name !== staffName)
+                : [...currentStaffList, staffName];
+
+            const res = await updateStore(storeId, { affiliated_staff: newStaffList });
+            if (res.success && res.data) {
+                // Update local state
+                setStores(stores.map(s => s.id === storeId ? res.data : s));
+            } else {
+                throw new Error('Failed to update store');
+            }
+        } catch (error) {
+            console.error('Failed to update store affiliation:', error);
+            alert('担当販路の更新に失敗しました。');
+        } finally {
+            setIsUpdatingStore(false);
+        }
+    };
+
     const getShiftAttendances = (date: string) => attendances.filter(a => a.date === date);
+
+    const isAdminUser = (user: any) => user?.role === 'ADMIN' || user?.role === 'MANAGER'; // Utility fn if missing
 
     if (isLoading) {
         return (
@@ -294,8 +339,49 @@ export default function StaffDetailView() {
                             )}
                         </div>
                     </div>
-                    <p className="text-[10px] text-gray-300 font-mono mt-1">System ID: {user.id}</p>
                 </div>
+                <p className="text-[10px] text-gray-300 font-mono mt-1">System ID: {user.id}</p>
+
+                {/* 所属店舗（担当販路）の管理UI */}
+                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && stores.length > 0 && (
+                    <div className="mt-6 p-4 bg-gray-50 border border-gray-100 rounded-xl">
+                        <h3 className="text-xs font-bold text-gray-500 mb-3 flex items-center gap-2">
+                            <MapPin size={14} className="text-orange-500" />
+                            担当販路（所属店舗）の設定
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                            {stores.map(store => {
+                                let isAffiliated = false;
+                                try {
+                                    const staffList = typeof store.affiliated_staff === 'string'
+                                        ? JSON.parse(store.affiliated_staff)
+                                        : (store.affiliated_staff || []);
+                                    isAffiliated = Array.isArray(staffList) && staffList.includes(user.display_name);
+                                } catch (e) { }
+
+                                return (
+                                    <button
+                                        key={store.id}
+                                        onClick={() => toggleStoreAffiliation(store.id)}
+                                        disabled={isUpdatingStore}
+                                        className={`relative flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full border transition-all text-xs font-bold overflow-hidden ${isAffiliated
+                                            ? 'bg-orange-50 border-orange-200 text-orange-700 shadow-sm'
+                                            : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300 hover:bg-gray-50'
+                                            } ${isUpdatingStore ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
+                                    >
+                                        <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-colors ${isAffiliated ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-300'}`}>
+                                            {isAffiliated ? <UserCheck size={10} strokeWidth={3} /> : <UserX size={10} strokeWidth={2} />}
+                                        </div>
+                                        {store.name}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <p className="text-[9px] text-gray-400 mt-2 leading-tight">
+                            ※ ここでONになっている店舗が、このスタッフ自身のカレンダーリスト（マイカレンダー）にショートカットとして表示されます。
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* 当月のサマリーカード */}
@@ -490,6 +576,6 @@ export default function StaffDetailView() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

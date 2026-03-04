@@ -1055,7 +1055,7 @@ export default function AdvancedShiftBuilder() {
                                                         )}
                                                     </div>
 
-                                                    <div className="space-y-0.5 sm:space-y-1 overflow-y-auto max-h-[60px] sm:max-h-[80px] custom-scrollbar pb-4">
+                                                    <div className="space-y-0.5 sm:space-y-1 pb-4">
                                                         {users.map(u => {
                                                             const key = `${u.id}_${d.dateStr}`;
                                                             const cell = gridState[key];

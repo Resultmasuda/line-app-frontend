@@ -10,6 +10,8 @@ interface BaseAdminRecord {
 interface AdminAttendance extends BaseAdminRecord {
     type: string;
     timestamp: string;
+    latitude?: number | null;
+    longitude?: number | null;
 }
 interface AdminExpense extends BaseAdminRecord {
     target_date: string;
@@ -24,6 +26,9 @@ interface AdminShift extends BaseAdminRecord {
     location: string;
     start_time: string;
     end_time: string;
+    planned_wake_up_time?: string | null;
+    planned_leave_time?: string | null;
+    daily_memo?: string | null;
 }
 
 export default function AdminDashboardPage() {
@@ -156,7 +161,20 @@ export default function AdminDashboardPage() {
                                                 {getStatusBadge(att.type)}
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
-                                                {formatTime(att.timestamp)}
+                                                <div className="flex items-center gap-2">
+                                                    {formatTime(att.timestamp)}
+                                                    {att.latitude && att.longitude && (
+                                                        <a
+                                                            href={`https://maps.google.com/?q=${att.latitude},${att.longitude}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-blue-500 p-1.5 rounded-md transition-colors shadow-sm"
+                                                            title="打刻時の位置情報を確認"
+                                                        >
+                                                            <MapPin size={14} />
+                                                        </a>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -190,15 +208,30 @@ export default function AdminDashboardPage() {
                                                     {s.users.display_name.substring(0, 1)}
                                                 </div>
                                                 <div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2 flex-wrap">
                                                         <p className="font-bold text-gray-800 text-sm">{s.users.display_name}</p>
                                                         {late && (
                                                             <span className="flex items-center gap-1 bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[10px] font-bold animate-pulse">
                                                                 <AlertTriangle size={10} /> 未打刻・遅刻
                                                             </span>
                                                         )}
+                                                        {s.planned_wake_up_time && (
+                                                            <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100">
+                                                                起床 {s.planned_wake_up_time.substring(0, 5)}
+                                                            </span>
+                                                        )}
+                                                        {s.planned_leave_time && (
+                                                            <span className="text-[10px] font-bold text-cyan-600 bg-cyan-50 px-1.5 py-0.5 rounded border border-cyan-100">
+                                                                出発 {s.planned_leave_time.substring(0, 5)}
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                    <p className="text-xs text-gray-500 font-medium">{s.location}</p>
+                                                    <p className="text-xs text-gray-500 font-medium mt-0.5">{s.location}</p>
+                                                    {s.daily_memo && (
+                                                        <p className="text-[10px] text-gray-600 mt-1.5 bg-white p-1.5 rounded border border-gray-100 line-clamp-2 shadow-sm">
+                                                            {s.daily_memo}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="text-right">

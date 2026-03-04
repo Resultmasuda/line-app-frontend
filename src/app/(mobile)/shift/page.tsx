@@ -722,14 +722,16 @@ export default function ShiftSchedule() {
                             </div>
 
                             {/* 役職・グループ */}
-                            {['ADMIN', 'MANAGER', 'STAFF'].map((role) => {
-                                const roleUsers = allUsers.filter(u => u.role === role && u.id !== user?.id);
+                            {(['PRESIDENT', 'EXECUTIVE', 'MANAGER', 'STAFF', 'ADMIN'] as const).map((role) => {
+                                const roleUsers = allUsers.filter(u => u.role.toUpperCase() === role && u.id !== user?.id);
                                 if (roleUsers.length === 0) return null;
+
+                                const labels: Record<string, string> = { PRESIDENT: '社長', EXECUTIVE: '幹部', MANAGER: '役職社員', STAFF: '社員', ADMIN: '管理者' };
 
                                 return (
                                     <div key={role} className="space-y-3">
                                         <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">
-                                            {role === 'ADMIN' ? '社長・幹部' : role === 'MANAGER' ? '役職社員' : '正社員・スタッフ'}
+                                            {labels[role] || role}
                                         </h4>
                                         <div className="grid grid-cols-1 gap-2">
                                             {roleUsers.map((u) => (
@@ -743,7 +745,7 @@ export default function ShiftSchedule() {
                                                     </div>
                                                     <div className="flex-1 text-left">
                                                         <span className="font-bold block">{u.display_name}</span>
-                                                        <span className={`text-[9px] font-black uppercase ${targetUser?.id === u.id ? 'text-indigo-200' : 'text-gray-400'}`}>{role}</span>
+                                                        <span className={`text-[9px] font-black uppercase ${targetUser?.id === u.id ? 'text-indigo-200' : 'text-gray-400'}`}>{labels[u.role.toUpperCase()] || u.role}</span>
                                                     </div>
                                                     {targetUser?.id === u.id && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
                                                 </button>

@@ -37,6 +37,7 @@ export default function ShiftSchedule() {
     // Selected Data
     const [selectedDateStr, setSelectedDateStr] = useState('');
     const [selectedShift, setSelectedShift] = useState<ShiftRecord | null>(null);
+    const [selectedShifts, setSelectedShifts] = useState<ShiftRecord[]>([]);
     const [targetUser, setTargetUser] = useState<AppUser | AdminUserRecord | null>(null);
     const [allUsers, setAllUsers] = useState<AdminUserRecord[]>([]);
     const [showCalendarList, setShowCalendarList] = useState(false);
@@ -150,24 +151,27 @@ export default function ShiftSchedule() {
         setSubmitLoading(false);
     };
 
-    const handleDayClick = (dateStr: string, shift?: ShiftRecord) => {
+    const handleDayClick = (dateStr: string, dayShifts: ShiftRecord[] = []) => {
         setSelectedDateStr(dateStr);
-        setSelectedShift(shift || null);
+        setSelectedShifts(dayShifts);
         setShowDayModal(true);
     };
 
-    const openShiftEditModal = () => {
-        if (selectedShift) {
+    const openShiftEditModal = (shiftToEdit?: ShiftRecord) => {
+        const targetShift = shiftToEdit || null;
+        if (targetShift) {
+            setSelectedShift(targetShift);
             setShiftFormData({
-                location: selectedShift.location,
-                start_time: selectedShift.start_time.substring(0, 5),
-                end_time: selectedShift.end_time.substring(0, 5),
-                shift_type: selectedShift.shift_type || 'work',
-                planned_wake_up_time: selectedShift.planned_wake_up_time?.substring(0, 5) || '',
-                planned_leave_time: selectedShift.planned_leave_time?.substring(0, 5) || '',
-                daily_memo: selectedShift.daily_memo || ''
+                location: targetShift.location,
+                start_time: targetShift.start_time.substring(0, 5),
+                end_time: targetShift.end_time.substring(0, 5),
+                shift_type: targetShift.shift_type || 'work',
+                planned_wake_up_time: targetShift.planned_wake_up_time?.substring(0, 5) || '',
+                planned_leave_time: targetShift.planned_leave_time?.substring(0, 5) || '',
+                daily_memo: targetShift.daily_memo || ''
             });
         } else {
+            setSelectedShift(null);
             setShiftFormData({
                 location: '',
                 start_time: '10:00',
@@ -227,10 +231,11 @@ export default function ShiftSchedule() {
         setSubmitLoading(false);
     };
 
-    const handleDeleteShift = async () => {
-        if (!selectedShift || !confirm('この予定を削除しますか？')) return;
+    const handleDeleteShift = async (shiftToDelete?: ShiftRecord) => {
+        const targetShift = shiftToDelete || selectedShift;
+        if (!targetShift || !confirm('この予定を削除しますか？')) return;
         setSubmitLoading(true);
-        const res = await deleteShift(selectedShift.id);
+        const res = await deleteShift(targetShift.id);
         if (res.success) {
             setShowDayModal(false);
             fetchShifts();
@@ -272,8 +277,8 @@ export default function ShiftSchedule() {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const isToday = dateStr === todayStr;
 
-            const dayShift = shifts.find(s => s.date === dateStr);
-            const hasShift = !!dayShift;
+            const dayShifts = shifts.filter(s => s.date === dateStr);
+            const hasShift = dayShifts.length > 0;
 
             const dayHoliday = holidays.find(h => h.date === dateStr);
             const hasHoliday = !!dayHoliday;
@@ -283,8 +288,8 @@ export default function ShiftSchedule() {
             cells.push(
                 <div
                     key={dateStr}
-                    onClick={() => handleDayClick(dateStr, dayShift)}
-                    className={`p-1 border-b border-r border-gray-100 h-20 shadow-inner transition-colors cursor-pointer active:bg-gray-100 ${isToday ? 'bg-emerald-50/30' : 'bg-white'} ${hasHoliday ? 'bg-amber-50/20' : ''}`}
+                    onClick={() => handleDayClick(dateStr, dayShifts)}
+                    className={`p-1 border-b border-r border-gray-100 min-h-[80px] shadow-inner transition-colors cursor-pointer active:bg-gray-100 ${isToday ? 'bg-emerald-50/30' : 'bg-white'} ${hasHoliday ? 'bg-amber-50/20' : ''}`}
                 >
                     <div className="flex justify-between items-start">
                         <span className={`text-xs font-semibold ${isToday ? 'bg-emerald-500 text-white w-5 h-5 rounded-full flex items-center justify-center' : 'text-gray-700 p-1'}`}>
@@ -306,21 +311,28 @@ export default function ShiftSchedule() {
                         </div>
                     )}
 
-                    {hasShift && dayShift && (
-                        <div className="mt-1 flex flex-col gap-1">
-                            <div className={`text-[9px] font-black px-1.5 py-1 rounded-md flex items-center gap-1 shadow-sm border truncate
-                                ${isPast ? 'bg-gray-100 text-gray-400 border-gray-200' :
-                                    dayShift.shift_type === 'work' ? 'bg-emerald-500 text-white border-emerald-400' :
-                                        dayShift.shift_type === 'plan' ? 'bg-indigo-500 text-white border-indigo-400' :
-                                            'bg-amber-500 text-white border-amber-400'}`}>
-                                {dayShift.location}
-                            </div>
-                            <div className={`text-[8px] font-black px-1 tracking-tighter truncate ${isPast ? 'text-gray-300' :
-                                dayShift.shift_type === 'work' ? 'text-emerald-600' :
-                                    dayShift.shift_type === 'plan' ? 'text-indigo-600' :
-                                        'text-amber-600'}`}>
-                                {dayShift.start_time.substring(0, 5)} - {dayShift.end_time.substring(0, 5)}
-                            </div>
+                    {hasShift && (
+                        <div className="mt-1 flex flex-col gap-0.5 overflow-hidden">
+                            {dayShifts.slice(0, 3).map((dayShift, idx) => (
+                                <div key={dayShift.id || idx} className="flex flex-col gap-0">
+                                    <div className={`text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-sm flex items-center gap-1 shadow-sm border truncate
+                                        ${isPast ? 'bg-gray-100 text-gray-400 border-gray-200' :
+                                            dayShift.shift_type === 'work' ? 'bg-emerald-500 text-white border-emerald-400' :
+                                                dayShift.shift_type === 'plan' ? 'bg-indigo-500 text-white border-indigo-400' :
+                                                    'bg-amber-500 text-white border-amber-400'}`}>
+                                        {dayShift.location}
+                                    </div>
+                                    <div className={`text-[7px] font-black px-1 tracking-tighter truncate leading-tight ${isPast ? 'text-gray-300' :
+                                        dayShift.shift_type === 'work' ? 'text-emerald-600' :
+                                            dayShift.shift_type === 'plan' ? 'text-indigo-600' :
+                                                'text-amber-600'}`}>
+                                        {dayShift.start_time.substring(0, 5)} - {dayShift.end_time.substring(0, 5)}
+                                    </div>
+                                </div>
+                            ))}
+                            {dayShifts.length > 3 && (
+                                <div className="text-[8px] text-gray-500 font-bold text-center mt-0.5">他 {dayShifts.length - 3} 件</div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -416,7 +428,7 @@ export default function ShiftSchedule() {
                             return (
                                 <div
                                     key={shift.id}
-                                    onClick={() => handleDayClick(shift.date, shift)}
+                                    onClick={() => handleDayClick(shift.date, shifts.filter(s => s.date === shift.date))}
                                     className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3 hover:border-emerald-200 active:bg-gray-50 transition-colors cursor-pointer"
                                 >
                                     <div className="flex justify-between items-center border-b border-gray-50 pb-3 mb-3">
@@ -471,49 +483,66 @@ export default function ShiftSchedule() {
                             </button>
                         </div>
 
-                        {selectedShift ? (
-                            <div className="space-y-4">
-                                <div className={`border rounded-2xl p-4 ${selectedShift.shift_type === 'work' ? 'bg-emerald-50 border-emerald-100' :
-                                    selectedShift.shift_type === 'plan' ? 'bg-indigo-50 border-indigo-100' :
-                                        'bg-amber-50 border-amber-100'}`}>
-                                    <div className={`font-bold mb-1 ${selectedShift.shift_type === 'work' ? 'text-emerald-800' :
-                                        selectedShift.shift_type === 'plan' ? 'text-indigo-800' :
-                                            'text-amber-800'}`}>{selectedShift.location}</div>
-                                    <div className={`text-sm font-medium ${selectedShift.shift_type === 'work' ? 'text-emerald-600' :
-                                        selectedShift.shift_type === 'plan' ? 'text-indigo-600' :
-                                            'text-amber-600'}`}>
-                                        {selectedShift.start_time.substring(0, 5)} - {selectedShift.end_time.substring(0, 5)}
-                                    </div>
-                                    {(selectedShift.planned_wake_up_time || selectedShift.daily_memo) && (
-                                        <div className={`mt-3 pt-3 border-t text-xs space-y-1 ${selectedShift.shift_type === 'work' ? 'border-emerald-100/50 text-emerald-700' :
-                                            selectedShift.shift_type === 'plan' ? 'border-indigo-100/50 text-indigo-700' :
-                                                'border-amber-100/50 text-amber-700'}`}>
-                                            {selectedShift.planned_wake_up_time && <p>⏰ 起床: {selectedShift.planned_wake_up_time.substring(0, 5)}</p>}
-                                            {selectedShift.daily_memo && <p>📝 {selectedShift.daily_memo}</p>}
-                                        </div>
-                                    )}
-                                </div>
+                        {selectedShifts.length > 0 ? (
+                            <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
+                                {selectedShifts.map((s, idx) => {
+                                    const isWork = s.shift_type === 'work';
+                                    const isPlan = s.shift_type === 'plan';
+                                    const canEdit = !selectedGroupRole || targetUser?.id === user?.id || s.user_id === user?.id;
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button onClick={openShiftEditModal} className="col-span-2 py-3.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-md">
-                                        <Edit3 size={18} /> {selectedShift.shift_type === 'work' ? '予定・メモを編集' : '内容を編集'}
-                                    </button>
-                                    <button
-                                        onClick={handleDeleteShift}
-                                        disabled={submitLoading || selectedShift.shift_type === 'work'}
-                                        className="col-span-2 py-3 bg-red-50 text-red-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-100 active:scale-[0.98] transition-all border border-red-200 disabled:opacity-30"
-                                    >
-                                        <Trash2 size={18} /> 予定を削除
-                                    </button>
-                                </div>
-                                {selectedShift.shift_type === 'work' && (
-                                    <p className="text-[10px] text-gray-400 text-center">※ 勤務シフトの場所と時間は管理者のみ編集可能です</p>
-                                )}
+                                    return (
+                                        <div key={s.id || idx} className="space-y-3 pb-5 mb-5 border-b border-gray-100 last:border-0 last:mb-0 last:pb-0">
+                                            <div className={`border rounded-2xl p-4 ${isWork ? 'bg-emerald-50 border-emerald-100' :
+                                                isPlan ? 'bg-indigo-50 border-indigo-100' :
+                                                    'bg-amber-50 border-amber-100'}`}>
+                                                <div className={`font-bold mb-1 ${isWork ? 'text-emerald-800' :
+                                                    isPlan ? 'text-indigo-800' :
+                                                        'text-amber-800'}`}>{s.location}</div>
+                                                <div className={`text-sm font-medium ${isWork ? 'text-emerald-600' :
+                                                    isPlan ? 'text-indigo-600' :
+                                                        'text-amber-600'}`}>
+                                                    {s.start_time.substring(0, 5)} - {s.end_time.substring(0, 5)}
+                                                </div>
+                                                {(s.planned_wake_up_time || s.daily_memo) && (
+                                                    <div className={`mt-3 pt-3 border-t text-xs space-y-1 ${isWork ? 'border-emerald-100/50 text-emerald-700' :
+                                                        isPlan ? 'border-indigo-100/50 text-indigo-700' :
+                                                            'border-amber-100/50 text-amber-700'}`}>
+                                                        {s.planned_wake_up_time && <p>⏰ 起床: {s.planned_wake_up_time.substring(0, 5)}</p>}
+                                                        {s.daily_memo && <p>📝 {s.daily_memo}</p>}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {canEdit && (
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <button onClick={() => openShiftEditModal(s)} className="col-span-2 py-3.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-md">
+                                                        <Edit3 size={18} /> {isWork ? '予定・メモを編集' : '内容を編集'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteShift(s)}
+                                                        disabled={submitLoading || isWork}
+                                                        className="col-span-2 py-3 bg-red-50 text-red-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-100 active:scale-[0.98] transition-all border border-red-200 disabled:opacity-30"
+                                                    >
+                                                        <Trash2 size={18} /> 予定を削除
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {isWork && canEdit && (
+                                                <p className="text-[10px] text-gray-400 text-center">※ 勤務シフトの場所と時間は管理者のみ編集可能です</p>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="space-y-3">
                                 <p className="text-center text-gray-500 text-sm py-4">この日の予定はありません</p>
-                                <button onClick={openShiftEditModal} className="w-full py-4 bg-emerald-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm hover:bg-emerald-600 active:bg-emerald-700 active:scale-[0.98] transition-all">
+                            </div>
+                        )}
+
+                        {(!selectedGroupRole || targetUser?.id === user?.id) && (
+                            <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                                <button onClick={() => openShiftEditModal()} className="w-full py-4 bg-emerald-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm hover:bg-emerald-600 active:bg-emerald-700 active:scale-[0.98] transition-all">
                                     <CalendarPlus size={20} /> 新しい予定を登録する
                                 </button>
                                 <button onClick={() => { setHolidayDate(selectedDateStr); setShowHolidayModal(true); setShowDayModal(false); }} className="w-full py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
@@ -764,8 +793,8 @@ export default function ShiftSchedule() {
                                         <button
                                             onClick={() => setExpandedRole(isExpanded ? null : role)}
                                             className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${selectedGroupRole === role
-                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
-                                                    : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
+                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
+                                                : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
                                                 }`}
                                         >
                                             <div className={`p-2 rounded-xl ${selectedGroupRole === role ? 'bg-white/20' : 'bg-indigo-50 text-indigo-600'}`}>
@@ -789,8 +818,8 @@ export default function ShiftSchedule() {
                                                         setShowCalendarList(false);
                                                     }}
                                                     className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-sm ${selectedGroupRole === role
-                                                            ? 'bg-amber-500 text-white border-amber-500 shadow-md'
-                                                            : 'bg-amber-50 border-amber-100 text-amber-700 hover:bg-amber-100'
+                                                        ? 'bg-amber-500 text-white border-amber-500 shadow-md'
+                                                        : 'bg-amber-50 border-amber-100 text-amber-700 hover:bg-amber-100'
                                                         }`}
                                                 >
                                                     <Users size={16} />
@@ -807,8 +836,8 @@ export default function ShiftSchedule() {
                                                             setShowCalendarList(false);
                                                         }}
                                                         className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-sm ${targetUser?.id === u.id && !selectedGroupRole
-                                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                                                                : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
+                                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                                                            : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
                                                             }`}
                                                     >
                                                         <div className={`p-1.5 rounded-lg ${targetUser?.id === u.id && !selectedGroupRole ? 'bg-white/20' : 'bg-gray-50 text-gray-500'}`}>

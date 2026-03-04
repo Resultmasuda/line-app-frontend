@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
 import {
     getMonthlyShifts, ShiftRecord, getHolidayRequests, createHolidayRequest,
-    HolidayRequest, updateShiftPlanning, getGroupMonthlyShifts
+    HolidayRequest, updateShiftPlanning, getGroupMonthlyShifts, getStoreMonthlyShifts
 } from '@/lib/api/shift';
 import { createShift, updateShift, deleteShift, getAllStores, getAllUsers } from '@/lib/api/admin';
-import { List, User as UserIcon, Users } from 'lucide-react';
+import { List, User as UserIcon, Users, Store, Heart, HeartOff, PlusCircle } from 'lucide-react';
 import { AdminUserRecord } from '@/lib/api/admin';
 
 // ユーザーデータの型定義 (LiffProviderと合わせる)
@@ -42,7 +42,33 @@ export default function ShiftSchedule() {
     const [allUsers, setAllUsers] = useState<AdminUserRecord[]>([]);
     const [showCalendarList, setShowCalendarList] = useState(false);
     const [selectedGroupRole, setSelectedGroupRole] = useState<string | null>(null);
+    const [selectedStore, setSelectedStore] = useState<string | null>(null);
     const [expandedRole, setExpandedRole] = useState<string | null>(null);
+    const [favoriteStores, setFavoriteStores] = useState<string[]>([]);
+    const [showStoreAddModal, setShowStoreAddModal] = useState(false);
+
+    // Load favorite stores from localStorage
+    useEffect(() => {
+        const saved = localStorage.getItem('admin_favorite_stores');
+        if (saved) {
+            try {
+                setFavoriteStores(JSON.parse(saved));
+            } catch (e) {
+                console.error("Failed to parse favorite stores", e);
+            }
+        }
+    }, []);
+
+    const toggleFavoriteStore = (storeName: string) => {
+        let updated: string[];
+        if (favoriteStores.includes(storeName)) {
+            updated = favoriteStores.filter(s => s !== storeName);
+        } else {
+            updated = [...favoriteStores, storeName];
+        }
+        setFavoriteStores(updated);
+        localStorage.setItem('admin_favorite_stores', JSON.stringify(updated));
+    };
 
     // Forms
     const [shiftFormData, setShiftFormData] = useState({
@@ -64,8 +90,21 @@ export default function ShiftSchedule() {
         const yearMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
         try {
+            // 店舗（販路）表示モード
+            if (selectedStore) {
+                const shiftRes = await getStoreMonthlyShifts([selectedStore], yearMonth);
+                if (shiftRes.success && shiftRes.data) {
+                    // display_name を location に設定してUI上スタッフ名が見えるようにする
+                    const enriched = shiftRes.data.map((s: any) => ({
+                        ...s,
+                        location: (s.users as any)?.display_name || '名称不明',
+                    }));
+                    setShifts(enriched);
+                }
+                setHolidays([]);
+            }
             // グループまとめ表示モード
-            if (selectedGroupRole) {
+            else if (selectedGroupRole) {
                 const groupUserIds = allUsers
                     .filter(u => u.role.toUpperCase() === selectedGroupRole)
                     .map(u => u.id);
@@ -108,7 +147,7 @@ export default function ShiftSchedule() {
         } finally {
             setIsLoading(false);
         }
-    }, [user, targetUser, currentDate, selectedGroupRole, allUsers]);
+    }, [user, targetUser, currentDate, selectedGroupRole, selectedStore, allUsers]);
 
     useEffect(() => {
         if (user && !targetUser) setTargetUser(user);
@@ -361,7 +400,9 @@ export default function ShiftSchedule() {
                     </button>
                     <div>
                         <h1 className="text-lg font-bold text-gray-800 leading-tight">
-                            {targetUser?.id === user?.id ? '自分のシフト' : `${targetUser?.display_name}さんのシフト`}
+                            {selectedStore ? `${selectedStore}のカレンダー` :
+                                selectedGroupRole ? `${selectedGroupRole === 'PRESIDENT' ? '社長' : selectedGroupRole === 'EXECUTIVE' ? '幹部' : selectedGroupRole === 'MANAGER' ? '役職社員' : '社員'}のカレンダー` :
+                                    targetUser?.id === user?.id ? '自分のシフト' : `${targetUser?.display_name}さんのシフト`}
                         </h1>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5">Shift & Schedule</p>
                     </div>
@@ -766,16 +807,71 @@ export default function ShiftSchedule() {
                             <div className="space-y-3">
                                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">マイカレンダー</h4>
                                 <button
-                                    onClick={() => { setTargetUser(user); setShowCalendarList(false); }}
-                                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${targetUser?.id === user?.id ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-500/20' : 'bg-white border-gray-100 text-gray-700 hover:border-emerald-200'}`}
+                                    onClick={() => { setTargetUser(user); setSelectedGroupRole(null); setSelectedStore(null); setShowCalendarList(false); }}
+                                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${targetUser?.id === user?.id && !selectedGroupRole && !selectedStore ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-500/20' : 'bg-white border-gray-100 text-gray-700 hover:border-emerald-200'}`}
                                 >
-                                    <div className={`p-2 rounded-xl ${targetUser?.id === user?.id ? 'bg-white/20' : 'bg-emerald-50 text-emerald-600'}`}>
+                                    <div className={`p-2 rounded-xl ${targetUser?.id === user?.id && !selectedGroupRole && !selectedStore ? 'bg-white/20' : 'bg-emerald-50 text-emerald-600'}`}>
                                         <UserIcon size={20} />
                                     </div>
                                     <span className="font-bold flex-1 text-left">自分のシフト</span>
-                                    {targetUser?.id === user?.id && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
+                                    {targetUser?.id === user?.id && !selectedGroupRole && !selectedStore && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
                                 </button>
+
+                                {/* 自分の所属店舗カレンダー */}
+                                {stores.filter(store => {
+                                    if (!store.affiliated_staff || !user) return false;
+                                    try {
+                                        const staffList = typeof store.affiliated_staff === 'string' ? JSON.parse(store.affiliated_staff) : store.affiliated_staff;
+                                        return Array.isArray(staffList) && staffList.includes(user.display_name);
+                                    } catch { return false; }
+                                }).map(store => (
+                                    <button
+                                        key={`my-store-${store.id}`}
+                                        onClick={() => { setSelectedStore(store.name); setTargetUser(null); setSelectedGroupRole(null); setShowCalendarList(false); }}
+                                        className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${selectedStore === store.name ? 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20' : 'bg-orange-50 border-orange-100 text-orange-800 hover:bg-orange-100'}`}
+                                    >
+                                        <div className={`p-2 rounded-xl ${selectedStore === store.name ? 'bg-white/20' : 'bg-orange-100 text-orange-600'}`}>
+                                            <Store size={20} />
+                                        </div>
+                                        <span className="font-bold flex-1 text-left">{store.name} カレンダー</span>
+                                        {selectedStore === store.name && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
+                                    </button>
+                                ))}
                             </div>
+
+                            {/* 管理者用：お気に入り店舗カレンダー */}
+                            {user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) && (
+                                <div className="space-y-3 pt-3 border-t border-gray-100">
+                                    <div className="flex items-center justify-between px-1">
+                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">お気に入り販路（管理者）</h4>
+                                        <button onClick={() => setShowStoreAddModal(true)} className="text-emerald-500 hover:text-emerald-600">
+                                            <PlusCircle size={16} />
+                                        </button>
+                                    </div>
+                                    {favoriteStores.length > 0 ? (
+                                        favoriteStores.map(storeName => (
+                                            <button
+                                                key={`fav-store-${storeName}`}
+                                                onClick={() => { setSelectedStore(storeName); setTargetUser(null); setSelectedGroupRole(null); setShowCalendarList(false); }}
+                                                className={`w-full flex items-center gap-4 p-3 rounded-2xl border transition-all ${selectedStore === storeName ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'}`}
+                                            >
+                                                <div className={`p-1.5 rounded-xl ${selectedStore === storeName ? 'bg-white/20' : 'bg-gray-50 text-gray-500'}`}>
+                                                    <Store size={16} />
+                                                </div>
+                                                <span className="font-bold text-sm flex-1 text-left">{storeName}</span>
+                                                {selectedStore === storeName && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>}
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-4 bg-gray-50 rounded-2xl border border-gray-100 border-dashed">
+                                            <p className="text-xs text-gray-400 font-bold mb-2">追加された販路はありません</p>
+                                            <button onClick={() => setShowStoreAddModal(true)} className="text-[10px] bg-white border border-gray-200 px-3 py-1.5 rounded-full font-bold text-gray-600 shadow-sm hover:bg-gray-50">
+                                                ＋ 販路を追加する
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* ロール別カレンダー */}
                             {(['PRESIDENT', 'EXECUTIVE', 'MANAGER', 'STAFF'] as const).map((role) => {
@@ -815,6 +911,7 @@ export default function ShiftSchedule() {
                                                     onClick={() => {
                                                         setSelectedGroupRole(role);
                                                         setTargetUser(null);
+                                                        setSelectedStore(null);
                                                         setShowCalendarList(false);
                                                     }}
                                                     className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-sm ${selectedGroupRole === role
@@ -833,6 +930,7 @@ export default function ShiftSchedule() {
                                                         onClick={() => {
                                                             setTargetUser(u);
                                                             setSelectedGroupRole(null);
+                                                            setSelectedStore(null);
                                                             setShowCalendarList(false);
                                                         }}
                                                         className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-sm ${targetUser?.id === u.id && !selectedGroupRole
@@ -852,6 +950,51 @@ export default function ShiftSchedule() {
                                 );
                             })}
 
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Store Selection Modal (Admin only) */}
+            {showStoreAddModal && (
+                <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowStoreAddModal(false)}>
+                    <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-800">お気に入り販路の設定</h3>
+                                <p className="text-[10px] text-gray-500">リストに表示したい店舗を選択してください</p>
+                            </div>
+                            <button onClick={() => setShowStoreAddModal(false)} className="p-2 bg-gray-50 text-gray-500 rounded-full hover:bg-gray-100">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="px-6 py-4 max-h-[60vh] overflow-y-auto space-y-2">
+                            {stores.map(store => {
+                                const isFav = favoriteStores.includes(store.name);
+                                return (
+                                    <button
+                                        key={`add-${store.id}`}
+                                        onClick={() => toggleFavoriteStore(store.name)}
+                                        className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${isFav ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-100 hover:border-emerald-200'}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-1.5 rounded-lg ${isFav ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-50 text-gray-400'}`}>
+                                                <Store size={18} />
+                                            </div>
+                                            <span className={`font-bold ${isFav ? 'text-emerald-800' : 'text-gray-700'}`}>{store.name}</span>
+                                        </div>
+                                        {isFav ? (
+                                            <Heart className="text-emerald-500 fill-emerald-500" size={20} />
+                                        ) : (
+                                            <HeartOff className="text-gray-300" size={20} />
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="p-4 border-t border-gray-100 bg-gray-50">
+                            <button onClick={() => setShowStoreAddModal(false)} className="w-full py-3.5 bg-emerald-500 text-white font-bold rounded-2xl shadow-md hover:bg-emerald-600 transition-all active:scale-[0.98]">
+                                完了
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -77,6 +77,32 @@ export async function getGroupMonthlyShifts(userIds: string[], yearMonthPrefix: 
 }
 
 /**
+ * 複数店舗または単一店舗の当月のシフトを一括取得する関数
+ */
+export async function getStoreMonthlyShifts(storeNames: string[], yearMonthPrefix: string) {
+    try {
+        const [year, month] = yearMonthPrefix.split('-');
+        const lastDay = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
+        const startDate = `${yearMonthPrefix}-01`;
+        const endDate = `${yearMonthPrefix}-${lastDay}`;
+
+        const { data, error } = await supabase
+            .from('shifts')
+            .select('*, users(display_name)')
+            .in('location', storeNames)
+            .gte('date', startDate)
+            .lte('date', endDate)
+            .order('date', { ascending: true });
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error fetching store shifts:', error);
+        return { success: false, error, data: [] };
+    }
+}
+
+/**
  * 指定したユーザーの「今日以降」の最新シフトを取得する関数 (ホーム画面用)
  */
 export async function getUpcomingShifts(userId: string, limit: number = 2) {

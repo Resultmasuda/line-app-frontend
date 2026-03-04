@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { ShieldAlert, Loader2, Phone, Lock } from 'lucide-react';
+import { ShieldAlert, Loader2, Phone, Lock, Eye, EyeOff } from 'lucide-react';
 
 interface RegistrationScreenProps {
     onSubmit: (phoneNumber: string, pinCode: string) => Promise<void>;
@@ -11,6 +11,7 @@ export default function RegistrationScreen({ onSubmit, error }: RegistrationScre
     const [phoneNumber, setPhoneNumber] = useState('');
     const [pinCode, setPinCode] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -72,30 +73,36 @@ export default function RegistrationScreen({ onSubmit, error }: RegistrationScre
                                     <Lock size={18} />
                                 </div>
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     required
                                     placeholder="パスワードを入力"
                                     value={pinCode}
                                     onChange={(e) => setPinCode(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                                    className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
-                        </div>
 
-                        <button
-                            type="submit"
-                            disabled={isSubmitting || !phoneNumber || !pinCode}
-                            className="w-full mt-8 py-3.5 bg-emerald-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:shadow-emerald-700/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <Loader2 size={18} className="animate-spin" />
-                                    認証中...
-                                </>
-                            ) : (
-                                '認証して連携する'
-                            )}
-                        </button>
+                            <button
+                                type="submit"
+                                disabled={isSubmitting || !phoneNumber || !pinCode}
+                                className="w-full mt-8 py-3.5 bg-emerald-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:shadow-emerald-700/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin" />
+                                        認証中...
+                                    </>
+                                ) : (
+                                    '認証して連携する'
+                                )}
+                            </button>
                     </form>
                 </div>
             </div>

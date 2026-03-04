@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Users, Search, Filter, Plus, Link as LinkIcon, Edit2, Unlink } from 'lucide-react';
 import { getAllUsers, AdminUserRecord, createPreRegisteredUser, updateUserRole, updateUserPhoneNumber, unlinkUserLineId } from '@/lib/api/admin';
-import { getRoleDisplayLabel, getRoleBadgeClass } from '@/lib/utils/auth';
+import { getRoleDisplayLabel, getRoleBadgeClass, ROLE_OPTIONS, isAdminUser } from '@/lib/utils/auth';
 
 export default function AdminStaffPage() {
     const [users, setUsers] = useState<AdminUserRecord[]>([]);
@@ -152,9 +152,9 @@ export default function AdminStaffPage() {
                                                         'bg-gray-50 text-gray-700 border-gray-200'
                                                     }`}
                                             >
-                                                <option value="ADMIN">社長・幹部</option>
-                                                <option value="MANAGER">役職者</option>
-                                                <option value="STAFF">一般</option>
+                                                {ROLE_OPTIONS.map(opt => (
+                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                ))}
                                             </select>
                                         </td>
                                         <td className="px-6 py-4 text-xs whitespace-nowrap">
@@ -241,9 +241,9 @@ export default function AdminStaffPage() {
                                         onChange={(e) => setNewUserRole(e.target.value)}
                                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                                     >
-                                        <option value="STAFF">一般スタッフ</option>
-                                        <option value="MANAGER">役職者</option>
-                                        <option value="ADMIN">社長・幹部</option>
+                                        {ROLE_OPTIONS.map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div className="flex gap-2 pt-4 mt-2 border-t border-gray-100">

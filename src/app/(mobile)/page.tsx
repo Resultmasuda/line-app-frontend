@@ -237,9 +237,20 @@ export default function AppDashboard() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 pb-20 relative">
       {/* 画面ヘッダー */}
-      <div className="bg-white px-6 pt-12 pb-6 rounded-b-3xl shadow-sm text-center z-10">
+      <div className="bg-white px-6 pt-12 pb-6 rounded-b-3xl shadow-sm text-center z-10 relative">
         <p className="text-gray-500 text-xs font-medium mb-1">今日もお疲れ様です</p>
         <h1 className="text-2xl font-bold text-gray-800">{user?.display_name || 'ゲスト'} <span className="text-sm font-normal text-gray-400">さん</span></h1>
+        {/* 管理者ボタン */}
+        {user && (() => {
+          const r = (user.role || '').toUpperCase();
+          const SUPER_IDS = ['c42cb255-d3ad-41cb-9b48-e6ffcd2f6648', '87e75b91-210c-41bb-9cc3-cc7850d473d4'];
+          const isAdmin = SUPER_IDS.includes(user.id) || ['ADMIN', 'PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(r);
+          return isAdmin ? (
+            <Link href="/admin/dashboard" className="absolute right-4 top-12 bg-emerald-500 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg hover:bg-emerald-600 transition-all">
+              管理画面へ
+            </Link>
+          ) : null;
+        })()}
       </div>
 
       {/* メインコンテンツ */}

@@ -7,7 +7,7 @@ import { getMonthlyShifts, ShiftRecord } from '@/lib/api/shift';
 import { getMonthlyAttendances, AttendanceRecord } from '@/lib/api/attendance';
 import { getMonthlyExpenses, ExpenseRecord } from '@/lib/api/expense';
 import { useLiff } from '@/components/LiffProvider';
-import { getRoleDisplayLabel, getRoleBadgeClass } from '@/lib/utils/auth';
+import { getRoleDisplayLabel, getRoleBadgeClass, ROLE_OPTIONS } from '@/lib/utils/auth';
 
 export default function StaffDetailView() {
     const { user: currentUser } = useLiff();
@@ -223,9 +223,9 @@ export default function StaffDetailView() {
                                             'bg-indigo-50 text-indigo-600 border-indigo-100'
                                         }`}
                                 >
-                                    <option value="STAFF">一般スタッフ</option>
-                                    <option value="MANAGER">役職者</option>
-                                    <option value="ADMIN">社長・幹部</option>
+                                    {ROLE_OPTIONS.map(opt => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
                                 </select>
                             ) : (
                                 <span className={`px-2.5 py-1 text-[10px] rounded-full font-bold border ${user.role === 'ADMIN' ? 'bg-rose-50 text-rose-600 border-rose-100' :
@@ -354,7 +354,7 @@ export default function StaffDetailView() {
                                         </div>
 
                                         <div className="flex justify-between items-center">
-                                            <span className="text-xs font-bold text-gray-400">実績</span>
+                                            <span className="text-xs font-bold text-gray-400">出退勤</span>
                                             {isFuture ? (
                                                 <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full text-center">予定</span>
                                             ) : (

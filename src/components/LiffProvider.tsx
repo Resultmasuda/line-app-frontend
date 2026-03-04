@@ -2,6 +2,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import liff from '@line/liff';
 import { supabase } from '@/lib/supabase';
+import { joinStore } from '@/lib/api/admin';
+import RegistrationScreen from '@/components/RegistrationScreen';
 
 // ユーザーデータの型定義
 type AppUser = {
@@ -29,6 +31,11 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
     const [user, setUser] = useState<AppUser | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const [showRegistration, setShowRegistration] = useState(false);
+    const [regProfile, setRegProfile] = useState<{ userId: string, displayName: string } | null>(null);
+    const [inviteStoreIdState, setInviteStoreIdState] = useState<string | null>(null);
+    const [regError, setRegError] = useState<string | null>(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -75,33 +82,83 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
 
                 // もしブラウザでLINEログインされていなかったらログイン画面へ
                 if (!liff.isLoggedIn()) {
-                    liff.login();
+                    // ログイン後のリダイレクト先を現在のURL（管理画面等）にする
+                    liff.login({ redirectUri: window.location.href });
                     return;
                 }
 
                 // LINEのユーザープロフィールを取得
                 const profile = await liff.getProfile();
 
-                // データベース(Supabase)にユーザー情報を登録 or 取得する (Upsert)
-                const { data, error: sbError } = await supabase
-                    .from('users')
-                    .upsert(
-                        {
-                            line_user_id: profile.userId,
-                            display_name: profile.displayName,
-                            // roleはデフォルトで 'STAFF' となる (schema.sqlで定義済み)
-                        },
-                        { onConflict: 'line_user_id' }
-                    )
-                    .select()
-                    .single();
+                // URLパラメータから情報を取得
+                const urlParams = new URLSearchParams(window.location.search);
+                const linkId = urlParams.get('link_id');
+                const inviteStoreId = urlParams.get('invite_store_id');
 
-                if (sbError) {
-                    throw sbError;
+                let userData;
+
+                if (linkId) {
+                    // 事前登録ユーザーとの連携処理
+                    const { data: existingUser } = await supabase
+                        .from('users')
+                        .select('*')
+                        .eq('id', linkId)
+                        .single();
+
+                    if (existingUser && !existingUser.line_user_id) {
+                        const { data: updatedUser, error: updateError } = await supabase
+                            .from('users')
+                            .update({ line_user_id: profile.userId, display_name: profile.displayName })
+                            .eq('id', linkId)
+                            .select()
+                            .single();
+
+                        if (!updateError) {
+                            userData = updatedUser;
+                            // URLパラメータをクモ削除
+                            const cleanUrl = window.location.origin + window.location.pathname;
+                            window.history.replaceState({}, document.title, cleanUrl);
+                            alert(`LINEアカウントを事前登録データ（${existingUser.display_name}）と連携しました！`);
+                        }
+                    }
                 }
 
-                if (isMounted && data) {
-                    setUser(data as AppUser);
+                if (!userData) {
+                    // RPCを使用して RLS 無限ループを回避して検索 (v5対応)
+                    const { data: matchedRecords } = await supabase
+                        .rpc('find_user_by_line_id', { p_line_id: profile.userId });
+
+                    const existingByLine = matchedRecords && matchedRecords.length > 0 ? matchedRecords[0] : null;
+
+                    if (existingByLine) {
+                        userData = existingByLine;
+                    } else {
+                        // LINE連携済みレコードがない → 新規登録画面へ
+                        setRegProfile({ userId: profile.userId, displayName: profile.displayName || '' });
+                        if (inviteStoreId) setInviteStoreIdState(inviteStoreId);
+
+                        if (isMounted) {
+                            setShowRegistration(true);
+                            setLoading(false);
+                        }
+                        return;
+                    }
+                }
+
+                if (isMounted && userData) {
+                    setUser(userData as AppUser);
+
+                    // 招待されている場合は店舗に紐付ける
+                    if (inviteStoreId) {
+                        try {
+                            await joinStore(inviteStoreId, userData.id);
+                            const cleanUrl = window.location.origin + window.location.pathname;
+                            window.history.replaceState({}, document.title, cleanUrl);
+                            alert('店舗への登録が完了しました！');
+                        } catch (err) {
+                            console.error('Failed to join store:', err);
+                        }
+                    }
                 }
 
             } catch (err: unknown) {
@@ -122,13 +179,76 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
 
         initLiff();
 
-        return () => {
-            isMounted = false;
-        };
     }, []);
+
+    const handleRegistration = async (phoneNumber: string, pinCode: string) => {
+        setRegError(null);
+
+        if (!regProfile) return;
+
+        const cleanPhone = phoneNumber.trim().replace(/\s/g, '').replace(/-/g, '');
+
+        try {
+            // RPCを使用して RLS をバイパスし、ユーザーを検索する（無限ループ回避 + 表記揺れ吸収）
+            const { data: matchedUsers, error: searchErr } = await supabase
+                .rpc('find_unlinked_user_by_phone', { p_phone_number: cleanPhone });
+
+            const matchedPreReg = matchedUsers && matchedUsers.length > 0 ? matchedUsers[0] : null;
+
+            if (searchErr || !matchedPreReg) {
+                setRegError('入力された電話番号のスタッフ登録が見つかりません。管理者に登録状況を確認してください。');
+                return;
+            }
+
+            // 個別のPIN設定があればそれを使用、なければ全体パスワード
+            const expectedPin = matchedPreReg.pin_code || process.env.NEXT_PUBLIC_REGISTRATION_PIN || '@Result2020';
+
+            if (pinCode !== expectedPin) {
+                setRegError('パスワードが間違っています。');
+                return;
+            }
+
+            // LINEアカウントと紐付ける
+            const { data: linkedUser, error: linkErr } = await supabase
+                .from('users')
+                .update({
+                    line_user_id: regProfile.userId
+                })
+                .eq('id', matchedPreReg.id)
+                .select()
+                .single();
+
+            if (linkErr) throw linkErr;
+
+            alert(`認証成功！「${matchedPreReg.display_name}」さんと連携しました。`);
+
+            setUser(linkedUser as AppUser);
+            setShowRegistration(false);
+
+            // 招待URLからの遷移だった場合は店舗に紐付ける
+            if (inviteStoreIdState) {
+                try {
+                    await joinStore(inviteStoreIdState, linkedUser.id);
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    alert('店舗への登録が完了しました！');
+                } catch (err) {
+                    console.error('Failed to join store:', err);
+                }
+            }
+        } catch (err) {
+            console.error('Registration link error:', err);
+            setRegError('連携処理中にエラーが発生しました。時間を置いて再度お試しください。');
+        }
+    };
 
     return (
         <LiffContext.Provider value={{ user, loading, error }}>
+            {showRegistration && (
+                <RegistrationScreen
+                    onSubmit={handleRegistration}
+                    error={regError}
+                />
+            )}
             {/* 開発時のプレビュー用に、loading中やエラー時も画面は見れるように一旦 children をそのまま返す */}
             {/* 実際の運用では loading 中はスピナーを出すのが一般的です */}
             {loading ? (

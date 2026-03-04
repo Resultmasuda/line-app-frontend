@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { CalendarClock, Search, Filter, ChevronLeft, ChevronRight, Clock, MapPin, UserCheck, UserX, Sun, Navigation, Building2, Plus, Edit2, Trash2, X, Calendar as CalendarIcon, User as UserIcon } from 'lucide-react';
+import { CalendarClock, Search, Filter, ChevronLeft, ChevronRight, Clock, MapPin, UserCheck, UserX, Sun, Navigation, Building2, Plus, Edit2, Trash2, X, Calendar as CalendarIcon, User as UserIcon, Copy, Check } from 'lucide-react';
 import { getAllShifts, getAllAttendances, getAllStores, createStore, updateStore, deleteStore, createShift, updateShift, deleteShift, StoreRecord, getAllUsers, AdminUserRecord } from '@/lib/api/admin';
 type ShiftRecord = {
     id: string;
@@ -11,6 +11,7 @@ type ShiftRecord = {
     location: string;
     users?: { display_name: string };
     user_id: string;
+    shift_type?: string;
 };
 
 type AttendanceRecord = {
@@ -46,9 +47,26 @@ export default function AdminShiftsPage() {
     // 現在の表示月とタブ
     const [currentDate, setCurrentDate] = useState(new Date());
     const [activeTab, setActiveTab] = useState<'today' | 'tomorrow'>('today');
+    const [storeTypeFilter, setStoreTypeFilter] = useState<'store' | 'role_group'>('store');
 
     // カスタム確認モーダル用
     const [pendingConfirm, setPendingConfirm] = useState<{ message: string, action: () => void } | null>(null);
+
+    // 招待リンク生成＆コピー用
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+
+    const handleCopyInviteLink = (storeId: string) => {
+        const baseUrl = window.location.origin;
+        const inviteUrl = `${baseUrl}/?invite_store_id=${storeId}`;
+
+        navigator.clipboard.writeText(inviteUrl).then(() => {
+            setCopiedId(storeId);
+            setTimeout(() => setCopiedId(null), 2000);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            alert('コピーに失敗しました');
+        });
+    };
 
     useEffect(() => {
         async function fetchData() {
@@ -115,8 +133,11 @@ export default function AdminShiftsPage() {
         return matchesSearch && s.date === targetDate;
     }).sort((a, b) => new Date(`${a.date}T${a.start_time}`).getTime() - new Date(`${b.date}T${b.start_time}`).getTime());
 
+    // storeTypeFilter に合致する店舗だけを対象にする
+    const filteredStores = stores.filter(s => (s.type || 'store') === storeTypeFilter);
+
     // 全ての店舗名を配列のキーとして初期化（シフトが0件でも表示するため）
-    const groupedShifts = stores.reduce((acc, store) => {
+    const groupedShifts = filteredStores.reduce((acc, store) => {
         acc[store.name] = [];
         return acc;
     }, {} as Record<string, ShiftRecord[]>);
@@ -124,8 +145,11 @@ export default function AdminShiftsPage() {
     // 実際のシフトを割り当て
     filteredShifts.forEach(shift => {
         const loc = shift.location || '店舗未定';
-        if (!groupedShifts[loc]) groupedShifts[loc] = [];
-        groupedShifts[loc].push(shift);
+        // 該当店舗、または物理店舗表示時の未定シフトのみ割り当てる
+        if (groupedShifts[loc] !== undefined || (storeTypeFilter === 'store' && loc === '店舗未定')) {
+            if (!groupedShifts[loc]) groupedShifts[loc] = [];
+            groupedShifts[loc].push(shift);
+        }
     });
 
     const storeNames = Object.keys(groupedShifts).sort();
@@ -144,6 +168,7 @@ export default function AdminShiftsPage() {
 
         const payload = {
             name: editingStore.name,
+            type: editingStore.type || 'store',
             latitude: editingStore.latitude ? Number(editingStore.latitude) : null,
             longitude: editingStore.longitude ? Number(editingStore.longitude) : null,
             radius_m: editingStore.radius_m ? Number(editingStore.radius_m) : null,
@@ -196,7 +221,8 @@ export default function AdminShiftsPage() {
             date: editingShift.date,
             start_time: editingShift.start_time,
             end_time: editingShift.end_time,
-            location: editingShift.location
+            location: editingShift.location,
+            shift_type: editingShift.shift_type || 'work'
         };
 
         if (editingShift.id) {
@@ -237,8 +263,8 @@ export default function AdminShiftsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center max-w-6xl">
-                <div>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center max-w-6xl gap-4">
+                <div className="flex-shrink-0">
                     <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                         <CalendarClock className="text-emerald-500" size={28} />
                         シフト・勤怠管理
@@ -248,19 +274,45 @@ export default function AdminShiftsPage() {
                     </p>
                 </div>
 
-                <div className="flex items-center bg-gray-100 p-1.5 rounded-xl shadow-inner border border-gray-200">
-                    <button
-                        onClick={() => setActiveTab('today')}
-                        className={`px-8 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'today' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
-                    >
-                        本日 ({todayStr.slice(5).replace('-', '/')})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('tomorrow')}
-                        className={`px-8 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'tomorrow' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
-                    >
-                        明日 ({tomorrowStr.slice(5).replace('-', '/')})
-                    </button>
+                <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto mt-2 md:mt-0">
+                    <div className="flex items-center bg-indigo-50 p-1 rounded-xl border border-indigo-100 flex-1 md:flex-none">
+                        <button
+                            onClick={() => setStoreTypeFilter('store')}
+                            className={`flex-1 md:flex-none px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${storeTypeFilter === 'store' ? 'bg-indigo-600 text-white shadow-sm' : 'text-indigo-600 hover:bg-indigo-100'}`}
+                        >
+                            シフト
+                        </button>
+                        <button
+                            onClick={() => setStoreTypeFilter('role_group')}
+                            className={`flex-1 md:flex-none px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${storeTypeFilter === 'role_group' ? 'bg-indigo-600 text-white shadow-sm' : 'text-indigo-600 hover:bg-indigo-100'}`}
+                        >
+                            予定
+                        </button>
+                    </div>
+                    <div className="flex items-center bg-gray-100 p-1 rounded-xl shadow-inner border border-gray-200 flex-1 md:flex-none overflow-x-auto hide-scrollbar">
+                        <button
+                            onClick={() => setActiveTab('today')}
+                            className={`flex-1 md:flex-none px-3 sm:px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'today' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                        >
+                            本日 ({todayStr.slice(5).replace('-', '/')})
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('tomorrow')}
+                            className={`flex-1 md:flex-none px-3 sm:px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'tomorrow' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                        >
+                            明日 ({tomorrowStr.slice(5).replace('-', '/')})
+                        </button>
+                        <div className="w-px h-5 bg-gray-300 mx-1 hidden sm:block"></div>
+                        <Link
+                            href="/admin/shifts/calendar"
+                            className="flex-1 md:flex-none px-3 py-1.5 rounded-lg text-sm font-bold transition-all text-gray-500 hover:text-emerald-600 hover:bg-white shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap"
+                            title="全社員の月間シフトを一覧表示"
+                        >
+                            <CalendarIcon size={14} />
+                            <span className="hidden sm:inline">月間ビュー</span>
+                            <span className="sm:hidden">月間</span>
+                        </Link>
+                    </div>
                 </div>
             </div>
 
@@ -339,13 +391,26 @@ export default function AdminShiftsPage() {
 
                                             {/* シフトビルダーへの導線ボタン */}
                                             {storeObj && (
-                                                <Link
-                                                    href={`/admin/shifts/${storeId}/builder`}
-                                                    className="ml-auto flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition-colors"
-                                                >
-                                                    <CalendarIcon size={16} />
-                                                    シフトビルダーを開く
-                                                </Link>
+                                                <div className="ml-auto flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => handleCopyInviteLink(storeId)}
+                                                        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg shadow-sm border transition-all ${copiedId === storeId
+                                                            ? 'bg-emerald-500 text-white border-emerald-500'
+                                                            : 'bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50'
+                                                            }`}
+                                                        title="スタッフをこの店舗に招待するリンクをコピー"
+                                                    >
+                                                        {copiedId === storeId ? <Check size={14} /> : <Copy size={14} />}
+                                                        {copiedId === storeId ? 'コピー完了' : '招待用URL'}
+                                                    </button>
+                                                    <Link
+                                                        href={`/admin/shifts/${storeId}/builder`}
+                                                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition-colors"
+                                                    >
+                                                        <CalendarIcon size={16} />
+                                                        シフトビルダーを開く
+                                                    </Link>
+                                                </div>
                                             )}
                                         </div>
                                         <div className="overflow-x-auto">
@@ -515,7 +580,7 @@ export default function AdminShiftsPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-600 mb-1 flex items-center gap-1"><MapPin size={14} /> 勤務店舗 (Location)</label>
+                                    <label className="block text-xs font-bold text-gray-600 mb-1 flex items-center gap-1"><MapPin size={14} /> 勤務店舗 / グループ</label>
                                     <select
                                         value={editingShift?.location || ''}
                                         onChange={e => setEditingShift({ ...editingShift, location: e.target.value })}
@@ -525,7 +590,19 @@ export default function AdminShiftsPage() {
                                         {stores.map(s => (
                                             <option key={s.id} value={s.name}>{s.name}</option>
                                         ))}
-                                        <option value="店舗未定">店舗未定</option>
+                                        <option value="店舗未定">未定</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 mb-1 flex items-center gap-1"><CalendarClock size={14} /> シフト種別</label>
+                                    <select
+                                        value={editingShift?.shift_type || 'work'}
+                                        onChange={e => setEditingShift({ ...editingShift, shift_type: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
+                                    >
+                                        <option value="work">通常出勤 (Work)</option>
+                                        <option value="task">業務/タスク (Task)</option>
+                                        <option value="interview">面談/ミーティング (Interview)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -603,19 +680,19 @@ export default function AdminShiftsPage() {
                             <div className="mb-6 flex justify-end">
                                 <button
                                     onClick={() => {
-                                        setEditingStore({ name: '', latitude: null, longitude: null, radius_m: null, affiliated_staff: [] });
+                                        setEditingStore({ name: '', type: 'store', latitude: null, longitude: null, radius_m: null, affiliated_staff: [] });
                                         setStoreFormError('');
                                     }}
                                     className="flex items-center gap-2 bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-600 transition-colors"
                                 >
-                                    <Plus size={16} /> 店舗を追加
+                                    <Plus size={16} /> 店舗/グループを追加
                                 </button>
                             </div>
 
                             {/* 編集・新規フォーム */}
                             {editingStore && (
                                 <div className="mb-8 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
-                                    <h3 className="font-bold text-emerald-800 mb-4">{editingStore.id ? '店舗を編集' : '新規店舗を登録'}</h3>
+                                    <h3 className="font-bold text-emerald-800 mb-4">{editingStore.id ? '設定を編集' : '新規登録'}</h3>
 
                                     {storeFormError && (
                                         <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">
@@ -624,44 +701,59 @@ export default function AdminShiftsPage() {
                                     )}
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="md:col-span-2">
-                                            <label className="block text-xs font-bold text-gray-600 mb-1">店舗名 (必須)</label>
+                                        <div className="md:col-span-1">
+                                            <label className="block text-xs font-bold text-gray-600 mb-1">店舗名/グループ名 (必須)</label>
                                             <input
                                                 type="text"
                                                 value={editingStore.name || ''}
                                                 onChange={(e) => setEditingStore({ ...editingStore, name: e.target.value })}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                                                placeholder="例: 大阪本店"
+                                                placeholder="例: 大阪本店 / 全体MTG"
                                             />
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-600 mb-1">緯度 (Latitude) <span className="text-gray-400 font-normal">※任意</span></label>
-                                            <input
-                                                type="number" step="0.0000001"
-                                                value={editingStore.latitude === null || editingStore.latitude === undefined ? '' : editingStore.latitude}
-                                                onChange={(e) => setEditingStore({ ...editingStore, latitude: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                                            />
+                                        <div className="md:col-span-1">
+                                            <label className="block text-xs font-bold text-gray-600 mb-1">グループ種別</label>
+                                            <select
+                                                value={editingStore.type || 'store'}
+                                                onChange={(e) => setEditingStore({ ...editingStore, type: e.target.value })}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
+                                            >
+                                                <option value="store">シフト (打刻範囲あり)</option>
+                                                <option value="role_group">予定 (打刻範囲なし)</option>
+                                            </select>
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-600 mb-1">経度 (Longitude) <span className="text-gray-400 font-normal">※任意</span></label>
-                                            <input
-                                                type="number" step="0.0000001"
-                                                value={editingStore.longitude === null || editingStore.longitude === undefined ? '' : editingStore.longitude}
-                                                onChange={(e) => setEditingStore({ ...editingStore, longitude: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-600 mb-1">許容打刻範囲(m) <span className="text-gray-400 font-normal">※任意</span></label>
-                                            <input
-                                                type="number"
-                                                value={editingStore.radius_m === null || editingStore.radius_m === undefined ? '' : editingStore.radius_m}
-                                                onChange={(e) => setEditingStore({ ...editingStore, radius_m: e.target.value === '' ? null : parseInt(e.target.value) })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                                            />
-                                            <p className="text-[10px] text-gray-500 mt-1">この店舗での出退勤打刻を許可する、中心座標からの半径を設定します。</p>
-                                        </div>
+                                        {editingStore.type !== 'role_group' && (
+                                            <>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-600 mb-1">緯度 (Latitude) <span className="text-gray-400 font-normal">※任意</span></label>
+                                                    <input
+                                                        type="number" step="0.0000001"
+                                                        value={editingStore.latitude === null || editingStore.latitude === undefined ? '' : editingStore.latitude}
+                                                        onChange={(e) => setEditingStore({ ...editingStore, latitude: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-600 mb-1">経度 (Longitude) <span className="text-gray-400 font-normal">※任意</span></label>
+                                                    <input
+                                                        type="number" step="0.0000001"
+                                                        value={editingStore.longitude === null || editingStore.longitude === undefined ? '' : editingStore.longitude}
+                                                        onChange={(e) => setEditingStore({ ...editingStore, longitude: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-600 mb-1">許容打刻範囲(m) <span className="text-gray-400 font-normal">※任意</span></label>
+                                                    <input
+                                                        type="number"
+                                                        value={editingStore.radius_m === null || editingStore.radius_m === undefined ? '' : editingStore.radius_m}
+                                                        onChange={(e) => setEditingStore({ ...editingStore, radius_m: e.target.value === '' ? null : parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                                    />
+                                                    <p className="text-[10px] text-gray-500 mt-1">この店舗での出退勤打刻を許可する、中心座標からの半径を設定します。</p>
+                                                </div>
+                                            </>
+                                        )}
 
                                         <div className="md:col-span-2 mt-2">
                                             <label className="block text-xs font-bold text-gray-600 mb-2">所属スタッフ (デバッグ: {users.length}名) <span className="text-gray-400 font-normal">※シフト作成時に上位表示されます</span></label>
@@ -708,13 +800,14 @@ export default function AdminShiftsPage() {
 
                             {stores.length === 0 ? (
                                 <div className="text-center py-8 text-gray-500 text-sm border border-gray-100 rounded-xl">
-                                    店舗が登録されていません
+                                    店舗・グループが登録されていません
                                 </div>
                             ) : (
                                 <table className="w-full text-left border-collapse border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                                     <thead>
                                         <tr className="bg-gray-100 text-gray-600 text-[11px] uppercase tracking-wider">
-                                            <th className="px-4 py-3 font-semibold">店舗名</th>
+                                            <th className="px-4 py-3 font-semibold">名称</th>
+                                            <th className="px-4 py-3 font-semibold">種別</th>
                                             <th className="px-4 py-3 font-semibold">位置情報</th>
                                             <th className="px-4 py-3 font-semibold text-right w-24">操作</th>
                                         </tr>
@@ -724,7 +817,12 @@ export default function AdminShiftsPage() {
                                             <tr key={store.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-4 py-3 font-bold text-gray-800 text-sm">{store.name}</td>
                                                 <td className="px-4 py-3">
-                                                    {(store.latitude !== null && store.longitude !== null) ? (
+                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${store.type === 'role_group' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                        {store.type === 'role_group' ? '役職・タスク' : '物理店舗'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {(store.latitude !== null && store.longitude !== null && store.type !== 'role_group') ? (
                                                         <>
                                                             <div className="text-[11px] text-gray-500 font-mono">
                                                                 Lat: {store.latitude}<br />
@@ -735,7 +833,7 @@ export default function AdminShiftsPage() {
                                                             </div>
                                                         </>
                                                     ) : (
-                                                        <span className="text-xs text-gray-400 font-bold">未設定</span>
+                                                        <span className="text-xs text-gray-400 font-bold">-</span>
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3">

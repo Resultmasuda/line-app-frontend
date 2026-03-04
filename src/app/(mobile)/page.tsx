@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Play, Square, MapPin, CalendarClock, Receipt, Settings, Home, Sun, Navigation } from 'lucide-react';
 import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
-import { getUpcomingShifts, ShiftRecord } from '@/lib/api/shift';
+import { getUpcomingShifts, ShiftRecord, updateShiftPlanning } from '@/lib/api/shift';
 import { recordAttendance, getTodayAttendances, AttendanceType, AttendanceRecord } from '@/lib/api/attendance';
 import { getAllStores } from '@/lib/api/admin';
 
@@ -35,6 +35,16 @@ export default function AppDashboard() {
   // カスタム確認モーダル用
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string, action: () => void } | null>(null);
 
+  // 翌日プランニング用モーダル
+  const [planningShift, setPlanningShift] = useState<ShiftRecord | null>(null);
+  const [plannedWakeUp, setPlannedWakeUp] = useState('');
+  const [plannedLeave, setPlannedLeave] = useState('');
+  const [dailyMemo, setDailyMemo] = useState('');
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
+
+  // 共演者（同じ店舗・日付）のシフト情報
+  const [coworkerShifts, setCoworkerShifts] = useState<any[]>([]);
+
   useEffect(() => {
     if (!user) return;
 
@@ -42,14 +52,14 @@ export default function AppDashboard() {
     const fetchData = async () => {
       try {
         setIsLoadingData(true);
-        // シフト取得 (今日以降2件)
-        const shiftRes = await getUpcomingShifts(user.id, 2);
+        // シフト取得 (今日以降5件取得して、より正確に次の予定を判断)
+        const shiftRes = await getUpcomingShifts(user.id, 5);
         if (shiftRes.success && shiftRes.data && isMounted) {
           setShifts(shiftRes.data);
         }
 
         // 今日の打刻状態を取得
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
         const attendRes = await getTodayAttendances(user.id, todayStr);
         if (attendRes.success && attendRes.data && isMounted) {
           setTodayAttendances(attendRes.data);
@@ -74,6 +84,33 @@ export default function AppDashboard() {
       isMounted = false;
     };
   }, [user]);
+
+  // 今日または次回のシフトの店舗情報に基づいて、一緒に働くメンバーのメモを取得
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCoworkers = async () => {
+      if (shifts.length === 0) return;
+
+      // 最初の「仕事 (work)」を対象にする
+      const targetShift = shifts.find(s => s.shift_type === 'work');
+      if (!targetShift) return;
+
+      const { getStoreTodayShiftsWithMemos } = await import('@/lib/api/shift');
+      const res = await getStoreTodayShiftsWithMemos(targetShift.location, targetShift.date);
+
+      if (res.success && res.data && isMounted) {
+        // 自分以外のシフト予定を抽出
+        const others = res.data.filter(s => s.user_id !== user?.id);
+        setCoworkerShifts(others);
+      }
+    };
+
+    if (!isLoadingData) {
+      fetchCoworkers();
+    }
+
+    return () => { isMounted = false; };
+  }, [shifts, isLoadingData, user?.id]);
 
   // 位置情報の取得プロミス
   const getCurrentLocation = (): Promise<{ lat: number, lng: number } | null> => {
@@ -103,11 +140,14 @@ export default function AppDashboard() {
       const shouldFetchLocation = type === 'CLOCK_IN' || type === 'CLOCK_OUT';
       const location = shouldFetchLocation ? await getCurrentLocation() : null;
 
-      const todayStr = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const todayStr = now.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
       // 距離アラートチェック
       if (shouldFetchLocation && location) {
-        const todayShift = shifts.find(s => s.date === todayStr);
+        // 条件に合う今のシフトを探す（開始時間の前後2時間程度など）
+        const todayShift = shifts.find(s => s.date === todayStr && s.shift_type === 'work');
         if (todayShift) {
           const storeRes = await getAllStores();
           if (storeRes.success && storeRes.data) {
@@ -140,10 +180,25 @@ export default function AppDashboard() {
       if (res.success && res.data) {
         setTodayAttendances(prev => [...prev, res.data]);
         setLastAction(type);
+
+        // 退勤時に「次回のシフト（今日これからの2本目、または明日以降）」があればプランニングモーダルを表示
+        if (type === 'CLOCK_OUT') {
+          // 現在の時間より後のシフト、または明日以降のシフトを探す
+          const nextShiftRecord = shifts.find(s =>
+            (s.date === todayStr && s.start_time > timeStr) || (s.date > todayStr)
+          );
+          if (nextShiftRecord && nextShiftRecord.shift_type === 'work') {
+            setPlanningShift(nextShiftRecord);
+            setPlannedWakeUp(nextShiftRecord.planned_wake_up_time?.slice(0, 5) || '');
+            setPlannedLeave(nextShiftRecord.planned_leave_time?.slice(0, 5) || '');
+            setDailyMemo(nextShiftRecord.daily_memo || '');
+          }
+        }
       } else {
         alert("打刻の保存に失敗しました。電波の良いところで再度お試しください。");
       }
     } catch (e) {
+      console.error(e);
       alert("通信エラーが発生しました。");
     } finally {
       setActionLoading(false);
@@ -158,10 +213,20 @@ export default function AppDashboard() {
     );
   }
 
-  // シフトを TODAY と NEXT に分ける
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayShift = shifts.find(s => s.date === todayStr);
-  const nextShift = shifts.find(s => s.date !== todayStr);
+  // シフトを表示用に整理
+  const now = new Date();
+  const todayStr = now.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+  // TODAY: 今日一番早い仕事、または現在進行中の仕事
+  const todayShift = shifts.find(s => s.date === todayStr && s.shift_type === 'work');
+
+  // NEXT: 今日の2本目、または明日以降の最初の仕事
+  const nextShift = shifts.find(s =>
+    (s.date === todayStr && s.start_time > (todayShift?.end_time || timeStr)) ||
+    (s.date > todayStr)
+  );
+
 
   const formatDate = (dateString: string) => {
     const d = new Date(dateString);
@@ -217,6 +282,50 @@ export default function AppDashboard() {
             </div>
           )}
         </div>
+
+        {/* --- 共演メンバーのメモ (TimeTree-like) --- */}
+        {coworkerShifts.length > 0 && (
+          <div className="mb-8">
+            <h3 className="text-xs font-bold text-gray-500 mb-3 ml-1 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              同じシフトのメンバーの予定・メモ
+            </h3>
+            <div className="space-y-2.5">
+              {coworkerShifts.map((cs) => (
+                <div key={cs.id} className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                    {cs.users?.display_name?.substring(0, 1) || '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="font-bold text-gray-800 text-sm">{cs.users?.display_name}</p>
+                      <p className="text-[10px] text-gray-400 font-medium bg-gray-50 px-1.5 py-0.5 rounded">
+                        {cs.start_time?.substring(0, 5)} - {cs.end_time?.substring(0, 5)}
+                      </p>
+                    </div>
+                    {cs.daily_memo ? (
+                      <p className="text-xs text-gray-600 leading-relaxed bg-gray-50/50 p-2 rounded-lg border border-gray-50">
+                        {cs.daily_memo}
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-gray-400 italic">メモはありません</p>
+                    )}
+                    {(cs.planned_wake_up_time || cs.planned_leave_time) && (
+                      <div className="flex gap-3 mt-2 text-[10px] items-center text-gray-500 font-medium">
+                        {cs.planned_wake_up_time && (
+                          <span className="flex items-center gap-1"><Sun size={10} className="text-amber-500" /> 起床 {cs.planned_wake_up_time.substring(0, 5)}</span>
+                        )}
+                        {cs.planned_leave_time && (
+                          <span className="flex items-center gap-1"><Navigation size={10} className="text-blue-500" /> 出発 {cs.planned_leave_time.substring(0, 5)}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 4つのアクションボタン (起床/出発/出勤/退勤) */}
         <div className="grid grid-cols-2 gap-4 my-8 max-w-sm mx-auto">
@@ -372,6 +481,92 @@ export default function AppDashboard() {
                 className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl active:bg-emerald-700 transition-all shadow-md shadow-emerald-200"
               >
                 実行する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 翌日プランニングモーダル */}
+      {planningShift && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 relative pb-4 max-h-[90vh] flex flex-col">
+            <div className="p-5 border-b border-gray-100 text-center shrink-0">
+              <h3 className="font-bold text-lg text-gray-800">翌日のプランニング</h3>
+              <p className="text-sm text-gray-500 mt-1.5 font-medium leading-relaxed">今日も一日お疲れ様でした！<br />次回の予定を申告して遅刻を防ぎましょう。</p>
+            </div>
+
+            <div className="p-5 space-y-4 bg-gray-50/50 overflow-y-auto">
+              <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-center">
+                <p className="text-[10px] text-emerald-500 font-bold tracking-wider mb-0.5">NEXT SHIFT</p>
+                <p className="text-gray-800 font-bold text-sm">{formatDate(planningShift.date)}</p>
+                <p className="text-gray-600 font-medium text-xs mt-1">{planningShift.location} ({planningShift.start_time?.slice(0, 5)} - {planningShift.end_time?.slice(0, 5)})</p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1.5 ml-1">起床予定時間 <span className="text-red-500">*</span></label>
+                  <input
+                    type="time"
+                    value={plannedWakeUp}
+                    onChange={e => setPlannedWakeUp(e.target.value)}
+                    className="w-full p-2.5 border border-gray-200 rounded-xl bg-white shadow-inner font-bold text-gray-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-base"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1.5 ml-1">出発予定時間 <span className="text-red-500">*</span></label>
+                  <input
+                    type="time"
+                    value={plannedLeave}
+                    onChange={e => setPlannedLeave(e.target.value)}
+                    className="w-full p-2.5 border border-gray-200 rounded-xl bg-white shadow-inner font-bold text-gray-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-base"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1.5 ml-1">一言メモ（共有事項や目標など）</label>
+                  <textarea
+                    value={dailyMemo}
+                    onChange={e => setDailyMemo(e.target.value)}
+                    rows={2}
+                    className="w-full p-3 border border-gray-200 rounded-xl bg-white shadow-inner text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all resize-none"
+                    placeholder="例：明日は早番！遅れないように寝ます！"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 pt-3 flex gap-3 bg-white shrink-0">
+              <button
+                onClick={() => setPlanningShift(null)}
+                disabled={isSavingPlan}
+                className="flex-1 py-3 bg-gray-100 text-gray-500 text-sm font-bold rounded-xl active:bg-gray-200 transition-colors"
+              >
+                あとで
+              </button>
+              <button
+                onClick={async () => {
+                  if (!plannedWakeUp || !plannedLeave) {
+                    alert("起床予定時間と出発予定時間を入力してください");
+                    return;
+                  }
+                  setIsSavingPlan(true);
+                  const res = await updateShiftPlanning(planningShift.id, {
+                    planned_wake_up_time: plannedWakeUp,
+                    planned_leave_time: plannedLeave,
+                    daily_memo: dailyMemo
+                  });
+                  setIsSavingPlan(false);
+                  if (res.success) {
+                    setPlanningShift(null);
+                    // 完了時に少し待ってリロードするかUIを更新する（ここではモーダルを閉じるだけ）
+                  } else {
+                    alert('保存に失敗しました。');
+                  }
+                }}
+                disabled={isSavingPlan}
+                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl active:bg-emerald-700 transition-all shadow-md shadow-emerald-200 disabled:opacity-70 flex items-center justify-center"
+              >
+                {isSavingPlan ? <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> : "宣言する"}
               </button>
             </div>
           </div>

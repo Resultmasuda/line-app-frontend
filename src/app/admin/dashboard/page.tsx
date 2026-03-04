@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { getTodayAllAttendances, getAllExpenses, getAllShifts } from '@/lib/api/admin';
-import { Play, Square, Sun, Navigation, MapPin, Receipt, Clock } from 'lucide-react';
+import { getTodayAllAttendances, getAllExpenses, getAllShifts, getPendingHolidayRequests, updateHolidayRequestStatus } from '@/lib/api/admin';
+import { Play, Square, Sun, Navigation, MapPin, Receipt, Clock, AlertTriangle, CheckCircle, XCircle, CalendarOff } from 'lucide-react';
 
 interface BaseAdminRecord {
     id: string;
@@ -30,7 +30,9 @@ export default function AdminDashboardPage() {
     const [attendances, setAttendances] = useState<AdminAttendance[]>([]);
     const [expenses, setExpenses] = useState<AdminExpense[]>([]);
     const [shifts, setShifts] = useState<AdminShift[]>([]);
+    const [pendingHolidays, setPendingHolidays] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -40,16 +42,18 @@ export default function AdminDashboardPage() {
             const thisMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
 
             try {
-                const [attRes, expRes, shiftRes] = await Promise.all([
+                const [attRes, expRes, shiftRes, holRes] = await Promise.all([
                     getTodayAllAttendances(today),
                     getAllExpenses(thisMonth),
-                    getAllShifts(thisMonth)
+                    getAllShifts(thisMonth),
+                    getPendingHolidayRequests()
                 ]);
 
                 if (isMounted) {
                     if (attRes.success) setAttendances(attRes.data || []);
                     if (expRes.success) setExpenses(expRes.data || []);
                     if (shiftRes.success) setShifts(shiftRes.data || []);
+                    if (holRes.success) setPendingHolidays(holRes.data || []);
                 }
             } catch (err) {
                 console.error("Dashboard fetch error:", err);
@@ -94,6 +98,26 @@ export default function AdminDashboardPage() {
         if (!isoString) return '--:--';
         const d = new Date(isoString);
         return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    };
+
+    const now = new Date();
+    const isShiftLate = (shift: AdminShift) => {
+        const shiftStartTime = new Date(`${todayStr}T${shift.start_time}`);
+        const att = currentStatusByUser[shift.users.display_name];
+        const hasClockedIn = att && (att.type === 'CLOCK_IN' || att.type === 'CLOCK_OUT');
+        // If current time is past start time + 5 mins grace period, flag as late
+        return (now.getTime() - shiftStartTime.getTime() > 5 * 60 * 1000) && !hasClockedIn;
+    };
+
+    const handleHolidayAction = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+        setActionLoading(id);
+        const res = await updateHolidayRequestStatus(id, status);
+        if (res.success) {
+            setPendingHolidays(prev => prev.filter(h => h.id !== id));
+        } else {
+            alert('処理に失敗しました');
+        }
+        setActionLoading(null);
     };
 
     return (
@@ -157,24 +181,34 @@ export default function AdminDashboardPage() {
                             {todaysShifts.length === 0 ? (
                                 <div className="text-center text-sm font-bold text-gray-400 py-4">本日のシフトはありません</div>
                             ) : (
-                                todaysShifts.map(s => (
-                                    <div key={s.id} className="flex justify-between items-center bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                        <div className="flex gap-3 items-center">
-                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
-                                                {s.users.display_name.substring(0, 1)}
+                                todaysShifts.map(s => {
+                                    const late = isShiftLate(s);
+                                    return (
+                                        <div key={s.id} className={`flex justify-between items-center rounded-xl p-3 border ${late ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
+                                            <div className="flex gap-3 items-center">
+                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                                                    {s.users.display_name.substring(0, 1)}
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-bold text-gray-800 text-sm">{s.users.display_name}</p>
+                                                        {late && (
+                                                            <span className="flex items-center gap-1 bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[10px] font-bold animate-pulse">
+                                                                <AlertTriangle size={10} /> 未打刻・遅刻
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 font-medium">{s.location}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="font-bold text-gray-800 text-sm">{s.users.display_name}</p>
-                                                <p className="text-xs text-gray-500 font-medium">{s.location}</p>
+                                            <div className="text-right">
+                                                <p className="font-bold text-gray-700 text-sm">
+                                                    {s.start_time.substring(0, 5)} - {s.end_time.substring(0, 5)}
+                                                </p>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="font-bold text-gray-700 text-sm">
-                                                {s.start_time.substring(0, 5)} - {s.end_time.substring(0, 5)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </div>
@@ -222,6 +256,75 @@ export default function AdminDashboardPage() {
                             )}
                         </div>
                     </div>
+
+                    {/* 承認待ちの希望休 */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="p-5 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+                            <h2 className="font-bold text-gray-700 flex items-center gap-2">
+                                <CalendarOff className="text-rose-500" size={18} />
+                                承認待ちの希望休
+                            </h2>
+                            {pendingHolidays.length > 0 && (
+                                <span className="bg-rose-100 text-rose-600 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                                    {pendingHolidays.length}件
+                                </span>
+                            )}
+                        </div>
+                        <div className="p-0">
+                            {pendingHolidays.length === 0 ? (
+                                <div className="p-8 text-center text-sm font-bold text-gray-400">現在、承認待ちの希望休はありません</div>
+                            ) : (
+                                <div className="divide-y divide-gray-50">
+                                    {pendingHolidays.map((holiday) => (
+                                        <div key={holiday.id} className="p-5 hover:bg-gray-50/50 transition-colors">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="font-bold text-gray-800">{holiday.users?.display_name}</span>
+                                                        <span className="text-xs text-gray-500 font-medium">さんの申請</span>
+                                                    </div>
+                                                    <div className="font-bold text-rose-600/90 text-sm">
+                                                        {new Date(holiday.date).toLocaleDateString('ja-JP')}
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-[10px] text-gray-400">
+                                                        申請日: {new Date(holiday.created_at).toLocaleDateString('ja-JP')}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {holiday.reason && (
+                                                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 mb-4 text-sm text-gray-600 font-medium">
+                                                    {holiday.reason}
+                                                </div>
+                                            )}
+                                            <div className="flex gap-3">
+                                                <button
+                                                    onClick={() => handleHolidayAction(holiday.id, 'REJECTED')}
+                                                    disabled={actionLoading === holiday.id}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
+                                                >
+                                                    <XCircle size={16} /> 却下
+                                                </button>
+                                                <button
+                                                    onClick={() => handleHolidayAction(holiday.id, 'APPROVED')}
+                                                    disabled={actionLoading === holiday.id}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors shadow-sm shadow-emerald-200 disabled:opacity-50"
+                                                >
+                                                    {actionLoading === holiday.id ? (
+                                                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                                                    ) : (
+                                                        <><CheckCircle size={16} /> 承認</>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>

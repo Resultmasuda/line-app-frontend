@@ -1,8 +1,76 @@
-import { Users, CalendarClock, Receipt, LayoutDashboard, Settings, LogOut } from 'lucide-react';
+"use client";
+import { Users, CalendarClock, Receipt, LayoutDashboard, Settings, LogOut, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import { ReactNode } from 'react';
+import LiffProvider, { useLiff } from '@/components/LiffProvider';
+import { useRouter } from 'next/navigation';
+import { getRoleDisplayLabel } from '@/lib/utils/auth';
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+function AdminLayoutContent({ children }: { children: ReactNode }) {
+    const { user, loading } = useLiff();
+    const router = useRouter();
+
+    if (loading) {
+        return (
+            <div className="flex h-screen bg-gray-50 items-center justify-center">
+                <div className="flex flex-col items-center">
+                    <div className="w-10 h-10 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mb-4"></div>
+                    <p className="text-emerald-600 font-bold text-sm">認証情報を確認中...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <div className="flex h-screen bg-gray-50 items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center max-w-sm w-full animate-in zoom-in-95 duration-300">
+                    <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+                        <LayoutDashboard size={32} />
+                    </div>
+                    <h2 className="text-xl font-black text-gray-800 mb-2 tracking-tight">管理画面ログイン</h2>
+                    <p className="text-sm text-gray-500 mb-8 leading-relaxed font-medium">
+                        管理画面を利用するには、LINEアカウントでの認証が必要です。
+                    </p>
+                    <button
+                        onClick={() => {
+                            // LiffProviderの初期化を待たずに直接ログインをトリガー
+                            import('@line/liff').then(liff => {
+                                liff.default.login({ redirectUri: window.location.href });
+                            });
+                        }}
+                        className="w-full py-4 bg-emerald-500 text-white rounded-xl font-black hover:bg-emerald-600 active:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center justify-center gap-2"
+                    >
+                        LINEでログイン
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (user.role === 'STAFF') {
+        return (
+            <div className="flex h-screen bg-gray-50 items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 text-center max-w-sm w-full animate-in zoom-in-95 duration-300">
+                    <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+                        <ShieldAlert size={32} />
+                    </div>
+                    <h2 className="text-xl font-black text-gray-800 mb-2 tracking-tight">アクセス権限がありません</h2>
+                    <p className="text-sm text-gray-500 mb-8 leading-relaxed font-medium">
+                        このページは管理者・役職者のみアクセス可能です。<br />
+                        一般スタッフの方はスマートフォン版をご利用ください。
+                    </p>
+                    <button
+                        onClick={() => router.push('/')}
+                        className="w-full py-3.5 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 active:bg-emerald-700 transition-all shadow-md shadow-emerald-200"
+                    >
+                        スマホ版ホームに戻る
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex h-screen bg-gray-50 font-sans">
             {/* 左側サイドバー (PC向け固定ナビゲーション) */}
@@ -56,8 +124,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     </div>
                     <span className="font-bold text-gray-800 text-sm">管理画面</span>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white shadow-sm overflow-hidden">
-                    <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Admin&backgroundColor=e2e8f0" alt="Admin" />
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-[10px] border-2 border-white shadow-sm overflow-hidden">
+                    {user.display_name.substring(0, 2).toUpperCase()}
                 </div>
             </div>
 
@@ -89,11 +157,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     <h2 className="text-lg font-bold text-gray-700">ダッシュボード</h2>
                     <div className="flex items-center gap-4">
                         <div className="text-right">
-                            <p className="text-sm font-bold text-gray-800">管理者 殿</p>
-                            <p className="text-xs text-emerald-600 font-semibold">Store Manager</p>
+                            <p className="text-sm font-bold text-gray-800">{user.display_name} 殿</p>
+                            <p className="text-xs text-emerald-600 font-semibold mt-0.5">
+                                {getRoleDisplayLabel(user.role, user.id)}
+                            </p>
                         </div>
-                        <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm overflow-hidden">
-                            <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Admin&backgroundColor=e2e8f0" alt="Admin" />
+                        <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 font-bold border-2 border-white shadow-sm flex items-center justify-center text-sm">
+                            {user.display_name.substring(0, 2).toUpperCase()}
                         </div>
                     </div>
                 </header>
@@ -105,5 +175,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 </div>
             </main>
         </div>
+    );
+}
+
+export default function AdminLayout({ children }: { children: ReactNode }) {
+    return (
+        <LiffProvider>
+            <AdminLayoutContent>
+                {children}
+            </AdminLayoutContent>
+        </LiffProvider>
     );
 }

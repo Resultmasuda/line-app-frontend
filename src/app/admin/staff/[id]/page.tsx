@@ -1,13 +1,16 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, CalendarClock, Receipt, MapPin, Play, Square, UserCheck, UserX, Sun, Navigation } from 'lucide-react';
-import { getUserProfile, AdminUserRecord } from '@/lib/api/admin';
+import { ChevronLeft, CalendarClock, Receipt, MapPin, Play, Square, UserCheck, UserX, Sun, Navigation, Edit2, Unlink, KeyRound, User, Trash2 } from 'lucide-react';
+import { getUserProfile, AdminUserRecord, updateUserRole, updateUserPhoneNumber, unlinkUserLineId, updateUserPinCode, updateUserDisplayName, deleteUser } from '@/lib/api/admin';
 import { getMonthlyShifts, ShiftRecord } from '@/lib/api/shift';
 import { getMonthlyAttendances, AttendanceRecord } from '@/lib/api/attendance';
 import { getMonthlyExpenses, ExpenseRecord } from '@/lib/api/expense';
+import { useLiff } from '@/components/LiffProvider';
+import { getRoleDisplayLabel, getRoleBadgeClass } from '@/lib/utils/auth';
 
 export default function StaffDetailView() {
+    const { user: currentUser } = useLiff();
     const params = useParams();
     const router = useRouter();
     const userId = params.id as string;
@@ -17,6 +20,7 @@ export default function StaffDetailView() {
     const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
     const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 
     const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -51,6 +55,128 @@ export default function StaffDetailView() {
     const handlePrevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
     const handleNextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
 
+    const handleRoleChange = async (newRole: string) => {
+        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER')) return;
+        if (!confirm(`ユーザーの権限を ${newRole} に変更しますか？`)) return;
+
+        setIsUpdatingRole(true);
+        try {
+            await updateUserRole(userId, newRole);
+            setUser(prev => prev ? { ...prev, role: newRole } : null);
+            alert('権限を更新しました。');
+        } catch (error) {
+            console.error('Failed to update role:', error);
+            alert('権限の更新に失敗しました。');
+        } finally {
+            setIsUpdatingRole(false);
+        }
+    };
+
+    const handleEditName = async () => {
+        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER') || !user) return;
+        const newName = prompt('新しい氏名を入力してください:', user.display_name);
+        if (newName === null || newName.trim() === '' || newName === user.display_name) return;
+
+        try {
+            const res = await updateUserDisplayName(userId, newName.trim());
+            if (res.success) {
+                setUser(prev => prev ? { ...prev, display_name: newName.trim() } : null);
+                alert('氏名を更新しました。');
+            } else {
+                alert('氏名の更新に失敗しました。');
+            }
+        } catch (error) {
+            console.error('Failed to update name:', error);
+            alert('エラーが発生しました。');
+        }
+    };
+
+    const handleEditPhone = async () => {
+        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER') || !user) return;
+        const currentPhone = user.phone_number || '';
+        const newPhone = prompt('新しい電話番号を入力してください（ハイフンなし）:', currentPhone);
+
+        if (newPhone === null || newPhone === currentPhone) return;
+
+        const cleanedPhone = newPhone.replace(/[^0-9]/g, '');
+        if (!cleanedPhone) {
+            alert('有効な電話番号を入力してください。');
+            return;
+        }
+
+        try {
+            const res = await updateUserPhoneNumber(userId, cleanedPhone);
+            if (res.success) {
+                setUser(prev => prev ? { ...prev, phone_number: cleanedPhone } : null);
+                alert('電話番号を更新しました。');
+            } else {
+                alert('電話番号の更新に失敗しました。他のスタッフが既に使用している可能性があります。');
+            }
+        } catch (error) {
+            console.error('Failed to update phone:', error);
+            alert('エラーが発生しました。');
+        }
+    };
+
+    const handleUnlinkLineId = async () => {
+        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER') || !user?.line_user_id) return;
+        if (!confirm('このスタッフのLINE連携を解除しますか？\n（解除後、スタッフは再度LINEログインと認証が必要になります）')) return;
+
+        try {
+            const res = await unlinkUserLineId(userId);
+            if (res.success) {
+                setUser(prev => prev ? { ...prev, line_user_id: null } : null);
+                alert('LINE連携を解除しました。');
+            } else {
+                alert('連携解除に失敗しました。');
+            }
+        } catch (error) {
+            console.error('Failed to unlink LINE ID:', error);
+            alert('エラーが発生しました。');
+        }
+    };
+
+    const handleEditPin = async () => {
+        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER') || !user) return;
+        const currentPin = user.pin_code || '';
+        const newPin = prompt('新しいパスワードを入力してください。\n（空欄にすると全体共通パスワードが適用されます）:', currentPin);
+
+        if (newPin === null || newPin === currentPin) return; // キャンセル、または変更なし
+
+        const cleanedPin = newPin.trim();
+
+        try {
+            const res = await updateUserPinCode(userId, cleanedPin === '' ? null : cleanedPin);
+            if (res.success) {
+                setUser(prev => prev ? { ...prev, pin_code: cleanedPin === '' ? null : cleanedPin } : null);
+                alert(cleanedPin === '' ? '個別のパスワード設定を解除し、全体共通パスワードに戻しました。' : 'パスワードを個別に更新しました。');
+            } else {
+                alert('パスワードの更新に失敗しました。');
+            }
+        } catch (error) {
+            console.error('Failed to update pin code:', error);
+            alert('エラーが発生しました。');
+        }
+    };
+
+    const handleDeleteStaff = async () => {
+        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER')) return;
+        if (!confirm(`スタッフ「${user?.display_name}」を完全に削除しますか？\nこの操作は取り消せません。`)) return;
+
+        try {
+            const res = await deleteUser(userId);
+            if (res.success) {
+                alert('スタッフを削除しました。');
+                router.push('/admin/staff');
+            } else {
+                alert('削除に失敗しました。');
+            }
+        } catch (error) {
+            console.error('Failed to delete user:', error);
+            alert('エラーが発生しました。');
+        }
+    };
+
     const getShiftAttendances = (date: string) => attendances.filter(a => a.date === date);
 
     if (isLoading) {
@@ -83,14 +209,92 @@ export default function StaffDetailView() {
                 >
                     <ChevronLeft size={20} className="text-gray-600" />
                 </button>
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                        {user.display_name} の詳細ダッシュボード
-                        <span className={`px-2.5 py-1 text-[10px] rounded-full font-bold border ${user.role === 'admin' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
-                            {user.role === 'admin' ? '管理者' : 'スタッフ'}
-                        </span>
-                    </h1>
-                    <p className="text-xs text-gray-400 font-mono mt-1">ID: {user.id}</p>
+                <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3 flex-wrap">
+                            {user.display_name} の詳細
+                            {currentUser?.role === 'ADMIN' ? (
+                                <select
+                                    value={user.role}
+                                    disabled={isUpdatingRole}
+                                    onChange={(e) => handleRoleChange(e.target.value)}
+                                    className={`text-[10px] font-bold px-2 py-1 rounded-full border transition-all cursor-pointer outline-none ${user.role === 'ADMIN' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                                        user.role === 'MANAGER' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                            'bg-indigo-50 text-indigo-600 border-indigo-100'
+                                        }`}
+                                >
+                                    <option value="STAFF">一般スタッフ</option>
+                                    <option value="MANAGER">役職者</option>
+                                    <option value="ADMIN">社長・幹部</option>
+                                </select>
+                            ) : (
+                                <span className={`px-2.5 py-1 text-[10px] rounded-full font-bold border ${user.role === 'ADMIN' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                                    user.role === 'MANAGER' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                        'bg-gray-50 text-gray-500 border-gray-200'
+                                    }`}>
+                                    {user.role === 'ADMIN' ? '社長・幹部' : user.role === 'MANAGER' ? '役職者' : '一般スタッフ'}
+                                </span>
+                            )}
+                            {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                                <button onClick={handleEditName} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="氏名を編集">
+                                    <Edit2 size={16} />
+                                </button>
+                            )}
+                        </h1>
+                        <div className="text-right flex flex-col items-end gap-1.5 pt-1">
+                            <div className="flex items-center gap-2 group">
+                                <span className="text-[11px] font-bold text-gray-400">電話番号:</span>
+                                {user.phone_number ? (
+                                    <span className="text-sm font-bold text-gray-700 font-mono tracking-wider">{user.phone_number}</span>
+                                ) : (
+                                    <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 rounded">未設定</span>
+                                )}
+                                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                                    <button onClick={handleEditPhone} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="電話番号を編集">
+                                        <Edit2 size={14} />
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 group">
+                                <span className="text-[11px] font-bold text-gray-400">LINE:</span>
+                                {user.line_user_id ? (
+                                    <>
+                                        <span className="text-[10px] font-mono text-gray-500 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded truncate max-w-[150px]" title={user.line_user_id}>{user.line_user_id}</span>
+                                        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                                            <button onClick={handleUnlinkLineId} className="text-gray-400 hover:text-rose-500 transition-colors p-1" title="連携を解除">
+                                                <Unlink size={14} />
+                                            </button>
+                                        )}
+                                    </>
+                                ) : (
+                                    <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">未連携</span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 group">
+                                <span className="text-[11px] font-bold text-gray-400">パスワード:</span>
+                                {user.pin_code ? (
+                                    <span className="text-sm font-bold text-gray-700 font-mono tracking-wider">設定済み</span>
+                                ) : (
+                                    <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 rounded">全体共通</span>
+                                )}
+                                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                                    <button onClick={handleEditPin} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="パスワードを変更">
+                                        <KeyRound size={14} />
+                                    </button>
+                                )}
+                            </div>
+                            {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                                <button
+                                    onClick={handleDeleteStaff}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 mt-2 bg-rose-50 text-rose-600 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors border border-rose-100"
+                                >
+                                    <Trash2 size={14} />
+                                    スタッフを削除
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    <p className="text-[10px] text-gray-300 font-mono mt-1">System ID: {user.id}</p>
                 </div>
             </div>
 

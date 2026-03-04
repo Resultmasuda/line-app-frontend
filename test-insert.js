@@ -15,15 +15,18 @@ for (const line of envFile.split('\n')) {
 const supabaseUrl = 'https://opodugvzphjyiwowdrdj.supabase.co';
 const supabase = createClient(supabaseUrl, key);
 
-async function test() {
+async function testInsert() {
+    console.log("Attempting to insert a user without line_user_id...");
     const { data, error } = await supabase
         .from('users')
-        .select('*')
-        .order('display_name', { ascending: true });
+        .insert([{ display_name: '松田(テスト)', role: 'STAFF' }])
+        .select();
 
-    console.log("Error:", error);
-    console.log("Data length:", data ? data.length : 0);
-    fs.writeFileSync('users_debug.json', JSON.stringify(data, null, 2));
-    console.log("Saved to users_debug.json");
+    if (error) {
+        console.error("Insert Error:", JSON.stringify(error, null, 2));
+    } else {
+        console.log("Insert Success:", JSON.stringify(data, null, 2));
+    }
 }
-test();
+
+testInsert();

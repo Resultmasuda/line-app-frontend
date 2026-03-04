@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
 import {
     getMonthlyShifts, ShiftRecord, getHolidayRequests, createHolidayRequest,
-    HolidayRequest, updateShiftPlanning
+    HolidayRequest, updateShiftPlanning, getGroupMonthlyShifts
 } from '@/lib/api/shift';
 import { createShift, updateShift, deleteShift, getAllStores, getAllUsers } from '@/lib/api/admin';
 import { List, User as UserIcon, Users } from 'lucide-react';
@@ -40,6 +40,7 @@ export default function ShiftSchedule() {
     const [targetUser, setTargetUser] = useState<AppUser | AdminUserRecord | null>(null);
     const [allUsers, setAllUsers] = useState<AdminUserRecord[]>([]);
     const [showCalendarList, setShowCalendarList] = useState(false);
+    const [selectedGroupRole, setSelectedGroupRole] = useState<string | null>(null);
 
     // Forms
     const [shiftFormData, setShiftFormData] = useState({
@@ -57,30 +58,55 @@ export default function ShiftSchedule() {
     const [submitLoading, setSubmitLoading] = useState(false);
 
     const fetchShifts = useCallback(async () => {
-        const userId = targetUser?.id || user?.id;
-        if (!userId) return;
         setIsLoading(true);
-
         const yearMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
         try {
-            const [shiftRes, holidayRes] = await Promise.all([
-                getMonthlyShifts(userId, yearMonth),
-                getHolidayRequests(userId, yearMonth)
-            ]);
+            // グループまとめ表示モード
+            if (selectedGroupRole) {
+                const groupUserIds = allUsers
+                    .filter(u => u.role.toUpperCase() === selectedGroupRole)
+                    .map(u => u.id);
+                // 自分も同じロールなら追加
+                if (user && user.role.toUpperCase() === selectedGroupRole && !groupUserIds.includes(user.id)) {
+                    groupUserIds.push(user.id);
+                }
 
-            if (shiftRes.success && shiftRes.data) {
-                setShifts(shiftRes.data);
-            }
-            if (holidayRes.success && holidayRes.data) {
-                setHolidays(holidayRes.data);
+                if (groupUserIds.length > 0) {
+                    const shiftRes = await getGroupMonthlyShifts(groupUserIds, yearMonth);
+                    if (shiftRes.success && shiftRes.data) {
+                        // display_name をスタッフ名としてlocationに付加して表示
+                        const enriched = shiftRes.data.map((s: any) => ({
+                            ...s,
+                            location: `${(s.users as any)?.display_name || '?'} - ${s.location}`,
+                        }));
+                        setShifts(enriched);
+                    }
+                }
+                setHolidays([]);
+            } else {
+                // 個別ユーザーモード
+                const userId = targetUser?.id || user?.id;
+                if (!userId) { setIsLoading(false); return; }
+
+                const [shiftRes, holidayRes] = await Promise.all([
+                    getMonthlyShifts(userId, yearMonth),
+                    getHolidayRequests(userId, yearMonth)
+                ]);
+
+                if (shiftRes.success && shiftRes.data) {
+                    setShifts(shiftRes.data);
+                }
+                if (holidayRes.success && holidayRes.data) {
+                    setHolidays(holidayRes.data);
+                }
             }
         } catch (error) {
             console.error("Failed to fetch data:", error);
         } finally {
             setIsLoading(false);
         }
-    }, [user, targetUser, currentDate]);
+    }, [user, targetUser, currentDate, selectedGroupRole, allUsers]);
 
     useEffect(() => {
         if (user && !targetUser) setTargetUser(user);
@@ -724,30 +750,49 @@ export default function ShiftSchedule() {
                             {/* 役職・グループ */}
                             {(['PRESIDENT', 'EXECUTIVE', 'MANAGER', 'STAFF', 'ADMIN'] as const).map((role) => {
                                 const roleUsers = allUsers.filter(u => u.role.toUpperCase() === role && u.id !== user?.id);
-                                if (roleUsers.length === 0) return null;
+                                // 自分もこのロールなら含めてカウント
+                                const selfInRole = user && user.role.toUpperCase() === role;
+                                const totalCount = roleUsers.length + (selfInRole ? 1 : 0);
+                                if (totalCount === 0) return null;
 
                                 const labels: Record<string, string> = { PRESIDENT: '社長', EXECUTIVE: '幹部', MANAGER: '役職社員', STAFF: '社員', ADMIN: '管理者' };
 
                                 return (
                                     <div key={role} className="space-y-3">
-                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">
-                                            {labels[role] || role}
-                                        </h4>
+                                        <div className="flex items-center justify-between px-1">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                {labels[role] || role}
+                                            </h4>
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedGroupRole(role);
+                                                    setTargetUser(null);
+                                                    setShowCalendarList(false);
+                                                }}
+                                                className={`text-[9px] font-black px-3 py-1 rounded-full transition-all ${selectedGroupRole === role
+                                                        ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                                                        : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                                                    }`}
+                                            >
+                                                <Users size={10} className="inline mr-1" />
+                                                全員のシフト ({totalCount})
+                                            </button>
+                                        </div>
                                         <div className="grid grid-cols-1 gap-2">
                                             {roleUsers.map((u) => (
                                                 <button
                                                     key={u.id}
-                                                    onClick={() => { setTargetUser(u); setShowCalendarList(false); }}
-                                                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${targetUser?.id === u.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20' : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'}`}
+                                                    onClick={() => { setTargetUser(u); setSelectedGroupRole(null); setShowCalendarList(false); }}
+                                                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${targetUser?.id === u.id && !selectedGroupRole ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20' : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'}`}
                                                 >
-                                                    <div className={`p-2 rounded-xl ${targetUser?.id === u.id ? 'bg-white/20' : 'bg-indigo-50 text-indigo-600'}`}>
+                                                    <div className={`p-2 rounded-xl ${targetUser?.id === u.id && !selectedGroupRole ? 'bg-white/20' : 'bg-indigo-50 text-indigo-600'}`}>
                                                         <UserIcon size={20} />
                                                     </div>
                                                     <div className="flex-1 text-left">
                                                         <span className="font-bold block">{u.display_name}</span>
-                                                        <span className={`text-[9px] font-black uppercase ${targetUser?.id === u.id ? 'text-indigo-200' : 'text-gray-400'}`}>{labels[u.role.toUpperCase()] || u.role}</span>
+                                                        <span className={`text-[9px] font-black uppercase ${targetUser?.id === u.id && !selectedGroupRole ? 'text-indigo-200' : 'text-gray-400'}`}>{labels[u.role.toUpperCase()] || u.role}</span>
                                                     </div>
-                                                    {targetUser?.id === u.id && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
+                                                    {targetUser?.id === u.id && !selectedGroupRole && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
                                                 </button>
                                             ))}
                                         </div>
@@ -755,11 +800,6 @@ export default function ShiftSchedule() {
                                 );
                             })}
 
-                            <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 border-dashed">
-                                <p className="text-[10px] text-amber-600 font-bold leading-relaxed">
-                                    ※ グループ全体の統合表示機能は現在開発中です。現在は各スタッフごとの詳細カレンダーを確認できます。
-                                </p>
-                            </div>
                         </div>
                     </div>
                 </div>

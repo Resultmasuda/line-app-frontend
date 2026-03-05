@@ -362,12 +362,18 @@ export default function ExpenseManagement() {
                                     <div className="flex-[2]" style={{ opacity: transport === 'HOTEL' ? 0.5 : 1, pointerEvents: transport === 'HOTEL' ? 'none' : 'auto' }}>
                                         <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">区分</label>
                                         <select
-                                            value={isRoundTrip ? 'ROUND_TRIP' : 'ONE_WAY'}
+                                            value={transport === 'HOTEL' ? 'HOTEL' : isRoundTrip ? 'ROUND_TRIP' : 'ONE_WAY'}
                                             onChange={(e) => setIsRoundTrip(e.target.value === 'ROUND_TRIP')}
                                             className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 appearance-none font-medium"
                                         >
-                                            <option value="ROUND_TRIP">往復</option>
-                                            <option value="ONE_WAY">片道</option>
+                                            {transport === 'HOTEL' ? (
+                                                <option value="HOTEL">宿泊</option>
+                                            ) : (
+                                                <>
+                                                    <option value="ROUND_TRIP">往復</option>
+                                                    <option value="ONE_WAY">片道</option>
+                                                </>
+                                            )}
                                         </select>
                                     </div>
 

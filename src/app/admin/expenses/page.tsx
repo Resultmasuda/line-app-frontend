@@ -76,7 +76,17 @@ export default function AdminExpensesPage() {
     };
 
     const handleCsvExport = () => {
-        if (filteredExpenses.length === 0) return;
+        if (filteredExpenses.length === 0) {
+            alert("出力するデータがありません");
+            return;
+        }
+
+        // LINEアプリ内ブラウザ（LIFF等）はファイルのダウンロードをブロックするため警告
+        const isLineApp = typeof window !== 'undefined' && (navigator.userAgent.includes('Line') || navigator.userAgent.includes('li-inapp') || navigator.userAgent.includes('MicroMessenger'));
+        if (isLineApp) {
+            alert("LINEアプリ内のブラウザではCSVファイルをダウンロードできません。\n\n画面右下などの「︙」メニューから「デフォルトのブラウザで開く」または「Safari等で開く」を選択し、ブラウザで開き直してから再度お試しください。");
+            return;
+        }
 
         const headers = ['申請者', '利用日', '種別', '区分', '区間/宿泊先', '到着', '目的/備考', '金額'];
         const rows = filteredExpenses.map(exp => [

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Receipt, Search, Filter, Download, ArrowDownToLine, ChevronLeft, ChevronRight, Train, Bus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Receipt, Search, Filter, Download, ArrowDownToLine, ChevronLeft, ChevronRight, Train, Bus, Hotel, ChevronDown, ChevronUp } from 'lucide-react';
 import { getAllExpenses } from '@/lib/api/admin';
 
 type ExpenseRecord = {
@@ -75,6 +75,36 @@ export default function AdminExpensesPage() {
         }));
     };
 
+    const handleCsvExport = () => {
+        if (filteredExpenses.length === 0) return;
+
+        const headers = ['申請者', '利用日', '種別', '区分', '区間/宿泊先', '到着', '目的/備考', '金額'];
+        const rows = filteredExpenses.map(exp => [
+            exp.users?.display_name || '不明',
+            exp.target_date,
+            exp.transport_type === 'TRAIN' ? '電車' : exp.transport_type === 'HOTEL' ? '宿泊' : 'バス',
+            exp.transport_type === 'HOTEL' ? '宿泊' : exp.is_round_trip ? '往復' : '片道',
+            exp.departure,
+            exp.arrival || '',
+            exp.purpose || '',
+            exp.amount.toString()
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(e => e.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `expenses_${currentDate.getFullYear()}_${String(currentDate.getMonth() + 1).padStart(2, '0')}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center max-w-6xl">
@@ -139,7 +169,7 @@ export default function AdminExpensesPage() {
                             <Filter size={16} />
                             絞り込み
                         </button>
-                        <button className="flex-1 md:flex-none justify-center flex items-center gap-2 px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold hover:bg-emerald-600 transition-colors shadow-sm">
+                        <button onClick={handleCsvExport} className="flex-1 md:flex-none justify-center flex items-center gap-2 px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold hover:bg-emerald-600 transition-colors shadow-sm">
                             <Download size={16} />
                             CSV出力
                         </button>
@@ -213,22 +243,26 @@ export default function AdminExpensesPage() {
                                                                         {dateStr}
                                                                     </td>
                                                                     <td className="px-6 py-4 text-center whitespace-nowrap">
-                                                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${exp.is_round_trip
-                                                                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                                                                            : 'bg-blue-50 text-blue-600 border border-blue-100'
+                                                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${exp.transport_type === 'HOTEL'
+                                                                            ? 'bg-purple-50 text-purple-600 border border-purple-100'
+                                                                            : exp.is_round_trip
+                                                                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                                                                : 'bg-blue-50 text-blue-600 border border-blue-100'
                                                                             }`}>
-                                                                            {exp.is_round_trip ? '往復' : '片道'}
+                                                                            {exp.transport_type === 'HOTEL' ? '宿泊' : exp.is_round_trip ? '往復' : '片道'}
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                                         <div className="flex items-center gap-2">
                                                                             {exp.transport_type === 'TRAIN' ? (
                                                                                 <Train size={14} className="text-gray-400" />
+                                                                            ) : exp.transport_type === 'HOTEL' ? (
+                                                                                <Hotel size={14} className="text-gray-400" />
                                                                             ) : (
                                                                                 <Bus size={14} className="text-gray-400" />
                                                                             )}
                                                                             <span className="text-sm font-bold text-gray-700 flex items-center gap-1">
-                                                                                {exp.departure} <ChevronRight size={12} className="text-gray-300" /> {exp.arrival}
+                                                                                {exp.departure} {exp.transport_type !== 'HOTEL' && <ChevronRight size={12} className="text-gray-300" />} {exp.transport_type !== 'HOTEL' && exp.arrival}
                                                                             </span>
                                                                         </div>
                                                                     </td>

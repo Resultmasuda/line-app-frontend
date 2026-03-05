@@ -803,59 +803,61 @@ export default function AdminShiftsPage() {
                                     店舗・グループが登録されていません
                                 </div>
                             ) : (
-                                <table className="w-full text-left border-collapse border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                                    <thead>
-                                        <tr className="bg-gray-100 text-gray-600 text-[11px] uppercase tracking-wider">
-                                            <th className="px-4 py-3 font-semibold">名称</th>
-                                            <th className="px-4 py-3 font-semibold">種別</th>
-                                            <th className="px-4 py-3 font-semibold">位置情報</th>
-                                            <th className="px-4 py-3 font-semibold text-right w-24">操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {stores.map(store => (
-                                            <tr key={store.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-4 py-3 font-bold text-gray-800 text-sm">{store.name}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${store.type === 'role_group' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                                        {store.type === 'role_group' ? '役職・タスク' : '物理店舗'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    {(store.latitude !== null && store.longitude !== null && store.type !== 'role_group') ? (
-                                                        <>
-                                                            <div className="text-[11px] text-gray-500 font-mono">
-                                                                Lat: {store.latitude}<br />
-                                                                Lng: {store.longitude}
-                                                            </div>
-                                                            <div className="text-[10px] text-emerald-600 font-bold mt-0.5">
-                                                                半径 {store.radius_m || 500}m
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-xs text-gray-400 font-bold">-</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={() => setEditingStore(store)}
-                                                            className="p-1.5 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                                                        >
-                                                            <Edit2 size={14} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteStore(store.id, store.name)}
-                                                            className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    </div>
-                                                </td>
+                                <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                                    <table className="w-full text-left border-collapse min-w-[500px]">
+                                        <thead>
+                                            <tr className="bg-gray-100 text-gray-600 text-[11px] uppercase tracking-wider">
+                                                <th className="px-4 py-3 font-semibold">名称</th>
+                                                <th className="px-4 py-3 font-semibold">種別</th>
+                                                <th className="px-4 py-3 font-semibold">位置情報</th>
+                                                <th className="px-4 py-3 font-semibold text-right w-24">操作</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 bg-white">
+                                            {stores.map(store => (
+                                                <tr key={store.id} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="px-4 py-3 font-bold text-gray-800 text-sm">{store.name}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${store.type === 'role_group' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                            {store.type === 'role_group' ? '役職・タスク' : '物理店舗'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        {(store.latitude !== null && store.longitude !== null && store.type !== 'role_group') ? (
+                                                            <>
+                                                                <div className="text-[11px] text-gray-500 font-mono">
+                                                                    Lat: {store.latitude}<br />
+                                                                    Lng: {store.longitude}
+                                                                </div>
+                                                                <div className="text-[10px] text-emerald-600 font-bold mt-0.5">
+                                                                    半径 {store.radius_m || 500}m
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400 font-bold">-</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex justify-end gap-2">
+                                                            <button
+                                                                onClick={() => setEditingStore(store)}
+                                                                className="p-1.5 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                                            >
+                                                                <Edit2 size={14} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteStore(store.id, store.name)}
+                                                                className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             )}
                         </div>
                     </div>

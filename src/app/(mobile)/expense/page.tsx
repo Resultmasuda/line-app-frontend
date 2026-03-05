@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, CalendarClock, Receipt, Settings, Plus, Train, Bus, ChevronRight, Bookmark, Pencil, Trash2, X } from 'lucide-react';
+import { Home, CalendarClock, Receipt, Settings, Plus, Train, Bus, Hotel, ChevronRight, Bookmark, Pencil, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
 import { getMonthlyExpenses, saveExpense, updateExpense, deleteExpense, ExpenseRecord, ExpenseTemplateRecord, getExpenseTemplates, saveExpenseTemplate, deleteExpenseTemplate } from '@/lib/api/expense';
@@ -107,8 +107,11 @@ export default function ExpenseManagement() {
 
     const handleSave = async () => {
         if (!user || isSaving) return;
-        if (!departure || !arrival || !amount) {
-            alert("出発、到着、金額は必須です。");
+
+        // 宿泊の場合は到着地は必須ではない
+        const isHotel = transport === 'HOTEL';
+        if (!departure || (!isHotel && !arrival) || !amount) {
+            alert("出発（宿泊先）、到着、金額は必須です。");
             return;
         }
 
@@ -236,12 +239,12 @@ export default function ExpenseManagement() {
                                             <div className="flex items-center justify-between mb-3 border-b border-gray-50 pb-3">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
-                                                        {item.transport_type === 'TRAIN' ? <Train size={20} /> : <Bus size={20} />}
+                                                        {item.transport_type === 'TRAIN' ? <Train size={20} /> : item.transport_type === 'HOTEL' ? <Hotel size={20} /> : <Bus size={20} />}
                                                     </div>
                                                     <div>
-                                                        <p className="text-xs text-gray-400 font-medium mb-0.5">{dateStr} • {item.is_round_trip ? '往復' : '片道'}</p>
+                                                        <p className="text-xs text-gray-400 font-medium mb-0.5">{dateStr} • {item.transport_type === 'HOTEL' ? '宿泊' : item.is_round_trip ? '往復' : '片道'}</p>
                                                         <p className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
-                                                            {item.departure} <ChevronRight size={14} className="text-gray-300" /> {item.arrival}
+                                                            {item.departure} {item.transport_type !== 'HOTEL' && <><ChevronRight size={14} className="text-gray-300" /> {item.arrival}</>}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -310,41 +313,53 @@ export default function ExpenseManagement() {
 
                                 {/* 交通機関 */}
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">交通機関</label>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">交通機関・種別</label>
+                                    <div className="grid grid-cols-3 gap-2">
                                         <button
                                             onClick={() => setTransport('TRAIN')}
-                                            className={`${transport === 'TRAIN' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all`}
+                                            className={`${transport === 'TRAIN' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
                                         >
                                             <Train size={18} /> 電車
                                         </button>
                                         <button
                                             onClick={() => setTransport('BUS')}
-                                            className={`${transport === 'BUS' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all`}
+                                            className={`${transport === 'BUS' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
                                         >
                                             <Bus size={18} /> バス
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setTransport('HOTEL');
+                                                setIsRoundTrip(false);
+                                                setArrival('');
+                                            }}
+                                            className={`${transport === 'HOTEL' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
+                                        >
+                                            <Hotel size={18} /> 宿泊
                                         </button>
                                     </div>
                                 </div>
 
-                                {/* 区間 */}
+                                {/* 区間 (宿泊時は名称・備考等に変更) */}
                                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 relative">
-                                    <div className="absolute left-6 top-9 bottom-9 w-px bg-gray-300 border-dashed border-l"></div>
+                                    {transport !== 'HOTEL' && <div className="absolute left-6 top-9 bottom-9 w-px bg-gray-300 border-dashed border-l"></div>}
 
                                     <div className="flex items-center gap-3 relative z-10">
                                         <div className="w-4 h-4 rounded-full border-4 border-emerald-500 bg-white shadow-sm flex-shrink-0"></div>
-                                        <input type="text" value={departure} onChange={(e) => setDeparture(e.target.value)} placeholder="出発 (例: JR吹田)" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 text-sm font-medium" />
+                                        <input type="text" value={departure} onChange={(e) => setDeparture(e.target.value)} placeholder={transport === 'HOTEL' ? "宿泊先 (例: アパホテル)" : "出発 (例: JR吹田)"} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 text-sm font-medium" />
                                     </div>
 
-                                    <div className="flex items-center gap-3 relative z-10 mt-4">
-                                        <div className="w-4 h-4 rounded-full border-4 border-rose-500 bg-white shadow-sm flex-shrink-0"></div>
-                                        <input type="text" value={arrival} onChange={(e) => setArrival(e.target.value)} placeholder="到着 (例: JR大阪)" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 text-sm font-medium" />
-                                    </div>
+                                    {transport !== 'HOTEL' && (
+                                        <div className="flex items-center gap-3 relative z-10 mt-4">
+                                            <div className="w-4 h-4 rounded-full border-4 border-rose-500 bg-white shadow-sm flex-shrink-0"></div>
+                                            <input type="text" value={arrival} onChange={(e) => setArrival(e.target.value)} placeholder="到着 (例: JR大阪)" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 text-sm font-medium" />
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex gap-4">
                                     {/* 片道復路 */}
-                                    <div className="flex-[2]">
+                                    <div className="flex-[2]" style={{ opacity: transport === 'HOTEL' ? 0.5 : 1, pointerEvents: transport === 'HOTEL' ? 'none' : 'auto' }}>
                                         <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">区分</label>
                                         <select
                                             value={isRoundTrip ? 'ROUND_TRIP' : 'ONE_WAY'}
@@ -369,7 +384,7 @@ export default function ExpenseManagement() {
                                 {/* 目的 */}
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">目的 / 備考</label>
-                                    <input type="text" value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="例: auヨドバシ 出勤のため" className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 text-sm" />
+                                    <input type="text" value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="例: 出張のため" className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 text-sm" />
                                 </div>
                             </div>
 
@@ -402,7 +417,7 @@ export default function ExpenseManagement() {
                             {/* 保存ボタン (確認モーダルを開く) */}
                             <button
                                 onClick={() => setShowConfirm(true)}
-                                disabled={isSaving || !departure || !arrival || !amount}
+                                disabled={isSaving || !amount || !departure || (transport !== 'HOTEL' && !arrival)}
                                 className="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-70 text-white font-bold py-4 rounded-xl mt-8 shadow-lg shadow-emerald-200 transition-all flex justify-center items-center gap-2"
                             >
                                 <Plus size={20} /> 入力内容を確認する
@@ -457,26 +472,30 @@ export default function ExpenseManagement() {
                             </div>
 
                             <div>
-                                <span className="text-xs font-bold text-gray-400 block mb-1">区間</span>
+                                <span className="text-xs font-bold text-gray-400 block mb-1">{transport === 'HOTEL' ? '宿泊箇所等' : '区間'}</span>
                                 <div className="bg-white border border-gray-100 rounded-lg p-3 flex items-center justify-center gap-2 shadow-sm">
                                     <span className="font-bold text-gray-800 text-sm truncate max-w-[40%]">{departure}</span>
-                                    <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
-                                    <span className="font-bold text-gray-800 text-sm truncate max-w-[40%]">{arrival}</span>
+                                    {transport !== 'HOTEL' && (
+                                        <>
+                                            <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
+                                            <span className="font-bold text-gray-800 text-sm truncate max-w-[40%]">{arrival}</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
                             <div className="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span className="text-xs font-bold text-gray-400">交通手段</span>
+                                <span className="text-xs font-bold text-gray-400">種別</span>
                                 <span className="text-sm font-bold text-gray-800 flex items-center gap-1">
-                                    {transport === 'TRAIN' ? <Train size={14} /> : <Bus size={14} />}
-                                    {transport === 'TRAIN' ? '電車' : 'バス'}
+                                    {transport === 'TRAIN' ? <Train size={14} /> : transport === 'HOTEL' ? <Hotel size={14} /> : <Bus size={14} />}
+                                    {transport === 'TRAIN' ? '電車' : transport === 'HOTEL' ? '宿泊' : 'バス'}
                                 </span>
                             </div>
 
                             <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                                 <span className="text-xs font-bold text-gray-400">区分</span>
                                 <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                                    {isRoundTrip ? '往復' : '片道'}
+                                    {transport === 'HOTEL' ? '宿泊' : isRoundTrip ? '往復' : '片道'}
                                 </span>
                             </div>
 

@@ -75,7 +75,7 @@ export default function AdminExpensesPage() {
         }));
     };
 
-    const handleCsvExport = () => {
+    const handleXlsxExport = () => {
         if (filteredExpenses.length === 0) {
             alert("出力するデータがありません");
             return;
@@ -84,55 +84,59 @@ export default function AdminExpensesPage() {
         // LINEアプリ内ブラウザ（LIFF等）はファイルのダウンロードをブロックするため警告
         const isLineApp = typeof window !== 'undefined' && (navigator.userAgent.includes('Line') || navigator.userAgent.includes('li-inapp') || navigator.userAgent.includes('MicroMessenger'));
         if (isLineApp) {
-            alert("LINEアプリ内のブラウザではCSVファイルをダウンロードできません。\n\n画面右下などの「︙」メニューから「デフォルトのブラウザで開く」または「Safari等で開く」を選択し、ブラウザで開き直してから再度お試しください。");
+            alert("LINEアプリ内のブラウザではExcelファイルをダウンロードできません。\n\n画面右下などの「︙」メニューから「デフォルトのブラウザで開く」または「Safari等で開く」を選択し、ブラウザで開き直してから再度お試しください。");
             return;
         }
 
-        const headers = ['申請者', '利用日', '種別', '区分', '区間/宿泊先', '到着', '目的/備考', '金額'];
-        const rows: string[][] = [];
+        // --- xlsx処理開始 ---
+        // xlsxを動的インポートしてエラーを防ぐ (クライアントサイドでのみ実行)
+        import('xlsx').then((XLSX) => {
+            const wb = XLSX.utils.book_new();
 
-        userNames.forEach((userName, index) => {
-            const userExps = groupedExpenses[userName];
+            // シート全体のヘッダー
+            const headers = ['利用日', '種別', '区分', '区間/宿泊先', '到着', '目的/備考', '金額'];
 
-            // 各ユーザーのデータを行に追加（利用日の古い順に並び替え）
-            const sortedExps = [...userExps].sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime());
+            // 各ユーザーごとのシートを作成
+            userNames.forEach((userName) => {
+                const userExps = groupedExpenses[userName];
+                const sortedExps = [...userExps].sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime());
 
-            sortedExps.forEach(exp => {
-                rows.push([
-                    userName,
+                const rows = sortedExps.map(exp => [
                     exp.target_date,
                     exp.transport_type === 'TRAIN' ? '電車' : exp.transport_type === 'HOTEL' ? '宿泊' : 'バス',
                     exp.transport_type === 'HOTEL' ? '宿泊' : exp.is_round_trip ? '往復' : '片道',
                     exp.departure,
                     exp.arrival || '',
                     exp.purpose || '',
-                    exp.amount.toString()
+                    exp.amount
                 ]);
+
+                // 小計行の追加
+                const userTotal = userExps.reduce((sum, e) => sum + e.amount, 0);
+                rows.push(['', '', '', '', '', '合計', userTotal]);
+
+                const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+                // シート名が長すぎる場合は切り詰める（Excel仕様上31文字以内）
+                const sheetName = userName.substring(0, 31);
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
             });
 
-            // ユーザーごとの小計行を追加
-            const userTotal = userExps.reduce((sum, e) => sum + e.amount, 0);
-            rows.push(['', '', '', '', '', '', `${userName} 小計`, userTotal.toString()]);
+            // 全体サマリーシートを追加
+            const summaryHeaders = ['申請者', '件数', '合計金額'];
+            const summaryRows = userNames.map(userName => {
+                const exps = groupedExpenses[userName];
+                const total = exps.reduce((sum, e) => sum + e.amount, 0);
+                return [userName, exps.length, total];
+            });
+            summaryRows.push(['総合計', filteredExpenses.length, totalAmount]);
+            const wsSummary = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryRows]);
+            XLSX.utils.book_append_sheet(wb, wsSummary, '全体サマリー');
 
-            // 次のユーザーとの間に空行を追加
-            if (index < userNames.length - 1) {
-                rows.push(['', '', '', '', '', '', '', '']);
-            }
+            // ファイルダウンロード
+            const fileName = `expenses_${currentDate.getFullYear()}_${String(currentDate.getMonth() + 1).padStart(2, '0')}.xlsx`;
+            XLSX.writeFile(wb, fileName);
         });
-
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(e => e.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
-        ].join('\n');
-
-        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `expenses_${currentDate.getFullYear()}_${String(currentDate.getMonth() + 1).padStart(2, '0')}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     };
 
     return (
@@ -199,9 +203,9 @@ export default function AdminExpensesPage() {
                             <Filter size={16} />
                             絞り込み
                         </button>
-                        <button onClick={handleCsvExport} className="flex-1 md:flex-none justify-center flex items-center gap-2 px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold hover:bg-emerald-600 transition-colors shadow-sm">
+                        <button onClick={handleXlsxExport} className="flex-1 md:flex-none justify-center flex items-center gap-2 px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold hover:bg-emerald-600 transition-colors shadow-sm">
                             <Download size={16} />
-                            CSV出力
+                            Excel出力
                         </button>
                     </div>
                 </div>

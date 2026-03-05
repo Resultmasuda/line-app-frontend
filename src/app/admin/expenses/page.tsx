@@ -89,16 +89,36 @@ export default function AdminExpensesPage() {
         }
 
         const headers = ['申請者', '利用日', '種別', '区分', '区間/宿泊先', '到着', '目的/備考', '金額'];
-        const rows = filteredExpenses.map(exp => [
-            exp.users?.display_name || '不明',
-            exp.target_date,
-            exp.transport_type === 'TRAIN' ? '電車' : exp.transport_type === 'HOTEL' ? '宿泊' : 'バス',
-            exp.transport_type === 'HOTEL' ? '宿泊' : exp.is_round_trip ? '往復' : '片道',
-            exp.departure,
-            exp.arrival || '',
-            exp.purpose || '',
-            exp.amount.toString()
-        ]);
+        const rows: string[][] = [];
+
+        userNames.forEach((userName, index) => {
+            const userExps = groupedExpenses[userName];
+
+            // 各ユーザーのデータを行に追加（利用日の古い順に並び替え）
+            const sortedExps = [...userExps].sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime());
+
+            sortedExps.forEach(exp => {
+                rows.push([
+                    userName,
+                    exp.target_date,
+                    exp.transport_type === 'TRAIN' ? '電車' : exp.transport_type === 'HOTEL' ? '宿泊' : 'バス',
+                    exp.transport_type === 'HOTEL' ? '宿泊' : exp.is_round_trip ? '往復' : '片道',
+                    exp.departure,
+                    exp.arrival || '',
+                    exp.purpose || '',
+                    exp.amount.toString()
+                ]);
+            });
+
+            // ユーザーごとの小計行を追加
+            const userTotal = userExps.reduce((sum, e) => sum + e.amount, 0);
+            rows.push(['', '', '', '', '', '', `${userName} 小計`, userTotal.toString()]);
+
+            // 次のユーザーとの間に空行を追加
+            if (index < userNames.length - 1) {
+                rows.push(['', '', '', '', '', '', '', '']);
+            }
+        });
 
         const csvContent = [
             headers.join(','),

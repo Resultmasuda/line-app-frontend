@@ -198,12 +198,12 @@ export default function StaffDetailView() {
                 }
             }
 
-            const staffName = user.display_name;
-            const isAffiliated = currentStaffList.includes(staffName);
+            const staffId = user.id;
+            const isAffiliated = currentStaffList.includes(staffId);
 
             const newStaffList = isAffiliated
-                ? currentStaffList.filter(name => name !== staffName)
-                : [...currentStaffList, staffName];
+                ? currentStaffList.filter(id => id !== staffId)
+                : [...currentStaffList, staffId];
 
             const res = await updateStore(storeId, { affiliated_staff: newStaffList });
             if (res.success && res.data) {
@@ -356,7 +356,7 @@ export default function StaffDetailView() {
                                     const staffList = typeof store.affiliated_staff === 'string'
                                         ? JSON.parse(store.affiliated_staff)
                                         : (store.affiliated_staff || []);
-                                    isAffiliated = Array.isArray(staffList) && staffList.includes(user.display_name);
+                                    isAffiliated = Array.isArray(staffList) && staffList.includes(user.id);
                                 } catch (e) { }
 
                                 return (

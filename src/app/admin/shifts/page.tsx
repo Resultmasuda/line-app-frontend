@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { CalendarClock, Search, Filter, ChevronLeft, ChevronRight, Clock, MapPin, UserCheck, UserX, Sun, Navigation, Building2, Plus, Edit2, Trash2, X, Calendar as CalendarIcon, User as UserIcon, Copy, Check } from 'lucide-react';
 import { getAllShifts, getAllAttendances, getAllStores, createStore, updateStore, deleteStore, createShift, updateShift, deleteShift, StoreRecord, getAllUsers, AdminUserRecord } from '@/lib/api/admin';
+import { buildInviteStoreLink, getInviteTtlMinutes } from '@/lib/invite';
 type ShiftRecord = {
     id: string;
     date: string;
@@ -57,11 +58,12 @@ export default function AdminShiftsPage() {
 
     const handleCopyInviteLink = (storeId: string) => {
         const baseUrl = window.location.origin;
-        const inviteUrl = `${baseUrl}/?invite_store_id=${storeId}`;
+        const inviteUrl = buildInviteStoreLink(baseUrl, storeId);
 
         navigator.clipboard.writeText(inviteUrl).then(() => {
             setCopiedId(storeId);
             setTimeout(() => setCopiedId(null), 2000);
+            alert(`招待リンクをコピーしました（有効期限: ${getInviteTtlMinutes()}分）`);
         }).catch(err => {
             console.error('Failed to copy:', err);
             alert('コピーに失敗しました');

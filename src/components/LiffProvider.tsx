@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import liff from '@line/liff';
 import { supabase } from '@/lib/supabase';
 import { joinStore } from '@/lib/api/admin';
+import { consumeInviteNonce, validateInviteFromParams } from '@/lib/invite';
 import RegistrationScreen from '@/components/RegistrationScreen';
 
 // ユーザーデータの型定義
@@ -35,6 +36,7 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
     const [showRegistration, setShowRegistration] = useState(false);
     const [regProfile, setRegProfile] = useState<{ userId: string, displayName: string } | null>(null);
     const [inviteStoreIdState, setInviteStoreIdState] = useState<string | null>(null);
+    const [inviteNonceState, setInviteNonceState] = useState<string | null>(null);
     const [regError, setRegError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -93,7 +95,14 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
                 // URLパラメータから情報を取得
                 const urlParams = new URLSearchParams(window.location.search);
                 const linkId = urlParams.get('link_id');
-                const inviteStoreId = urlParams.get('invite_store_id');
+                const hasInviteQuery = urlParams.has('invite_store_id');
+                const inviteValidation = hasInviteQuery ? validateInviteFromParams(urlParams) : null;
+                const inviteStoreId = inviteValidation?.isValid ? inviteValidation.inviteStoreId : null;
+                const inviteNonce = inviteValidation?.isValid ? inviteValidation.inviteNonce ?? null : null;
+
+                if (inviteValidation && !inviteValidation.isValid && inviteValidation.reason) {
+                    alert(inviteValidation.reason);
+                }
 
                 let userData;
 
@@ -135,7 +144,10 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
                     } else {
                         // LINE連携済みレコードがない → 新規登録画面へ
                         setRegProfile({ userId: profile.userId, displayName: profile.displayName || '' });
-                        if (inviteStoreId) setInviteStoreIdState(inviteStoreId);
+                        if (inviteStoreId) {
+                            setInviteStoreIdState(inviteStoreId);
+                            setInviteNonceState(inviteNonce);
+                        }
 
                         if (isMounted) {
                             setShowRegistration(true);
@@ -152,6 +164,9 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
                     if (inviteStoreId) {
                         try {
                             await joinStore(inviteStoreId, userData.id);
+                            if (inviteNonce) {
+                                consumeInviteNonce(inviteNonce);
+                            }
                             const cleanUrl = window.location.origin + window.location.pathname;
                             window.history.replaceState({}, document.title, cleanUrl);
                             alert('店舗への登録が完了しました！');
@@ -179,6 +194,9 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
 
         initLiff();
 
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     const handleRegistration = async (phoneNumber: string, pinCode: string) => {
@@ -229,6 +247,9 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
             if (inviteStoreIdState) {
                 try {
                     await joinStore(inviteStoreIdState, linkedUser.id);
+                    if (inviteNonceState) {
+                        consumeInviteNonce(inviteNonceState);
+                    }
                     window.history.replaceState({}, document.title, window.location.pathname);
                     alert('店舗への登録が完了しました！');
                 } catch (err) {

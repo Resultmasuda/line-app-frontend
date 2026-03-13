@@ -239,7 +239,7 @@ export default function StaffDetailView() {
                     setPermissions(permissions.filter(p => !(p.permission === permission && p.location_id === locationId)));
                 }
             } else {
-                alert('権限の更新に失敗しました。');
+                alert(`権限の更新に失敗しました。\n理由: ${res.error || '不明なエラー'}`);
             }
         } catch (error) {
             console.error('Failed to toggle permission:', error);

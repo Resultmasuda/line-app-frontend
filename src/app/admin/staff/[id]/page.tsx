@@ -255,7 +255,6 @@ export default function StaffDetailView() {
 
     const getShiftAttendances = (date: string) => attendances.filter(a => a.date === date);
 
-    const isAdminUser = (user: any) => user?.role === 'ADMIN' || user?.role === 'MANAGER'; // Utility fn if missing
 
     if (isLoading) {
         return (
@@ -302,7 +301,7 @@ export default function StaffDetailView() {
                             </div>
 
                             <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                {isAdminUser(currentUser?.role || '') ? (
+                                {isAdminUser(currentUser?.role || '', currentUser?.id) ? (
                                     <select
                                         value={user.role.toUpperCase()}
                                         disabled={isUpdatingRole}

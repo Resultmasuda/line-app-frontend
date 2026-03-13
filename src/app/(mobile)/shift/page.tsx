@@ -7,7 +7,7 @@ import {
     getMonthlyShifts, ShiftRecord, getHolidayRequests, createHolidayRequest,
     HolidayRequest, updateShiftPlanning, getGroupMonthlyShifts, getStoreMonthlyShifts
 } from '@/lib/api/shift';
-import { createShift, updateShift, deleteShift, getAllStores, getAllUsers } from '@/lib/api/admin';
+import { createShift, updateShift, deleteShift, getAllStores, getAllUsers, getUserPermissions } from '@/lib/api/admin';
 import { List, User as UserIcon, Users, Store, Heart, HeartOff, PlusCircle } from 'lucide-react';
 import { AdminUserRecord } from '@/lib/api/admin';
 
@@ -175,7 +175,6 @@ export default function ShiftSchedule() {
             if (usersRes.success) setAllUsers(usersRes.data);
 
             if (user?.id) {
-                const { getUserPermissions } = await import('@/lib/api/admin');
                 const permRes = await getUserPermissions(user.id);
                 if (permRes.success) {
                     setUserPermissions(permRes.data);

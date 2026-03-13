@@ -187,7 +187,7 @@ export default function StaffDetailView() {
     };
 
     const toggleStoreAffiliation = async (storeId: string) => {
-        if (!user || !isAdminUser(currentUser?.role || '', currentUser?.id)) return;
+        if (!user || !isAdminUser(currentUser?.role || '', currentUser?.id || '')) return;
 
         setIsUpdatingStore(true);
         try {
@@ -332,7 +332,7 @@ export default function StaffDetailView() {
                                 <span className="text-sm font-black text-gray-700 font-mono tracking-wider">
                                     {user.phone_number ? user.phone_number : '未設定'}
                                 </span>
-                                {(isAdminUser(currentUser?.role || '', currentUser?.id)) && (
+                                {isAdminUser(currentUser?.role || '', currentUser?.id || '') && (
                                     <button onClick={handleEditPhone} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="電話番号を編集">
                                         <Edit2 size={13} />
                                     </button>
@@ -346,7 +346,7 @@ export default function StaffDetailView() {
                                 {user.line_user_id ? (
                                     <>
                                         <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">連携済み</span>
-                                        {isAdminUser(currentUser?.role || '') && (
+                                        {isAdminUser(currentUser?.role || '', currentUser?.id || '') && (
                                             <button onClick={handleUnlinkLineId} className="text-gray-400 hover:text-rose-500 transition-colors p-1" title="連携を解除">
                                                 <Unlink size={13} />
                                             </button>
@@ -364,7 +364,7 @@ export default function StaffDetailView() {
                                 <span className="text-[11px] font-bold text-gray-600">
                                     {user.pin_code ? '個別設定中' : '全体共通'}
                                 </span>
-                                {(isAdminUser(currentUser?.role || '', currentUser?.id)) && (
+                                {isAdminUser(currentUser?.role || '', currentUser?.id || '') && (
                                     <button onClick={handleEditPin} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="パスワードを変更">
                                         <KeyRound size={13} />
                                     </button>
@@ -372,7 +372,7 @@ export default function StaffDetailView() {
                             </div>
                         </div>
 
-                        {isAdminUser(currentUser?.role || '') && !isSuperAdmin && (
+                        {isAdminUser(currentUser?.role || '', currentUser?.id || '') && !isSuperAdmin && (
                             <button
                                 onClick={handleDeleteStaff}
                                 className="flex items-center justify-center gap-1.5 w-full py-2 mt-1 bg-white text-rose-500 rounded-xl text-xs font-bold hover:bg-rose-50 transition-all border border-rose-100 shadow-sm active:scale-95"
@@ -385,7 +385,7 @@ export default function StaffDetailView() {
                 </div>
 
                 {/* 所属店舗（担当販路）の設定 - ヘッダー内に統合 */}
-                {isAdminUser(currentUser?.role || '') && stores.length > 0 && (
+                {isAdminUser(currentUser?.role || '', currentUser?.id || '') && stores.length > 0 && (
                     <div className="mt-8 pt-6 border-t border-gray-100">
                         <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <MapPin size={14} className="text-orange-500 pb-0.5" />
@@ -426,7 +426,7 @@ export default function StaffDetailView() {
                 )}
 
                 {/* 権限詳細設定 */}
-                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                {isAdminUser(currentUser?.role || '', currentUser?.id || '') && (
                     <div className="mt-8 pt-6 border-t border-gray-100">
                         <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <KeyRound size={14} className="text-emerald-500 pb-0.5" />

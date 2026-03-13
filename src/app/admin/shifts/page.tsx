@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { CalendarClock, Search, Filter, ChevronLeft, ChevronRight, Clock, MapPin, UserCheck, UserX, Sun, Navigation, Building2, Plus, Edit2, Trash2, X, Calendar as CalendarIcon, User as UserIcon, Copy, Check } from 'lucide-react';
 import { getAllShifts, getAllAttendances, getAllStores, createStore, updateStore, deleteStore, createShift, updateShift, deleteShift, StoreRecord, getAllUsers, AdminUserRecord, getUserPermissions } from '@/lib/api/admin';
+import { useLiff } from '@/components/LiffProvider';
+import { supabase } from '@/lib/supabase';
 import { buildInviteStoreLink, getInviteTtlMinutes } from '@/lib/invite';
 type ShiftRecord = {
     id: string;
@@ -35,6 +37,7 @@ export default function AdminShiftsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [userPermissions, setUserPermissions] = useState<any[]>([]);
+    const { user: liffUser, loading: liffLoading } = useLiff();
     const [currentUser, setCurrentUser] = useState<any>(null);
 
     // シフト管理モーダル用
@@ -73,6 +76,8 @@ export default function AdminShiftsPage() {
     };
 
     useEffect(() => {
+        if (!liffUser) return;
+        
         async function fetchData() {
             setIsLoading(true);
             const ym = currentDate.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit' }).replace(/\//g, '-');
@@ -110,15 +115,13 @@ export default function AdminShiftsPage() {
                 setUserFetchError(JSON.stringify(userRes.error) || 'Unknown error');
             }
 
-            // ログインユーザー情報と権限の取得
-            const { data: { user: authUser } } = await supabase.auth.getUser();
-            if (authUser) {
-                const [profileRes, permRes] = await Promise.all([
-                    supabase.from('users').select('*').eq('id', authUser.id).single(),
-                    getUserPermissions(authUser.id)
-                ]);
-                if (profileRes.data) setCurrentUser(profileRes.data);
-                if (permRes.success && permRes.data) setUserPermissions(permRes.data);
+            // LIFFユーザーの情報と権限を取得
+            if (liffUser) {
+                setCurrentUser(liffUser);
+                const permRes = await getUserPermissions(liffUser.id);
+                if (permRes.success && permRes.data) {
+                    setUserPermissions(permRes.data);
+                }
             }
 
             setIsLoading(false);
@@ -126,7 +129,6 @@ export default function AdminShiftsPage() {
         fetchData();
 
         // リアルタイム更新の購読
-        const { supabase } = require('@/lib/supabase');
         const channel = supabase
             .channel('shift_changes')
             .on('postgres_changes', { event: '*', table: 'shifts', schema: 'public' }, () => {
@@ -137,7 +139,7 @@ export default function AdminShiftsPage() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [currentDate]);
+    }, [currentDate, liffUser]);
 
     const handlePrevMonth = () => {
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));

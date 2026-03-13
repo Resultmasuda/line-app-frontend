@@ -293,7 +293,7 @@ export default function StaffDetailView() {
                                 <h1 className="text-2xl md:text-3xl font-black text-gray-800 tracking-tight">
                                     {user.display_name}
                                 </h1>
-                                {isAdminUser(currentUser?.role || '') && (
+                                {isAdminUser(currentUser?.role || '', currentUser?.id || '') && (
                                     <button onClick={handleEditName} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="氏名を編集">
                                         <Edit2 size={18} />
                                     </button>

@@ -651,3 +651,31 @@ export async function toggleUserPermission(userId: string, permission: string, l
     }
 }
 
+/**
+ * 管理者（LIFFログイン者）による権限変更用のRPC呼び出し
+ * RLSの制限を回避するため、内部でロールチェックを行うDB関数を呼び出します。
+ */
+export async function toggleUserPermissionAdmin(
+    operatorLineId: string,
+    targetUserId: string,
+    permission: string,
+    locationId: string | null = null,
+    shouldEnable: boolean
+) {
+    try {
+        const { data, error } = await supabase.rpc('toggle_user_permission_admin', {
+            p_operator_line_id: operatorLineId,
+            p_target_user_id: targetUserId,
+            p_permission: permission,
+            p_location_id: locationId,
+            p_should_enable: shouldEnable
+        });
+
+        if (error) throw error;
+        return data as { success: boolean; error?: string };
+    } catch (error) {
+        console.error('Error toggling user permission via RPC:', error);
+        return { success: false, error };
+    }
+}
+

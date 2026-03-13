@@ -1,0 +1,41 @@
+﻿[dotenv@17.3.1] injecting env (5) from .env.local -- tip: 柏 prevent committing .env to code: https://dotenvx.com/precommit
+Running final permission fix SQL...
+node : Error executing 
+query via RPC: {
+発生場所 行:1 文字:1
++ node apply_permission
+_fix.js 2>&1 | Out-File
+ -FilePath apply_error_
+ut ...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (Error executi   
+ ng query via RPC:     
+{:String) [], Remo    t
+eException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+  code: 'PGRST202',
+  details: 'Searched fo
+r the function public.e
+xecute_sql_query with p
+arameter sql_text or wi
+th a single unnamed jso
+n/jsonb parameter, but 
+no matches were found i
+n the schema cache.',
+  hint: null,
+  message: 'Could not f
+ind the function public
+.execute_sql_query(sql_
+text) in the schema cac
+he'
+}
+Assertion failed: !(han
+dle->flags & UV_HANDLE_
+CLOSING), file src\win\
+async.c, line 76

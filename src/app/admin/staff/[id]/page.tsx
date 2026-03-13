@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, CalendarClock, Receipt, MapPin, Play, Square, UserCheck, UserX, Sun, Navigation, Edit2, Unlink, KeyRound, User, Trash2 } from 'lucide-react';
-import { getUserProfile, AdminUserRecord, updateUserRole, updateUserPhoneNumber, unlinkUserLineId, updateUserPinCode, updateUserDisplayName, deleteUser, getAllStores, StoreRecord, updateStore, getUserPermissions, toggleUserPermission, UserPermission } from '@/lib/api/admin';
+import { getUserProfile, AdminUserRecord, updateUserRole, updateUserPhoneNumber, unlinkUserLineId, updateUserPinCode, updateUserDisplayName, deleteUser, getAllStores, StoreRecord, updateStore, getUserPermissions, toggleUserPermissionAdmin, UserPermission } from '@/lib/api/admin';
 import { getMonthlyShifts, ShiftRecord } from '@/lib/api/shift';
 import { getMonthlyAttendances, AttendanceRecord } from '@/lib/api/attendance';
 import { getMonthlyExpenses, ExpenseRecord } from '@/lib/api/expense';
@@ -231,7 +231,7 @@ export default function StaffDetailView() {
         const isEnabled = permissions.some(p => p.permission === permission && p.location_id === locationId);
         setIsUpdatingPermission(true);
         try {
-            const res = await toggleUserPermission(userId, permission, locationId, !isEnabled);
+            const res = await toggleUserPermissionAdmin(currentUser?.line_user_id || '', userId, permission, locationId, !isEnabled);
             if (res.success) {
                 if (!isEnabled) {
                     setPermissions([...permissions, { user_id: userId, permission, location_id: locationId, is_master: false }]);

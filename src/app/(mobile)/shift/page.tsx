@@ -50,6 +50,7 @@ export default function ShiftSchedule() {
     const [showStoreAddModal, setShowStoreAddModal] = useState(false);
 
     const [userPermissions, setUserPermissions] = useState<any[]>([]);
+    const [userMonthShifts, setUserMonthShifts] = useState<ShiftRecord[]>([]);
     const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
 
     // Load favorite stores from localStorage
@@ -184,6 +185,19 @@ export default function ShiftSchedule() {
         };
         loadInitialData();
     }, [user?.id]);
+
+    // 自分自身の当月シフトを常に取得（カレンダーリスト自動追加用）
+    useEffect(() => {
+        if (!user?.id) return;
+        const fetchUserShifts = async () => {
+            const yearMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+            const res = await getMonthlyShifts(user.id, yearMonth);
+            if (res.success && res.data) {
+                setUserMonthShifts(res.data);
+            }
+        };
+        fetchUserShifts();
+    }, [user?.id, currentDate]);
 
     const handleHolidaySubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -919,7 +933,10 @@ export default function ShiftSchedule() {
                                     // 2. 個別閲覧権限があるかどうか
                                     const hasStorePermission = userPermissions.some(p => p.permission === 'MOBILE_CALENDAR_VIEW' && p.location_id === store.id);
 
-                                    return isAffiliated || hasStorePermission;
+                                    // 3. シフトが入っているかどうか（自動追加）
+                                    const hasShiftInStore = userMonthShifts.some(s => s.location === store.name);
+
+                                    return isAffiliated || hasStorePermission || hasShiftInStore;
                                 }).map(store => {
                                     const isAffiliated = (() => {
                                         try {
@@ -927,6 +944,8 @@ export default function ShiftSchedule() {
                                             return Array.isArray(staffList) && staffList.includes(user?.id);
                                         } catch { return false; }
                                     })();
+
+                                    const hasShiftInStore = userMonthShifts.some(s => s.location === store.name);
 
                                     return (
                                         <button
@@ -939,7 +958,10 @@ export default function ShiftSchedule() {
                                             </div>
                                             <div className="flex-1 text-left">
                                                 <span className="font-bold block">{store.name} カレンダー</span>
-                                                {isAffiliated && <span className={`text-[9px] font-black ${selectedStore === store.name ? 'text-orange-200' : 'text-orange-500'}`}>所属店舗</span>}
+                                                <div className="flex gap-1.5 mt-0.5">
+                                                    {isAffiliated && <span className={`text-[9px] font-black px-1 rounded ${selectedStore === store.name ? 'bg-white/30 text-white' : 'bg-orange-100 text-orange-600'}`}>所属店舗</span>}
+                                                    {hasShiftInStore && <span className={`text-[9px] font-black px-1 rounded ${selectedStore === store.name ? 'bg-white/30 text-white' : 'bg-green-100 text-green-600'}`}>シフトあり</span>}
+                                                </div>
                                             </div>
                                             {selectedStore === store.name && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
                                         </button>

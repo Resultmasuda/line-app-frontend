@@ -433,82 +433,60 @@ export default function StaffDetailView() {
                             アプリ・管理詳細権限の設定
                         </h3>
                         
-                        <div className="space-y-6">
-                            {/* モバイルアプリ権限 */}
-                            <div>
-                                <h4 className="text-[10px] font-bold text-gray-500 mb-2">モバイルアプリ操作</h4>
-                                <div className="flex flex-wrap gap-2">
+                        <div className="space-y-8">
+                            {/* マスター管理者権限 */}
+                            <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100/50">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
+                                            <KeyRound size={20} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-black text-gray-800">マスター管理者 (Master Admin)</h4>
+                                            <p className="text-[10px] font-bold text-gray-400">システム全般の全ての操作を許可します</p>
+                                        </div>
+                                    </div>
                                     <button
-                                        onClick={() => handlePermissionToggle('MOBILE_CALENDAR_VIEW')}
+                                        onClick={() => handlePermissionToggle('ADMIN_MASTER')}
                                         disabled={isUpdatingPermission}
-                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold ${hasPermission('MOBILE_CALENDAR_VIEW') && !permissions.find(p => p.permission === 'MOBILE_CALENDAR_VIEW' && p.location_id)
-                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                        className={`px-6 py-2.5 rounded-xl text-xs font-black border transition-all shadow-sm ${hasPermission('ADMIN_MASTER')
+                                            ? 'bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600'
                                             : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
                                         }`}
                                     >
-                                        <CalendarClock size={14} />
-                                        全店舗の閲覧を許可
+                                        {hasPermission('ADMIN_MASTER') ? '有効' : '解除中'}
                                     </button>
                                 </div>
                             </div>
 
-                            {/* モバイルアプリ・店舗別閲覧権限 */}
+                            {/* 店舗別管理者権限 */}
                             <div>
-                                <h4 className="text-[10px] font-bold text-gray-500 mb-2">モバイルアプリ用：店舗別閲覧権限 (所属店舗以外を個別に許可)</h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {stores.map(store => {
-                                        // 所属店舗かどうかをチェック
-                                        let isAffiliated = false;
-                                        try {
-                                            const staffList = typeof store.affiliated_staff === 'string'
-                                                ? JSON.parse(store.affiliated_staff)
-                                                : (store.affiliated_staff || []);
-                                            isAffiliated = Array.isArray(staffList) && staffList.includes(user.id);
-                                        } catch (e) { }
-
-                                        if (isAffiliated) return null; // 所属店舗は自動表示なので除外
-
-                                        return (
-                                            <div key={store.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                                <span className="text-xs font-bold text-gray-700">{store.name}</span>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => handlePermissionToggle('MOBILE_CALENDAR_VIEW', store.id)}
-                                                        disabled={isUpdatingPermission}
-                                                        className={`px-3 py-1 rounded-lg text-[10px] font-bold border transition-all ${hasPermission('MOBILE_CALENDAR_VIEW', store.id)
-                                                            ? 'bg-orange-50 border-orange-200 text-orange-700'
-                                                            : 'bg-white border-gray-200 text-gray-400'
-                                                        }`}
-                                                    >
-                                                        閲覧許可
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                <div className="flex items-center gap-2 mb-4 px-1">
+                                    <h4 className="text-sm font-black text-gray-800">店舗管理者 (Store Admin)</h4>
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">• 特定の店舗のみ管理を許可</span>
                                 </div>
-                            </div>
-
-
-                            {/* 管理画面・販路別権限 */}
-                            <div>
-                                <h4 className="text-[10px] font-bold text-gray-500 mb-2">管理者用：販路別管理権限 (Manager/Adminロール向け)</h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {stores.map(store => (
-                                        <div key={store.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                            <span className="text-xs font-bold text-gray-700">{store.name}</span>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => handlePermissionToggle('MANAGE_STORE', store.id)}
-                                                    disabled={isUpdatingPermission}
-                                                    className={`px-3 py-1 rounded-lg text-[10px] font-bold border transition-all ${hasPermission('MANAGE_STORE', store.id)
-                                                        ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                                        : 'bg-white border-gray-200 text-gray-400'
-                                                    }`}
-                                                >
-                                                    管理許可
-                                                </button>
+                                        <div key={store.id} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${hasPermission('ADMIN_STORE', store.id)
+                                            ? 'bg-blue-50/50 border-blue-200 shadow-sm'
+                                            : 'bg-white border-gray-100 hover:border-blue-100'
+                                        }`}>
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${hasPermission('ADMIN_STORE', store.id) ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                                    <MapPin size={16} />
+                                                </div>
+                                                <span className={`text-xs font-bold ${hasPermission('ADMIN_STORE', store.id) ? 'text-blue-800' : 'text-gray-600'}`}>{store.name}</span>
                                             </div>
+                                            <button
+                                                onClick={() => handlePermissionToggle('ADMIN_STORE', store.id)}
+                                                disabled={isUpdatingPermission}
+                                                className={`p-1.5 rounded-lg border transition-all ${hasPermission('ADMIN_STORE', store.id)
+                                                    ? 'bg-blue-100 border-blue-200 text-blue-600'
+                                                    : 'bg-gray-50 border-gray-100 text-gray-300 hover:text-blue-400 hover:border-blue-200'
+                                                }`}
+                                            >
+                                                {hasPermission('ADMIN_STORE', store.id) ? <UserCheck size={18} /> : <UserX size={18} />}
+                                            </button>
                                         </div>
                                     ))}
                                 </div>

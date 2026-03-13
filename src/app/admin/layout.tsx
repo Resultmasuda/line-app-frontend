@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ReactNode } from 'react';
 import LiffProvider, { useLiff } from '@/components/LiffProvider';
 import { useRouter } from 'next/navigation';
-import { getRoleDisplayLabel } from '@/lib/utils/auth';
+import { getRoleDisplayLabel, isAdminUser } from '@/lib/utils/auth';
 
 function AdminLayoutContent({ children }: { children: ReactNode }) {
     const { user, loading } = useLiff();
@@ -48,7 +48,8 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
         );
     }
 
-    if (user.role === 'STAFF') {
+    const isAdmin = user && isAdminUser(user.role, user.id);
+    if (!isAdmin) {
         return (
             <div className="flex h-screen bg-gray-50 items-center justify-center p-4">
                 <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 text-center max-w-sm w-full animate-in zoom-in-95 duration-300">

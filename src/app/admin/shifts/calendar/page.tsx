@@ -161,6 +161,13 @@ export default function AllStaffCalendarPage() {
                                 className="pl-8 pr-3 py-2 w-full sm:w-40 rounded-lg text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white"
                             />
                         </div>
+                        
+                        {(searchQuery || storeFilter !== 'all') && filteredUsers.length === 1 && (
+                             <div className="bg-indigo-50 border border-indigo-100 px-3 py-2 rounded-lg flex items-center gap-2">
+                                <span className="text-xs font-bold text-indigo-700">{filteredUsers[0].display_name} 殿: 当月計 {shifts.filter(s => s.user_id === filteredUsers[0].id && s.status === 'published').length}日</span>
+                             </div>
+                        )}
+
 
                         <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg p-1 shadow-inner px-2 gap-2 w-full sm:w-auto justify-center">
                             <button onClick={handlePrevMonth} className="p-1 hover:bg-white rounded transition-colors border border-transparent hover:border-gray-200 shadow-sm">

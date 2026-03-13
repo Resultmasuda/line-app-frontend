@@ -49,8 +49,8 @@ BEGIN
   -- 1. 演算者（ログインユーザー）のロールを確認 (LINE IDで検索)
   SELECT role INTO v_operator_role FROM users WHERE line_user_id = p_operator_line_id;
   
-  -- 2. ADMIN/EXECUTIVE/PRESIDENTでなければ拒否
-  IF v_operator_role IS NULL OR v_operator_role NOT IN ('ADMIN', 'EXECUTIVE', 'PRESIDENT') THEN
+  -- 2. ADMIN/EXECUTIVE/PRESIDENT/MANAGER でなければ拒否
+  IF v_operator_role IS NULL OR v_operator_role NOT IN ('ADMIN', 'EXECUTIVE', 'PRESIDENT', 'MANAGER') THEN
     RETURN jsonb_build_object('success', false, 'error', 'Permission denied: Operator role is ' || COALESCE(v_operator_role, 'NULL'));
   END IF;
 

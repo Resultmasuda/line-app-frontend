@@ -171,6 +171,10 @@ export default function AdvancedShiftBuilder() {
         fetchInitialData();
     }, [storeId, year, month]);
 
+    const getStaffMonthlyShiftCount = (userId: string) => {
+        return allMonthlyShifts.filter(s => s.user_id === userId).length;
+    };
+
     const handleSavePresets = async (newPresets: typeof storePresets) => {
         setIsSaving(true);
         const res = await updateStorePresets(storeId, newPresets);
@@ -1004,9 +1008,11 @@ export default function AdvancedShiftBuilder() {
                                 className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                             >
                                 <option value="">スタッフを選択してください</option>
-                                {filteredUsers.map(u => (
-                                    <option key={u.id} value={u.id}>{u.display_name}</option>
-                                ))}
+                                    {users.map(u => (
+                                        <option key={u.id} value={u.id}>
+                                            {u.display_name} ({getStaffMonthlyShiftCount(u.id)}日)
+                                        </option>
+                                    ))}
                             </select>
                         </div>
                     </div>

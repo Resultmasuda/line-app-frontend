@@ -7,7 +7,7 @@ import { getMonthlyShifts, ShiftRecord } from '@/lib/api/shift';
 import { getMonthlyAttendances, AttendanceRecord } from '@/lib/api/attendance';
 import { getMonthlyExpenses, ExpenseRecord } from '@/lib/api/expense';
 import { useLiff } from '@/components/LiffProvider';
-import { getRoleDisplayLabel, getRoleBadgeClass, ROLE_OPTIONS } from '@/lib/utils/auth';
+import { getRoleDisplayLabel, getRoleBadgeClass, ROLE_OPTIONS, isAdminUser } from '@/lib/utils/auth';
 
 export default function StaffDetailView() {
     const { user: currentUser } = useLiff();
@@ -65,7 +65,7 @@ export default function StaffDetailView() {
     const handleNextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
 
     const handleRoleChange = async (newRole: string) => {
-        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER')) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role)) return;
         if (!confirm(`ユーザーの権限を ${newRole} に変更しますか？`)) return;
 
         setIsUpdatingRole(true);
@@ -82,7 +82,7 @@ export default function StaffDetailView() {
     };
 
     const handleEditName = async () => {
-        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER') || !user) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role) || !user) return;
         const newName = prompt('新しい氏名を入力してください:', user.display_name);
         if (newName === null || newName.trim() === '' || newName === user.display_name) return;
 
@@ -101,7 +101,7 @@ export default function StaffDetailView() {
     };
 
     const handleEditPhone = async () => {
-        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER') || !user) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role) || !user) return;
         const currentPhone = user.phone_number || '';
         const newPhone = prompt('新しい電話番号を入力してください（ハイフンなし）:', currentPhone);
 
@@ -128,7 +128,7 @@ export default function StaffDetailView() {
     };
 
     const handleUnlinkLineId = async () => {
-        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER') || !user?.line_user_id) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role, currentUser.id) || !user?.line_user_id) return;
         if (!confirm('このスタッフのLINE連携を解除しますか？\n（解除後、スタッフは再度LINEログインと認証が必要になります）')) return;
 
         try {
@@ -146,7 +146,7 @@ export default function StaffDetailView() {
     };
 
     const handleEditPin = async () => {
-        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER') || !user) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role) || !user) return;
         const currentPin = user.pin_code || '';
         const newPin = prompt('新しいパスワードを入力してください。\n（空欄にすると全体共通パスワードが適用されます）:', currentPin);
 
@@ -169,7 +169,7 @@ export default function StaffDetailView() {
     };
 
     const handleDeleteStaff = async () => {
-        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER')) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role)) return;
         if (!confirm(`スタッフ「${user?.display_name}」を完全に削除しますか？\nこの操作は取り消せません。`)) return;
 
         try {
@@ -187,7 +187,7 @@ export default function StaffDetailView() {
     };
 
     const toggleStoreAffiliation = async (storeId: string) => {
-        if (!user || (!isAdminUser(currentUser) && currentUser?.role !== 'MANAGER')) return;
+        if (!user || !isAdminUser(currentUser?.role || '', currentUser?.id)) return;
 
         setIsUpdatingStore(true);
         try {
@@ -226,7 +226,7 @@ export default function StaffDetailView() {
     };
 
     const handlePermissionToggle = async (permission: string, locationId: string | null = null) => {
-        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER')) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role)) return;
         
         const isEnabled = permissions.some(p => p.permission === permission && p.location_id === locationId);
         setIsUpdatingPermission(true);
@@ -294,7 +294,7 @@ export default function StaffDetailView() {
                                 <h1 className="text-2xl md:text-3xl font-black text-gray-800 tracking-tight">
                                     {user.display_name}
                                 </h1>
-                                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                                {isAdminUser(currentUser?.role || '') && (
                                     <button onClick={handleEditName} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="氏名を編集">
                                         <Edit2 size={18} />
                                     </button>
@@ -302,7 +302,7 @@ export default function StaffDetailView() {
                             </div>
 
                             <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                {currentUser?.role === 'ADMIN' ? (
+                                {isAdminUser(currentUser?.role || '') ? (
                                     <select
                                         value={user.role.toUpperCase()}
                                         disabled={isUpdatingRole}
@@ -333,7 +333,7 @@ export default function StaffDetailView() {
                                 <span className="text-sm font-black text-gray-700 font-mono tracking-wider">
                                     {user.phone_number ? user.phone_number : '未設定'}
                                 </span>
-                                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                                {(isAdminUser(currentUser?.role || '', currentUser?.id)) && (
                                     <button onClick={handleEditPhone} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="電話番号を編集">
                                         <Edit2 size={13} />
                                     </button>
@@ -347,7 +347,7 @@ export default function StaffDetailView() {
                                 {user.line_user_id ? (
                                     <>
                                         <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">連携済み</span>
-                                        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                                        {isAdminUser(currentUser?.role || '') && (
                                             <button onClick={handleUnlinkLineId} className="text-gray-400 hover:text-rose-500 transition-colors p-1" title="連携を解除">
                                                 <Unlink size={13} />
                                             </button>
@@ -365,7 +365,7 @@ export default function StaffDetailView() {
                                 <span className="text-[11px] font-bold text-gray-600">
                                     {user.pin_code ? '個別設定中' : '全体共通'}
                                 </span>
-                                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                                {(isAdminUser(currentUser?.role || '', currentUser?.id)) && (
                                     <button onClick={handleEditPin} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="パスワードを変更">
                                         <KeyRound size={13} />
                                     </button>
@@ -373,7 +373,7 @@ export default function StaffDetailView() {
                             </div>
                         </div>
 
-                        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && !isSuperAdmin && (
+                        {isAdminUser(currentUser?.role || '') && !isSuperAdmin && (
                             <button
                                 onClick={handleDeleteStaff}
                                 className="flex items-center justify-center gap-1.5 w-full py-2 mt-1 bg-white text-rose-500 rounded-xl text-xs font-bold hover:bg-rose-50 transition-all border border-rose-100 shadow-sm active:scale-95"
@@ -386,7 +386,7 @@ export default function StaffDetailView() {
                 </div>
 
                 {/* 所属店舗（担当販路）の設定 - ヘッダー内に統合 */}
-                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && stores.length > 0 && (
+                {isAdminUser(currentUser?.role || '') && stores.length > 0 && (
                     <div className="mt-8 pt-6 border-t border-gray-100">
                         <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <MapPin size={14} className="text-orange-500 pb-0.5" />
@@ -442,16 +442,54 @@ export default function StaffDetailView() {
                                     <button
                                         onClick={() => handlePermissionToggle('MOBILE_CALENDAR_VIEW')}
                                         disabled={isUpdatingPermission}
-                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold ${hasPermission('MOBILE_CALENDAR_VIEW')
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold ${hasPermission('MOBILE_CALENDAR_VIEW') && !permissions.find(p => p.permission === 'MOBILE_CALENDAR_VIEW' && p.location_id)
                                             ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                                             : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
                                         }`}
                                     >
                                         <CalendarClock size={14} />
-                                        カレンダー閲覧を許可
+                                        全店舗の閲覧を許可
                                     </button>
                                 </div>
                             </div>
+
+                            {/* モバイルアプリ・店舗別閲覧権限 */}
+                            <div>
+                                <h4 className="text-[10px] font-bold text-gray-500 mb-2">モバイルアプリ用：店舗別閲覧権限 (所属店舗以外を個別に許可)</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {stores.map(store => {
+                                        // 所属店舗かどうかをチェック
+                                        let isAffiliated = false;
+                                        try {
+                                            const staffList = typeof store.affiliated_staff === 'string'
+                                                ? JSON.parse(store.affiliated_staff)
+                                                : (store.affiliated_staff || []);
+                                            isAffiliated = Array.isArray(staffList) && staffList.includes(user.id);
+                                        } catch (e) { }
+
+                                        if (isAffiliated) return null; // 所属店舗は自動表示なので除外
+
+                                        return (
+                                            <div key={store.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                                <span className="text-xs font-bold text-gray-700">{store.name}</span>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => handlePermissionToggle('MOBILE_CALENDAR_VIEW', store.id)}
+                                                        disabled={isUpdatingPermission}
+                                                        className={`px-3 py-1 rounded-lg text-[10px] font-bold border transition-all ${hasPermission('MOBILE_CALENDAR_VIEW', store.id)
+                                                            ? 'bg-orange-50 border-orange-200 text-orange-700'
+                                                            : 'bg-white border-gray-200 text-gray-400'
+                                                        }`}
+                                                    >
+                                                        閲覧許可
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
 
                             {/* 管理画面・販路別権限 */}
                             <div>

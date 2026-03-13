@@ -49,6 +49,9 @@ export default function ShiftSchedule() {
     const [favoriteStores, setFavoriteStores] = useState<string[]>([]);
     const [showStoreAddModal, setShowStoreAddModal] = useState(false);
 
+    const [userPermissions, setUserPermissions] = useState<any[]>([]);
+    const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
+
     // Load favorite stores from localStorage
     useEffect(() => {
         const saved = localStorage.getItem('admin_favorite_stores');
@@ -170,9 +173,18 @@ export default function ShiftSchedule() {
             ]);
             if (storesRes.success) setStores(storesRes.data);
             if (usersRes.success) setAllUsers(usersRes.data);
+
+            if (user?.id) {
+                const { getUserPermissions } = await import('@/lib/api/admin');
+                const permRes = await getUserPermissions(user.id);
+                if (permRes.success) {
+                    setUserPermissions(permRes.data);
+                }
+                setIsLoadingPermissions(false);
+            }
         };
         loadInitialData();
-    }, []);
+    }, [user?.id]);
 
     const handleHolidaySubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -894,138 +906,162 @@ export default function ShiftSchedule() {
                                     {targetUser?.id === user?.id && !selectedGroupRole && !selectedStore && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
                                 </button>
 
-                                {/* 自分の所属店舗カレンダー */}
+                                {/* 所属店舗 または 閲覧権限ありの店舗カレンダー */}
                                 {stores.filter(store => {
-                                    if (!store.affiliated_staff || !user) return false;
+                                    if (!user) return false;
+                                    
+                                    // 1. 所属店舗かどうか
+                                    let isAffiliated = false;
                                     try {
                                         const staffList = typeof store.affiliated_staff === 'string' ? JSON.parse(store.affiliated_staff) : store.affiliated_staff;
-                                        return Array.isArray(staffList) && staffList.includes(user.display_name);
-                                    } catch { return false; }
-                                }).map(store => (
-                                    <button
-                                        key={`my-store-${store.id}`}
-                                        onClick={() => { setSelectedStore(store.name); setTargetUser(null); setSelectedGroupRole(null); setShowCalendarList(false); }}
-                                        className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${selectedStore === store.name ? 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20' : 'bg-orange-50 border-orange-100 text-orange-800 hover:bg-orange-100'}`}
-                                    >
-                                        <div className={`p-2 rounded-xl ${selectedStore === store.name ? 'bg-white/20' : 'bg-orange-100 text-orange-600'}`}>
-                                            <Store size={20} />
-                                        </div>
-                                        <span className="font-bold flex-1 text-left">{store.name} カレンダー</span>
-                                        {selectedStore === store.name && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
-                                    </button>
-                                ))}
-                            </div>
+                                        isAffiliated = Array.isArray(staffList) && (staffList.includes(user.id));
+                                    } catch { isAffiliated = false; }
 
-                            {/* 管理者用：お気に入り店舗カレンダー */}
-                            {user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) && (
-                                <div className="space-y-3 pt-3 border-t border-gray-100">
-                                    <div className="flex items-center justify-between px-1">
-                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">お気に入り販路（管理者）</h4>
-                                        <button onClick={() => setShowStoreAddModal(true)} className="text-emerald-500 hover:text-emerald-600">
-                                            <PlusCircle size={16} />
-                                        </button>
-                                    </div>
-                                    {favoriteStores.length > 0 ? (
-                                        favoriteStores.map(storeName => (
-                                            <button
-                                                key={`fav-store-${storeName}`}
-                                                onClick={() => { setSelectedStore(storeName); setTargetUser(null); setSelectedGroupRole(null); setShowCalendarList(false); }}
-                                                className={`w-full flex items-center gap-4 p-3 rounded-2xl border transition-all ${selectedStore === storeName ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'}`}
-                                            >
-                                                <div className={`p-1.5 rounded-xl ${selectedStore === storeName ? 'bg-white/20' : 'bg-gray-50 text-gray-500'}`}>
-                                                    <Store size={16} />
-                                                </div>
-                                                <span className="font-bold text-sm flex-1 text-left">{storeName}</span>
-                                                {selectedStore === storeName && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>}
-                                            </button>
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-4 bg-gray-50 rounded-2xl border border-gray-100 border-dashed">
-                                            <p className="text-xs text-gray-400 font-bold mb-2">追加された販路はありません</p>
-                                            <button onClick={() => setShowStoreAddModal(true)} className="text-[10px] bg-white border border-gray-200 px-3 py-1.5 rounded-full font-bold text-gray-600 shadow-sm hover:bg-gray-50">
-                                                ＋ 販路を追加する
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                    // 2. 個別閲覧権限があるかどうか
+                                    const hasStorePermission = userPermissions.some(p => p.permission === 'MOBILE_CALENDAR_VIEW' && p.location_id === store.id);
 
-                            {/* ロール別カレンダー */}
-                            {(['PRESIDENT', 'EXECUTIVE', 'MANAGER', 'STAFF'] as const).map((role) => {
-                                const roleUsers = allUsers.filter(u => u.role.toUpperCase() === role && u.id !== user?.id);
-                                const selfInRole = user && user.role.toUpperCase() === role;
-                                const totalCount = roleUsers.length + (selfInRole ? 1 : 0);
-                                if (totalCount === 0) return null;
+                                    return isAffiliated || hasStorePermission;
+                                }).map(store => {
+                                    const isAffiliated = (() => {
+                                        try {
+                                            const staffList = typeof store.affiliated_staff === 'string' ? JSON.parse(store.affiliated_staff) : store.affiliated_staff;
+                                            return Array.isArray(staffList) && staffList.includes(user?.id);
+                                        } catch { return false; }
+                                    })();
 
-                                const labels: Record<string, string> = { PRESIDENT: '社長', EXECUTIVE: '幹部', MANAGER: '役職社員', STAFF: '社員' };
-                                const isExpanded = expandedRole === role;
-
-                                return (
-                                    <div key={role} className="space-y-2">
-                                        {/* ロールヘッダー（タップで展開） */}
+                                    return (
                                         <button
-                                            onClick={() => setExpandedRole(isExpanded ? null : role)}
-                                            className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${selectedGroupRole === role
-                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
-                                                : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
-                                                }`}
+                                            key={`store-cal-${store.id}`}
+                                            onClick={() => { setSelectedStore(store.name); setTargetUser(null); setSelectedGroupRole(null); setShowCalendarList(false); }}
+                                            className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${selectedStore === store.name ? 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20' : 'bg-orange-50 border-orange-100 text-orange-800 hover:bg-orange-100'}`}
                                         >
-                                            <div className={`p-2 rounded-xl ${selectedGroupRole === role ? 'bg-white/20' : 'bg-indigo-50 text-indigo-600'}`}>
-                                                <Users size={20} />
+                                            <div className={`p-2 rounded-xl ${selectedStore === store.name ? 'bg-white/20' : 'bg-orange-100 text-orange-600'}`}>
+                                                <Store size={20} />
                                             </div>
                                             <div className="flex-1 text-left">
-                                                <span className="font-bold block">{labels[role]}カレンダー</span>
-                                                <span className={`text-[9px] font-black ${selectedGroupRole === role ? 'text-indigo-200' : 'text-gray-400'}`}>{totalCount}名</span>
+                                                <span className="font-bold block">{store.name} カレンダー</span>
+                                                {isAffiliated && <span className={`text-[9px] font-black ${selectedStore === store.name ? 'text-orange-200' : 'text-orange-500'}`}>所属店舗</span>}
                                             </div>
-                                            <span className={`text-xs transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                                            {selectedStore === store.name && <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>}
                                         </button>
+                                    );
+                                })}
 
-                                        {/* 展開時: まとめ + 個別 */}
-                                        {isExpanded && (
-                                            <div className="pl-4 space-y-2 animate-in slide-in-from-top">
-                                                {/* まとめ表示ボタン */}
+                            </div>
+
+                            {/* 管理者またはカレンダー表示権限ありのユーザー用 */}
+                            {(isAdmin || userPermissions.some(p => p.permission === 'MOBILE_CALENDAR_VIEW')) && (
+                                <>
+                                    {/* 管理者用：お気に入り店舗カレンダー */}
+                                    <div className="space-y-3 pt-3 border-t border-gray-100">
+                                        <div className="flex items-center justify-between px-1">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">お気に入り販路</h4>
+                                            <button onClick={() => setShowStoreAddModal(true)} className="text-emerald-500 hover:text-emerald-600">
+                                                <PlusCircle size={16} />
+                                            </button>
+                                        </div>
+                                        {favoriteStores.length > 0 ? (
+                                            favoriteStores.map(storeName => (
                                                 <button
-                                                    onClick={() => {
-                                                        setSelectedGroupRole(role);
-                                                        setTargetUser(null);
-                                                        setSelectedStore(null);
-                                                        setShowCalendarList(false);
-                                                    }}
-                                                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-sm ${selectedGroupRole === role
-                                                        ? 'bg-amber-500 text-white border-amber-500 shadow-md'
-                                                        : 'bg-amber-50 border-amber-100 text-amber-700 hover:bg-amber-100'
-                                                        }`}
+                                                    key={`fav-store-${storeName}`}
+                                                    onClick={() => { setSelectedStore(storeName); setTargetUser(null); setSelectedGroupRole(null); setShowCalendarList(false); }}
+                                                    className={`w-full flex items-center gap-4 p-3 rounded-2xl border transition-all ${selectedStore === storeName ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'}`}
                                                 >
-                                                    <Users size={16} />
-                                                    <span className="font-bold">全員のシフト</span>
+                                                    <div className={`p-1.5 rounded-xl ${selectedStore === storeName ? 'bg-white/20' : 'bg-gray-50 text-gray-500'}`}>
+                                                        <Store size={16} />
+                                                    </div>
+                                                    <span className="font-bold text-sm flex-1 text-left">{storeName}</span>
+                                                    {selectedStore === storeName && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>}
                                                 </button>
-
-                                                {/* 個別ユーザー */}
-                                                {roleUsers.map((u) => (
-                                                    <button
-                                                        key={u.id}
-                                                        onClick={() => {
-                                                            setTargetUser(u);
-                                                            setSelectedGroupRole(null);
-                                                            setSelectedStore(null);
-                                                            setShowCalendarList(false);
-                                                        }}
-                                                        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-sm ${targetUser?.id === u.id && !selectedGroupRole
-                                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                                                            : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
-                                                            }`}
-                                                    >
-                                                        <div className={`p-1.5 rounded-lg ${targetUser?.id === u.id && !selectedGroupRole ? 'bg-white/20' : 'bg-gray-50 text-gray-500'}`}>
-                                                            <UserIcon size={16} />
-                                                        </div>
-                                                        <span className="font-bold">{u.display_name}</span>
-                                                    </button>
-                                                ))}
+                                            ))
+                                        ) : (
+                                            <div className="text-center py-4 bg-gray-50 rounded-2xl border border-gray-100 border-dashed">
+                                                <p className="text-xs text-gray-400 font-bold mb-2">追加された販路はありません</p>
+                                                <button onClick={() => setShowStoreAddModal(true)} className="text-[10px] bg-white border border-gray-200 px-3 py-1.5 rounded-full font-bold text-gray-600 shadow-sm hover:bg-gray-50">
+                                                    ＋ 販路を追加する
+                                                </button>
                                             </div>
                                         )}
                                     </div>
-                                );
-                            })}
+
+                                    {/* ロール別カレンダー */}
+                                    {(['PRESIDENT', 'EXECUTIVE', 'MANAGER', 'STAFF'] as const).map((role) => {
+                                        const roleUsers = allUsers.filter(u => u.role.toUpperCase() === role && u.id !== user?.id);
+                                        const selfInRole = user && user.role.toUpperCase() === role;
+                                        const totalCount = roleUsers.length + (selfInRole ? 1 : 0);
+                                        if (totalCount === 0) return null;
+
+                                        const labels: Record<string, string> = { PRESIDENT: '社長', EXECUTIVE: '幹部', MANAGER: '役職社員', STAFF: '社員' };
+                                        const isExpanded = expandedRole === role;
+
+                                        return (
+                                            <div key={role} className="space-y-2">
+                                                {/* ロールヘッダー（タップで展開） */}
+                                                <button
+                                                    onClick={() => setExpandedRole(isExpanded ? null : role)}
+                                                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${selectedGroupRole === role
+                                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
+                                                        : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
+                                                        }`}
+                                                >
+                                                    <div className={`p-2 rounded-xl ${selectedGroupRole === role ? 'bg-white/20' : 'bg-indigo-50 text-indigo-600'}`}>
+                                                        <Users size={20} />
+                                                    </div>
+                                                    <div className="flex-1 text-left">
+                                                        <span className="font-bold block">{labels[role]}カレンダー</span>
+                                                        <span className={`text-[9px] font-black ${selectedGroupRole === role ? 'text-indigo-200' : 'text-gray-400'}`}>{totalCount}名</span>
+                                                    </div>
+                                                    <span className={`text-xs transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                                                </button>
+
+                                                {/* 展開時: まとめ + 個別 */}
+                                                {isExpanded && (
+                                                    <div className="pl-4 space-y-2 animate-in slide-in-from-top">
+                                                        {/* まとめ表示ボタン */}
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedGroupRole(role);
+                                                                setTargetUser(null);
+                                                                setSelectedStore(null);
+                                                                setShowCalendarList(false);
+                                                            }}
+                                                            className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-sm ${selectedGroupRole === role
+                                                                ? 'bg-amber-500 text-white border-amber-500 shadow-md'
+                                                                : 'bg-amber-50 border-amber-100 text-amber-700 hover:bg-amber-100'
+                                                                }`}
+                                                        >
+                                                            <Users size={16} />
+                                                            <span className="font-bold">全員のシフト</span>
+                                                        </button>
+
+                                                        {/* 個別ユーザー */}
+                                                        {roleUsers.map((u) => (
+                                                            <button
+                                                                key={u.id}
+                                                                onClick={() => {
+                                                                    setTargetUser(u);
+                                                                    setSelectedGroupRole(null);
+                                                                    setSelectedStore(null);
+                                                                    setShowCalendarList(false);
+                                                                }}
+                                                                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-sm ${targetUser?.id === u.id && !selectedGroupRole
+                                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                                                                    : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
+                                                                    }`}
+                                                            >
+                                                                <div className={`p-1.5 rounded-lg ${targetUser?.id === u.id && !selectedGroupRole ? 'bg-white/20' : 'bg-gray-50 text-gray-500'}`}>
+                                                                    <UserIcon size={16} />
+                                                                </div>
+                                                                <span className="font-bold">{u.display_name}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </>
+                            )}
 
                         </div>
                     </div>

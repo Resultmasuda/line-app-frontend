@@ -15,6 +15,7 @@ export default function AdminStaffPage() {
     const [newPhoneNumber, setNewPhoneNumber] = useState('');
     const [newUserRole, setNewUserRole] = useState('STAFF');
     const [isCreating, setIsCreating] = useState(false);
+    const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 
     const ROLE_PRIORITY: Record<string, number> = {
         'PRESIDENT': 0,
@@ -65,18 +66,16 @@ export default function AdminStaffPage() {
     };
 
     const handleRoleChange = async (userId: string, newRole: string) => {
-        const isSuperAdmin = ['c42cb255-d3ad-41cb-9b48-e6ffcd2f6648', '87e75b91-210c-41bb-9cc3-cc7850d473d4'].includes(userId);
-        if (isSuperAdmin) {
-            alert('システム管理者の権限は内部ロジックで永続化されており、変更できません。');
-            return;
-        }
+        // Allow role changes for all users including super admins
 
+        setIsUpdatingRole(true);
         const res = await updateUserRole(userId, newRole);
         if (res.success) {
             setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
         } else {
             alert('権限の更新に失敗しました');
         }
+        setIsUpdatingRole(false);
     };
 
     return (
@@ -158,7 +157,7 @@ export default function AdminStaffPage() {
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <select
                                                     value={user.role.toUpperCase()}
-                                                    disabled={isSuperAdmin}
+                                                    disabled={isUpdatingRole}
                                                     onChange={(e) => handleRoleChange(user.id, e.target.value)}
                                                     className={`px-2.5 py-1 rounded-lg text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed ${user.role.toUpperCase() === 'PRESIDENT' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                                         user.role.toUpperCase() === 'EXECUTIVE' ? 'bg-rose-50 text-rose-700 border-rose-200' :

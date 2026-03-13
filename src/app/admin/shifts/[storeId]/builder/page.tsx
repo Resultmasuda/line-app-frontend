@@ -154,14 +154,18 @@ export default function AdvancedShiftBuilder() {
             }
 
             if (userRes.success && userRes.data) {
-                // Sort users: 1) Affiliated staff first, 2) Alphabetical
-                const affiliatedIds = storeRes.data?.find(s => s.id === storeId)?.affiliated_staff || [];
+                // Sort users: 1) Role priority, 2) Alphabetical
+                const rolePriority: Record<string, number> = {
+                    'PRESIDENT': 1,
+                    'EXECUTIVE': 2,
+                    'MANAGER': 3,
+                    'STAFF': 4
+                };
                 const sortedUsers = userRes.data.sort((a, b) => {
-                    const aIsAffiliated = affiliatedIds.includes(a.id);
-                    const bIsAffiliated = affiliatedIds.includes(b.id);
-                    if (aIsAffiliated && !bIsAffiliated) return -1;
-                    if (!aIsAffiliated && bIsAffiliated) return 1;
-                    return a.display_name.localeCompare(b.display_name);
+                    const priorityA = rolePriority[a.role.toUpperCase()] || 99;
+                    const priorityB = rolePriority[b.role.toUpperCase()] || 99;
+                    if (priorityA !== priorityB) return priorityA - priorityB;
+                    return a.display_name.localeCompare(b.display_name, 'ja');
                 });
                 setUsers(sortedUsers);
             }

@@ -1055,27 +1055,7 @@ export default function ShiftSchedule() {
                                                             <span className="font-bold">全員のシフト</span>
                                                         </button>
 
-                                                        {/* 個別ユーザー */}
-                                                        {roleUsers.map((u) => (
-                                                            <button
-                                                                key={u.id}
-                                                                onClick={() => {
-                                                                    setTargetUser(u);
-                                                                    setSelectedGroupRole(null);
-                                                                    setSelectedStore(null);
-                                                                    setShowCalendarList(false);
-                                                                }}
-                                                                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-sm ${targetUser?.id === u.id && !selectedGroupRole
-                                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                                                                    : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
-                                                                    }`}
-                                                            >
-                                                                <div className={`p-1.5 rounded-lg ${targetUser?.id === u.id && !selectedGroupRole ? 'bg-white/20' : 'bg-gray-50 text-gray-500'}`}>
-                                                                    <UserIcon size={16} />
-                                                                </div>
-                                                                <span className="font-bold">{u.display_name}</span>
-                                                            </button>
-                                                        ))}
+                                                        {/* Individual users removed as per request */}
                                                     </div>
                                                 )}
                                             </div>

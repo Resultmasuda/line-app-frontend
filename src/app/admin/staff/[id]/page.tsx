@@ -65,7 +65,7 @@ export default function StaffDetailView() {
     const handleNextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
 
     const handleRoleChange = async (newRole: string) => {
-        if (!userId || !currentUser || !isAdminUser(currentUser.role)) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role, currentUser.id)) return;
         if (!confirm(`ユーザーの権限を ${newRole} に変更しますか？`)) return;
 
         setIsUpdatingRole(true);
@@ -82,7 +82,7 @@ export default function StaffDetailView() {
     };
 
     const handleEditName = async () => {
-        if (!userId || !currentUser || !isAdminUser(currentUser.role) || !user) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role, currentUser.id) || !user) return;
         const newName = prompt('新しい氏名を入力してください:', user.display_name);
         if (newName === null || newName.trim() === '' || newName === user.display_name) return;
 
@@ -101,7 +101,7 @@ export default function StaffDetailView() {
     };
 
     const handleEditPhone = async () => {
-        if (!userId || !currentUser || !isAdminUser(currentUser.role) || !user) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role, currentUser.id) || !user) return;
         const currentPhone = user.phone_number || '';
         const newPhone = prompt('新しい電話番号を入力してください（ハイフンなし）:', currentPhone);
 
@@ -146,7 +146,7 @@ export default function StaffDetailView() {
     };
 
     const handleEditPin = async () => {
-        if (!userId || !currentUser || !isAdminUser(currentUser.role) || !user) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role, currentUser.id) || !user) return;
         const currentPin = user.pin_code || '';
         const newPin = prompt('新しいパスワードを入力してください。\n（空欄にすると全体共通パスワードが適用されます）:', currentPin);
 
@@ -169,7 +169,7 @@ export default function StaffDetailView() {
     };
 
     const handleDeleteStaff = async () => {
-        if (!userId || !currentUser || !isAdminUser(currentUser.role)) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role, currentUser.id)) return;
         if (!confirm(`スタッフ「${user?.display_name}」を完全に削除しますか？\nこの操作は取り消せません。`)) return;
 
         try {
@@ -226,7 +226,7 @@ export default function StaffDetailView() {
     };
 
     const handlePermissionToggle = async (permission: string, locationId: string | null = null) => {
-        if (!userId || !currentUser || !isAdminUser(currentUser.role)) return;
+        if (!userId || !currentUser || !isAdminUser(currentUser.role, currentUser.id)) return;
         
         const isEnabled = permissions.some(p => p.permission === permission && p.location_id === locationId);
         setIsUpdatingPermission(true);
@@ -301,7 +301,7 @@ export default function StaffDetailView() {
                             </div>
 
                             <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                {isAdminUser(currentUser?.role || '', currentUser?.id) ? (
+                                {isAdminUser(currentUser?.role || '', currentUser?.id || '') ? (
                                     <select
                                         value={user.role.toUpperCase()}
                                         disabled={isUpdatingRole}

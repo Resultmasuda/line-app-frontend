@@ -442,7 +442,13 @@ export default function ExpenseManagement() {
                                 {/* 目的 */}
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">目的 / 備考</label>
-                                    <input type="text" value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="例: 出張のため" className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 text-sm" />
+                                    <input
+                                        type="text"
+                                        value={purpose}
+                                        onChange={(e) => setPurpose(e.target.value)}
+                                        placeholder={transport === 'COMMUTER_PASS' ? "例: JR線・阪急線" : "例: 店舗出勤のため"}
+                                        className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 text-sm"
+                                    />
                                 </div>
                             </div>
 

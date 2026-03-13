@@ -49,6 +49,7 @@ export default function AppDashboard() {
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [debugLocation, setDebugLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [pendingPunchType, setPendingPunchType] = useState<AttendanceType | null>(null);
   const [stores, setStores] = useState<any[]>([]);
   const [canViewCalendar, setCanViewCalendar] = useState(false);
 
@@ -174,6 +175,7 @@ export default function AppDashboard() {
         // 店舗リストをロードしておく
         const res = await getAllStores();
         if (res.success && res.data) setStores(res.data);
+        setPendingPunchType(type);
         setIsLocationModalOpen(true);
         setActionLoading(false);
         return;
@@ -736,14 +738,22 @@ export default function AppDashboard() {
                 onClick={() => {
                   setIsLocationModalOpen(false);
                   setIsDebugMode(false);
+                  setPendingPunchType(null);
                 }}
                 className="flex-1 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl text-sm"
               >
                 キャンセル
               </button>
               <button
-                onClick={() => setIsLocationModalOpen(false)}
-                className="flex-1 py-3 bg-emerald-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-200"
+                onClick={() => {
+                  setIsLocationModalOpen(false);
+                  if (pendingPunchType) {
+                    handlePunch(pendingPunchType);
+                    setPendingPunchType(null);
+                  }
+                }}
+                disabled={!debugLocation}
+                className="flex-1 py-3 bg-emerald-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-200 disabled:opacity-50"
               >
                 この位置で打刻
               </button>

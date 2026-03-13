@@ -557,19 +557,21 @@ export default function AdminShiftsPage() {
                                                                         </div>
                                                                     </td>
                                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        <div className="flex justify-end gap-2 transition-opacity">
                                                                             <button
                                                                                 onClick={() => {
                                                                                     setEditingShift(shift);
                                                                                     setIsShiftModalOpen(true);
                                                                                 }}
-                                                                                className="p-1.5 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                                                                className="p-1.5 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"
+                                                                                title="編集"
                                                                             >
                                                                                 <Edit2 size={14} />
                                                                             </button>
                                                                             <button
                                                                                 onClick={() => handleDeleteShift(shift.id)}
-                                                                                className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                                                                className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100"
+                                                                                title="削除"
                                                                             >
                                                                                 <Trash2 size={14} />
                                                                             </button>

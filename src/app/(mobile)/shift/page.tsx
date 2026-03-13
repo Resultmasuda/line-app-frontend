@@ -685,8 +685,33 @@ export default function ShiftSchedule() {
                         <form onSubmit={handleSaveShift} className="space-y-5">
                             {/* シフト種別 (新規のみ) */}
                             {!selectedShift && (
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 mb-1.5 px-1 uppercase tracking-wider">種別</label>
+                                <div className="space-y-3">
+                                    <label className="block text-xs font-bold text-gray-400 mb-1.5 px-1 uppercase tracking-wider">種別・プリセット案</label>
+                                    
+                                    {/* クイックプリセット */}
+                                    <div className="grid grid-cols-4 gap-2 mb-3">
+                                        {[
+                                            { label: '早番', start: '10:00', end: '19:00', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                                            { label: '中番', start: '11:00', end: '20:00', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+                                            { label: '遅番', start: '12:00', end: '21:00', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+                                            { label: '未定', start: '00:00', end: '00:00', color: 'bg-gray-50 text-gray-700 border-gray-200' },
+                                        ].map((p) => (
+                                            <button
+                                                key={p.label}
+                                                type="button"
+                                                onClick={() => setShiftFormData({ 
+                                                    ...shiftFormData, 
+                                                    start_time: p.start, 
+                                                    end_time: p.end, 
+                                                    shift_type: p.label === '未定' ? 'plan' : (user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) ? 'work' : 'plan')
+                                                })}
+                                                className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${p.color} active:scale-95`}
+                                            >
+                                                {p.label}
+                                            </button>
+                                        ))}
+                                    </div>
+
                                     <div className={`grid ${user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
                                         {user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) && (
                                             <button
@@ -791,7 +816,7 @@ export default function ShiftSchedule() {
 
                             <div className="border-t border-gray-100 pt-5 space-y-4">
                                 <h4 className="text-sm font-bold text-indigo-600 flex items-center gap-2">
-                                    <FileText size={16} /> プランニング・メモ
+                                    <FileText size={16} /> 共有事項・メモ
                                 </h4>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
@@ -816,7 +841,7 @@ export default function ShiftSchedule() {
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 px-1">備考 / 連絡事項</label>
                                     <textarea
-                                        placeholder="TimeTree風の共有メモとして利用できます"
+                                        placeholder="共有事項やメモなどを入力してください"
                                         rows={3}
                                         value={shiftFormData.daily_memo}
                                         onChange={(e) => setShiftFormData({ ...shiftFormData, daily_memo: e.target.value })}
@@ -1017,9 +1042,14 @@ export default function ShiftSchedule() {
 
                                         return (
                                             <div key={role} className="space-y-2">
-                                                {/* ロールヘッダー（タップで展開） */}
+                                                {/* ロールヘッダー（タップで即表示） */}
                                                 <button
-                                                    onClick={() => setExpandedRole(isExpanded ? null : role)}
+                                                    onClick={() => {
+                                                        setSelectedGroupRole(role);
+                                                        setTargetUser(null);
+                                                        setSelectedStore(null);
+                                                        setShowCalendarList(false);
+                                                    }}
                                                     className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${selectedGroupRole === role
                                                         ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
                                                         : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
@@ -1032,32 +1062,10 @@ export default function ShiftSchedule() {
                                                         <span className="font-bold block">{labels[role]}カレンダー</span>
                                                         <span className={`text-[9px] font-black ${selectedGroupRole === role ? 'text-indigo-200' : 'text-gray-400'}`}>{totalCount}名</span>
                                                     </div>
-                                                    <span className={`text-xs transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                                                    <span className="text-xs text-gray-300">表示</span>
                                                 </button>
 
-                                                {/* 展開時: まとめ + 個別 */}
-                                                {isExpanded && (
-                                                    <div className="pl-4 space-y-2 animate-in slide-in-from-top">
-                                                        {/* まとめ表示ボタン */}
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedGroupRole(role);
-                                                                setTargetUser(null);
-                                                                setSelectedStore(null);
-                                                                setShowCalendarList(false);
-                                                            }}
-                                                            className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-sm ${selectedGroupRole === role
-                                                                ? 'bg-amber-500 text-white border-amber-500 shadow-md'
-                                                                : 'bg-amber-50 border-amber-100 text-amber-700 hover:bg-amber-100'
-                                                                }`}
-                                                        >
-                                                            <Users size={16} />
-                                                            <span className="font-bold">全員のシフト</span>
-                                                        </button>
 
-                                                        {/* Individual users removed as per request */}
-                                                    </div>
-                                                )}
                                             </div>
                                         );
                                     })}

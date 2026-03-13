@@ -359,12 +359,12 @@ export default function AppDashboard() {
           )}
         </div>
 
-        {/* --- 共演メンバーのメモ (TimeTree-like) --- */}
+        {/* --- 共演メンバーのメモ (共有事項・メモ) --- */}
         {coworkerShifts.length > 0 && (
           <div className="mb-8">
             <h3 className="text-xs font-bold text-gray-500 mb-3 ml-1 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              同じシフトのメンバーの予定・メモ
+              同じシフトのメンバーの共有事項・メモ
             </h3>
             <div className="space-y-2.5">
               {coworkerShifts.map((cs) => (
@@ -605,13 +605,13 @@ export default function AppDashboard() {
                     onChange={e => setDailyMemo(e.target.value)}
                     rows={2}
                     className="w-full p-3 border border-gray-200 rounded-xl bg-white shadow-inner text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all resize-none"
-                    placeholder="共有事項・メモ"
+                    placeholder="共有事項・メモ（連絡事項など）"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="px-5 pt-3 flex gap-3 bg-white shrink-0">
+            <div className="px-5 pt-3 pb-4 flex gap-3 bg-white shrink-0">
               <button
                 onClick={() => setPlanningShift(null)}
                 disabled={isSavingPlan}

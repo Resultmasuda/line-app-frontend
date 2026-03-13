@@ -59,13 +59,13 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
                     <h2 className="text-xl font-black text-gray-800 mb-2 tracking-tight">アクセス権限がありません</h2>
                     <p className="text-sm text-gray-500 mb-8 leading-relaxed font-medium">
                         このページは管理者・役職者のみアクセス可能です。<br />
-                        一般スタッフの方はスマートフォン版をご利用ください。
+                        一般スタッフの方は利用者ホームをご利用ください。
                     </p>
                     <button
                         onClick={() => router.push('/')}
                         className="w-full py-3.5 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 active:bg-emerald-700 transition-all shadow-md shadow-emerald-200"
                     >
-                        スマホ版ホームに戻る
+                        ホームに戻る
                     </button>
                 </div>
             </div>

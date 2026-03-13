@@ -49,9 +49,12 @@ export type ShiftRecord = {
 // RLSの「authenticatedユーザーは自分の情報しか見れない」制限を回避するため、
 // 管理者画面用のスタッフ一覧取得は、認証セッションを持たない（anonとなる）別クライアントを使います。
 import { createClient } from '@supabase/supabase-js';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
 const supabaseAnon = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl || 'https://placeholder-url.supabase.co',
+    supabaseKey || 'placeholder-key',
     {
         auth: { persistSession: false, autoRefreshToken: false },
         global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
@@ -572,6 +575,79 @@ export async function getPendingHolidayRequests() {
     } catch (error) {
         console.error('Error fetching pending holiday requests:', error);
         return { success: false, error, data: [] };
+    }
+}
+
+// ==========================================
+// User Permissions API
+// ==========================================
+
+export interface UserPermission {
+    user_id: string;
+    location_id: string | null;
+    permission: string;
+    is_master: boolean;
+}
+
+export async function getUserPermissions(userId: string) {
+    try {
+        const { data, error } = await supabase
+            .from('user_permissions')
+            .select('*')
+            .eq('user_id', userId);
+
+        if (error) throw error;
+        return { success: true, data: data as UserPermission[] };
+    } catch (error) {
+        console.error('Error fetching user permissions:', error);
+        return { success: false, error, data: [] };
+    }
+}
+
+export async function addUserPermission(userId: string, permission: string, locationId: string | null = null, isMaster: boolean = false) {
+    try {
+        const { data, error } = await supabase
+            .from('user_permissions')
+            .insert([{ user_id: userId, permission, location_id: locationId, is_master: isMaster }])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error adding user permission:', error);
+        return { success: false, error };
+    }
+}
+
+export async function removeUserPermission(userId: string, permission: string, locationId: string | null = null) {
+    try {
+        let query = supabase
+            .from('user_permissions')
+            .delete()
+            .eq('user_id', userId)
+            .eq('permission', permission);
+
+        if (locationId) {
+            query = query.eq('location_id', locationId);
+        } else {
+            query = query.is('location_id', null);
+        }
+
+        const { error } = await query;
+        if (error) throw error;
+        return { success: true };
+    } catch (error) {
+        console.error('Error removing user permission:', error);
+        return { success: false, error };
+    }
+}
+
+export async function toggleUserPermission(userId: string, permission: string, locationId: string | null = null, shouldEnable: boolean) {
+    if (shouldEnable) {
+        return await addUserPermission(userId, permission, locationId);
+    } else {
+        return await removeUserPermission(userId, permission, locationId);
     }
 }
 

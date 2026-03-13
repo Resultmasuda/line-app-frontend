@@ -104,15 +104,8 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
                     </Link>
                 </nav>
 
-                <div className="p-4 border-t border-gray-100">
-                    <button className="flex items-center gap-3 px-3 py-2 text-gray-400 hover:text-gray-700 w-full rounded-lg font-semibold text-sm transition-colors">
-                        <Settings size={18} />
-                        システム設定
-                    </button>
-                    <button className="flex items-center gap-3 px-3 py-2 text-rose-400 hover:text-rose-600 w-full rounded-lg font-semibold text-sm transition-colors mt-1">
-                        <LogOut size={18} />
-                        ログアウト
-                    </button>
+                <div className="p-4 border-t border-gray-100 italic text-[10px] text-gray-300 text-center">
+                    Masuda Business App v1.0
                 </div>
             </aside>
 

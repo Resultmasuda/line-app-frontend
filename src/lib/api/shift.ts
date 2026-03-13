@@ -102,13 +102,15 @@ export async function getStoreMonthlyShifts(storeNames: string[], yearMonthPrefi
     }
 }
 
+import { getTodayJST } from '../utils/date';
+
 /**
  * 指定したユーザーの「今日以降」の最新シフトを取得する関数 (ホーム画面用)
  */
 export async function getUpcomingShifts(userId: string, limit: number = 2) {
     try {
         // 現在の日付文字列を取得 (YYYY-MM-DD)
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayJST();
 
         const { data, error } = await supabase
             .from('shifts')

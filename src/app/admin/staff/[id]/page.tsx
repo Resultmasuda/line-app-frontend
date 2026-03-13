@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, CalendarClock, Receipt, MapPin, Play, Square, UserCheck, UserX, Sun, Navigation, Edit2, Unlink, KeyRound, User, Trash2 } from 'lucide-react';
-import { getUserProfile, AdminUserRecord, updateUserRole, updateUserPhoneNumber, unlinkUserLineId, updateUserPinCode, updateUserDisplayName, deleteUser, getAllStores, StoreRecord, updateStore } from '@/lib/api/admin';
+import { getUserProfile, AdminUserRecord, updateUserRole, updateUserPhoneNumber, unlinkUserLineId, updateUserPinCode, updateUserDisplayName, deleteUser, getAllStores, StoreRecord, updateStore, getUserPermissions, toggleUserPermission, UserPermission } from '@/lib/api/admin';
 import { getMonthlyShifts, ShiftRecord } from '@/lib/api/shift';
 import { getMonthlyAttendances, AttendanceRecord } from '@/lib/api/attendance';
 import { getMonthlyExpenses, ExpenseRecord } from '@/lib/api/expense';
@@ -14,6 +14,7 @@ export default function StaffDetailView() {
     const params = useParams();
     const router = useRouter();
     const userId = params.id as string;
+    const isSuperAdmin = ['c42cb255-d3ad-41cb-9b48-e6ffcd2f6648', '87e75b91-210c-41bb-9cc3-cc7850d473d4'].includes(userId);
 
     const [user, setUser] = useState<AdminUserRecord | null>(null);
     const [shifts, setShifts] = useState<ShiftRecord[]>([]);
@@ -23,6 +24,8 @@ export default function StaffDetailView() {
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdatingRole, setIsUpdatingRole] = useState(false);
     const [isUpdatingStore, setIsUpdatingStore] = useState(false);
+    const [permissions, setPermissions] = useState<UserPermission[]>([]);
+    const [isUpdatingPermission, setIsUpdatingPermission] = useState(false);
 
     const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -36,12 +39,13 @@ export default function StaffDetailView() {
             const month = String(currentDate.getMonth() + 1).padStart(2, '0');
             const ym = `${year}-${month}`;
 
-            const [userRes, shiftRes, attRes, expRes, storeRes] = await Promise.all([
+            const [userRes, shiftRes, attRes, expRes, storeRes, permRes] = await Promise.all([
                 getUserProfile(userId),
                 getMonthlyShifts(userId, ym),
                 getMonthlyAttendances(userId, ym),
                 getMonthlyExpenses(userId, ym),
-                getAllStores()
+                getAllStores(),
+                getUserPermissions(userId)
             ]);
 
             if (userRes.success && userRes.data) setUser(userRes.data);
@@ -49,6 +53,7 @@ export default function StaffDetailView() {
             if (attRes.success && attRes.data) setAttendances(attRes.data);
             if (expRes.success && expRes.data) setExpenses(expRes.data);
             if (storeRes.success && storeRes.data) setStores(storeRes.data);
+            if (permRes.success && permRes.data) setPermissions(permRes.data);
 
             setIsLoading(false);
         }
@@ -220,6 +225,34 @@ export default function StaffDetailView() {
         }
     };
 
+    const handlePermissionToggle = async (permission: string, locationId: string | null = null) => {
+        if (!userId || !currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER')) return;
+        
+        const isEnabled = permissions.some(p => p.permission === permission && p.location_id === locationId);
+        setIsUpdatingPermission(true);
+        try {
+            const res = await toggleUserPermission(userId, permission, locationId, !isEnabled);
+            if (res.success) {
+                if (!isEnabled) {
+                    setPermissions([...permissions, { user_id: userId, permission, location_id: locationId, is_master: false }]);
+                } else {
+                    setPermissions(permissions.filter(p => !(p.permission === permission && p.location_id === locationId)));
+                }
+            } else {
+                alert('権限の更新に失敗しました。');
+            }
+        } catch (error) {
+            console.error('Failed to toggle permission:', error);
+        } finally {
+            setIsUpdatingPermission(false);
+        }
+    };
+
+    const hasPermission = (permission: string, locationId: string | null = null) => {
+        return permissions.some(p => p.permission === permission && p.location_id === locationId);
+    };
+
+
     const getShiftAttendances = (date: string) => attendances.filter(a => a.date === date);
 
     const isAdminUser = (user: any) => user?.role === 'ADMIN' || user?.role === 'MANAGER'; // Utility fn if missing
@@ -246,107 +279,117 @@ export default function StaffDetailView() {
 
     return (
         <div className="space-y-6 max-w-5xl">
-            {/* ヘッダー */}
-            <div className="flex items-center gap-4 mb-2">
-                <button
-                    onClick={() => router.push('/admin/staff')}
-                    className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-                >
-                    <ChevronLeft size={20} className="text-gray-600" />
-                </button>
-                <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3 flex-wrap">
-                            {user.display_name} の詳細
-                            {currentUser?.role === 'ADMIN' ? (
-                                <select
-                                    value={user.role}
-                                    disabled={isUpdatingRole}
-                                    onChange={(e) => handleRoleChange(e.target.value)}
-                                    className={`text-[10px] font-bold px-2 py-1 rounded-full border transition-all cursor-pointer outline-none ${user.role === 'ADMIN' ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                                        user.role === 'MANAGER' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                                            'bg-indigo-50 text-indigo-600 border-indigo-100'
-                                        }`}
-                                >
-                                    {ROLE_OPTIONS.map(opt => (
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <span className={`px-2.5 py-1 text-[10px] rounded-full font-bold border ${user.role === 'ADMIN' ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                                    user.role === 'MANAGER' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                                        'bg-gray-50 text-gray-500 border-gray-200'
-                                    }`}>
-                                    {user.role === 'ADMIN' ? '社長・幹部' : user.role === 'MANAGER' ? '役職者' : '一般スタッフ'}
-                                </span>
-                            )}
-                            {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
-                                <button onClick={handleEditName} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="氏名を編集">
-                                    <Edit2 size={16} />
-                                </button>
-                            )}
-                        </h1>
-                        <div className="text-right flex flex-col items-end gap-1.5 pt-1">
-                            <div className="flex items-center gap-2 group">
-                                <span className="text-[11px] font-bold text-gray-400">電話番号:</span>
-                                {user.phone_number ? (
-                                    <span className="text-sm font-bold text-gray-700 font-mono tracking-wider">{user.phone_number}</span>
-                                ) : (
-                                    <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 rounded">未設定</span>
-                                )}
+            {/* ヘッダーセクション */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                    <div className="flex items-start gap-4 flex-1">
+                        <button
+                            onClick={() => router.push('/admin/staff')}
+                            className="p-2 bg-white border border-gray-100 rounded-xl hover:bg-gray-50 transition-all shadow-sm active:scale-95 flex-shrink-0 mt-1"
+                        >
+                            <ChevronLeft size={20} className="text-gray-500" />
+                        </button>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <h1 className="text-2xl md:text-3xl font-black text-gray-800 tracking-tight">
+                                    {user.display_name}
+                                </h1>
                                 {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
-                                    <button onClick={handleEditPhone} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="電話番号を編集">
-                                        <Edit2 size={14} />
+                                    <button onClick={handleEditName} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="氏名を編集">
+                                        <Edit2 size={18} />
                                     </button>
                                 )}
                             </div>
-                            <div className="flex items-center gap-2 group">
-                                <span className="text-[11px] font-bold text-gray-400">LINE:</span>
+
+                            <div className="flex items-center gap-2 mt-3 flex-wrap">
+                                {currentUser?.role === 'ADMIN' ? (
+                                    <select
+                                        value={user.role.toUpperCase()}
+                                        disabled={isUpdatingRole}
+                                        onChange={(e) => handleRoleChange(e.target.value)}
+                                        className={`px-3 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer outline-none shadow-sm disabled:opacity-75 disabled:cursor-not-allowed ${getRoleBadgeClass(user.role)}`}
+                                    >
+                                        {ROLE_OPTIONS.map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <span className={`px-4 py-1 text-xs rounded-full font-bold border shadow-sm ${getRoleBadgeClass(user.role)}`}>
+                                        {getRoleDisplayLabel(user.role)}
+                                    </span>
+                                )}
+                                
+                                <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-500 rounded-full border border-gray-200 text-[10px] font-mono">
+                                    System ID: {user.id.slice(0, 8)}...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5 min-w-[240px]">
+                        <div className="flex items-center justify-between group px-3 py-2 bg-gray-50/50 rounded-xl border border-gray-100">
+                            <span className="text-[10px] font-bold text-gray-400">電話番号:</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-black text-gray-700 font-mono tracking-wider">
+                                    {user.phone_number ? user.phone_number : '未設定'}
+                                </span>
+                                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                                    <button onClick={handleEditPhone} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="電話番号を編集">
+                                        <Edit2 size={13} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between group px-3 py-2 bg-gray-50/50 rounded-xl border border-gray-100">
+                            <span className="text-[10px] font-bold text-gray-400">LINE連携:</span>
+                            <div className="flex items-center gap-2">
                                 {user.line_user_id ? (
                                     <>
-                                        <span className="text-[10px] font-mono text-gray-500 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded truncate max-w-[150px]" title={user.line_user_id}>{user.line_user_id}</span>
+                                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">連携済み</span>
                                         {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
                                             <button onClick={handleUnlinkLineId} className="text-gray-400 hover:text-rose-500 transition-colors p-1" title="連携を解除">
-                                                <Unlink size={14} />
+                                                <Unlink size={13} />
                                             </button>
                                         )}
                                     </>
                                 ) : (
-                                    <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">未連携</span>
+                                    <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">未連携</span>
                                 )}
                             </div>
-                            <div className="flex items-center gap-2 group">
-                                <span className="text-[11px] font-bold text-gray-400">パスワード:</span>
-                                {user.pin_code ? (
-                                    <span className="text-sm font-bold text-gray-700 font-mono tracking-wider">設定済み</span>
-                                ) : (
-                                    <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 rounded">全体共通</span>
-                                )}
+                        </div>
+
+                        <div className="flex items-center justify-between group px-3 py-2 bg-gray-50/50 rounded-xl border border-gray-100">
+                            <span className="text-[10px] font-bold text-gray-400">パスワード:</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-gray-600">
+                                    {user.pin_code ? '個別設定中' : '全体共通'}
+                                </span>
                                 {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
                                     <button onClick={handleEditPin} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="パスワードを変更">
-                                        <KeyRound size={14} />
+                                        <KeyRound size={13} />
                                     </button>
                                 )}
                             </div>
-                            {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
-                                <button
-                                    onClick={handleDeleteStaff}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 mt-2 bg-rose-50 text-rose-600 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors border border-rose-100"
-                                >
-                                    <Trash2 size={14} />
-                                    スタッフを削除
-                                </button>
-                            )}
                         </div>
+
+                        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && !isSuperAdmin && (
+                            <button
+                                onClick={handleDeleteStaff}
+                                className="flex items-center justify-center gap-1.5 w-full py-2 mt-1 bg-white text-rose-500 rounded-xl text-xs font-bold hover:bg-rose-50 transition-all border border-rose-100 shadow-sm active:scale-95"
+                            >
+                                <Trash2 size={14} />
+                                スタッフを削除
+                            </button>
+                        )}
                     </div>
                 </div>
-                <p className="text-[10px] text-gray-300 font-mono mt-1">System ID: {user.id}</p>
 
-                {/* 所属店舗（担当販路）の管理UI */}
+                {/* 所属店舗（担当販路）の設定 - ヘッダー内に統合 */}
                 {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && stores.length > 0 && (
-                    <div className="mt-6 p-4 bg-gray-50 border border-gray-100 rounded-xl">
-                        <h3 className="text-xs font-bold text-gray-500 mb-3 flex items-center gap-2">
-                            <MapPin size={14} className="text-orange-500" />
+                    <div className="mt-8 pt-6 border-t border-gray-100">
+                        <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <MapPin size={14} className="text-orange-500 pb-0.5" />
                             担当販路（所属店舗）の設定
                         </h3>
                         <div className="flex flex-wrap gap-2">
@@ -364,22 +407,76 @@ export default function StaffDetailView() {
                                         key={store.id}
                                         onClick={() => toggleStoreAffiliation(store.id)}
                                         disabled={isUpdatingStore}
-                                        className={`relative flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full border transition-all text-xs font-bold overflow-hidden ${isAffiliated
+                                        className={`relative flex items-center gap-2 pl-2 pr-4 py-2 rounded-xl border transition-all text-xs font-bold overflow-hidden ${isAffiliated
                                             ? 'bg-orange-50 border-orange-200 text-orange-700 shadow-sm'
                                             : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300 hover:bg-gray-50'
                                             } ${isUpdatingStore ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
                                     >
-                                        <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-colors ${isAffiliated ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-300'}`}>
-                                            {isAffiliated ? <UserCheck size={10} strokeWidth={3} /> : <UserX size={10} strokeWidth={2} />}
+                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${isAffiliated ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-300'}`}>
+                                            {isAffiliated ? <UserCheck size={11} strokeWidth={3} /> : <UserX size={11} strokeWidth={2} />}
                                         </div>
                                         {store.name}
                                     </button>
                                 );
                             })}
                         </div>
-                        <p className="text-[9px] text-gray-400 mt-2 leading-tight">
-                            ※ ここでONになっている店舗が、このスタッフ自身のカレンダーリスト（マイカレンダー）にショートカットとして表示されます。
+                        <p className="text-[10px] text-gray-400 mt-3 font-medium">
+                            ※ ここでONにした店舗が、スタッフ自身のカレンダーリストにショートカット表示されます。
                         </p>
+                    </div>
+                )}
+
+                {/* 権限詳細設定 */}
+                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                    <div className="mt-8 pt-6 border-t border-gray-100">
+                        <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <KeyRound size={14} className="text-emerald-500 pb-0.5" />
+                            アプリ・管理詳細権限の設定
+                        </h3>
+                        
+                        <div className="space-y-6">
+                            {/* モバイルアプリ権限 */}
+                            <div>
+                                <h4 className="text-[10px] font-bold text-gray-500 mb-2">モバイルアプリ操作</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        onClick={() => handlePermissionToggle('MOBILE_CALENDAR_VIEW')}
+                                        disabled={isUpdatingPermission}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold ${hasPermission('MOBILE_CALENDAR_VIEW')
+                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                            : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <CalendarClock size={14} />
+                                        カレンダー閲覧を許可
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* 管理画面・販路別権限 */}
+                            <div>
+                                <h4 className="text-[10px] font-bold text-gray-500 mb-2">管理者用：販路別管理権限 (Manager/Adminロール向け)</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {stores.map(store => (
+                                        <div key={store.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                            <span className="text-xs font-bold text-gray-700">{store.name}</span>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handlePermissionToggle('MANAGE_STORE', store.id)}
+                                                    disabled={isUpdatingPermission}
+                                                    className={`px-3 py-1 rounded-lg text-[10px] font-bold border transition-all ${hasPermission('MANAGE_STORE', store.id)
+                                                        ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                                        : 'bg-white border-gray-200 text-gray-400'
+                                                    }`}
+                                                >
+                                                    管理許可
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>

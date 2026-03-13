@@ -43,10 +43,11 @@ export default function AdminDashboardPage() {
         let isMounted = true;
 
         const fetchDashboardData = async () => {
-            const today = new Date().toISOString().split('T')[0];
-            const thisMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
-
             try {
+                const { getTodayJST, getCurrentMonthJST } = await import('@/lib/utils/date');
+                const today = getTodayJST();
+                const thisMonth = getCurrentMonthJST();
+
                 const [attRes, expRes, shiftRes, holRes] = await Promise.all([
                     getTodayAllAttendances(today),
                     getAllExpenses(thisMonth),
@@ -69,7 +70,22 @@ export default function AdminDashboardPage() {
 
         fetchDashboardData();
 
-        return () => { isMounted = false; };
+        // リアルタイム更新の購読
+        const { supabase } = require('@/lib/supabase');
+        const channel = supabase
+            .channel('dashboard_updates')
+            .on('postgres_changes', { event: '*', table: 'attendances', schema: 'public' }, () => {
+                fetchDashboardData();
+            })
+            .on('postgres_changes', { event: '*', table: 'shifts', schema: 'public' }, () => {
+                fetchDashboardData();
+            })
+            .subscribe();
+
+        return () => {
+            isMounted = false;
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     if (isLoading) {
@@ -80,7 +96,8 @@ export default function AdminDashboardPage() {
         );
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const todayStr = now.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
     const todaysShifts = shifts.filter(s => s.date === todayStr);
 
     // 簡易的な現在のステータス算出 (最後の打刻で判定)
@@ -105,7 +122,7 @@ export default function AdminDashboardPage() {
         return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
     };
 
-    const now = new Date();
+    // const now = new Date(); // redundant
     const isShiftLate = (shift: AdminShift) => {
         const shiftStartTime = new Date(`${todayStr}T${shift.start_time}`);
         const att = currentStatusByUser[shift.users.display_name];
@@ -145,22 +162,22 @@ export default function AdminDashboardPage() {
                         ) : (
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-gray-50/80 text-gray-500 text-xs uppercase tracking-wider">
-                                        <th className="px-5 py-3 font-semibold">スタッフ</th>
-                                        <th className="px-5 py-3 font-semibold">現在ステータス</th>
-                                        <th className="px-5 py-3 font-semibold">最終更新</th>
+                                    <tr className="bg-gray-50/80 text-gray-500 text-[10px] uppercase tracking-wider">
+                                        <th className="px-4 py-3 font-semibold">スタッフ</th>
+                                        <th className="px-4 py-3 font-semibold">ステータス</th>
+                                        <th className="px-4 py-3 font-semibold">最終更新</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-50">
+                                <tbody className="divide-y divide-gray-50 text-[13px]">
                                     {Object.values(currentStatusByUser).map((att) => (
                                         <tr key={att.id} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-5 py-4 whitespace-nowrap">
-                                                <div className="font-bold text-gray-800">{att.users.display_name}</div>
+                                            <td className="px-4 py-4 min-w-[100px]">
+                                                <div className="font-bold text-gray-800 leading-tight break-all">{att.users.display_name}</div>
                                             </td>
-                                            <td className="px-5 py-4 whitespace-nowrap">
+                                            <td className="px-4 py-4">
                                                 {getStatusBadge(att.type)}
                                             </td>
-                                            <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
+                                            <td className="px-4 py-4 text-gray-500 font-medium">
                                                 <div className="flex items-center gap-2">
                                                     {formatTime(att.timestamp)}
                                                     {att.latitude && att.longitude && (

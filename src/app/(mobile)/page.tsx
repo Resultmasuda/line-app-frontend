@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
 import { getUpcomingShifts, ShiftRecord, updateShiftPlanning } from '@/lib/api/shift';
 import { recordAttendance, getTodayAttendances, AttendanceType, AttendanceRecord } from '@/lib/api/attendance';
-import { getAllStores } from '@/lib/api/admin';
+import { getAllStores, getUserPermissions } from '@/lib/api/admin';
 
 // 距離計算用の関数 (Haversine formula)
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -45,6 +45,16 @@ export default function AppDashboard() {
   // 共演者（同じ店舗・日付）のシフト情報
   const [coworkerShifts, setCoworkerShifts] = useState<any[]>([]);
 
+  // デバッグ位置情報用 (Super Admin用)
+  const [isDebugMode, setIsDebugMode] = useState(false);
+  const [debugLocation, setDebugLocation] = useState<{ lat: number, lng: number } | null>(null);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [stores, setStores] = useState<any[]>([]);
+  const [canViewCalendar, setCanViewCalendar] = useState(false);
+
+  const SUPER_IDS = ['c42cb255-d3ad-41cb-9b48-e6ffcd2f6648', '87e75b91-210c-41bb-9cc3-cc7850d473d4'];
+  const isSuperAdmin = user && SUPER_IDS.includes(user.id);
+
   useEffect(() => {
     if (!user) return;
 
@@ -70,6 +80,13 @@ export default function AppDashboard() {
           } else {
             setLastAction(null);
           }
+        }
+
+        // 権限取得
+        const permRes = await getUserPermissions(user.id);
+        if (permRes.success && permRes.data && isMounted) {
+          const hasCalPerm = permRes.data.some((p: any) => p.permission === 'MOBILE_CALENDAR_VIEW');
+          setCanViewCalendar(hasCalPerm);
         }
       } catch (e) {
         console.error("Data fetch error", e);
@@ -138,11 +155,29 @@ export default function AppDashboard() {
     try {
       // プライバシー保護のため、起床・出発時の位置情報取得は行わない
       const shouldFetchLocation = type === 'CLOCK_IN' || type === 'CLOCK_OUT';
-      const location = shouldFetchLocation ? await getCurrentLocation() : null;
+      
+      let location = null;
+      if (shouldFetchLocation) {
+        if (isDebugMode && debugLocation) {
+          location = debugLocation;
+        } else {
+          location = await getCurrentLocation();
+        }
+      }
 
       const now = new Date();
       const todayStr = now.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
       const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+      // デバッグモードかつ位置情報未設定の場合は入力を促す
+      if (shouldFetchLocation && isDebugMode && !debugLocation) {
+        // 店舗リストをロードしておく
+        const res = await getAllStores();
+        if (res.success && res.data) setStores(res.data);
+        setIsLocationModalOpen(true);
+        setActionLoading(false);
+        return;
+      }
 
       // 距離アラートチェック
       if (shouldFetchLocation && location) {
@@ -184,10 +219,31 @@ export default function AppDashboard() {
         // 退勤時に「次回のシフト（今日これからの2本目、または明日以降）」があればプランニングモーダルを表示
         if (type === 'CLOCK_OUT') {
           // 現在の時間より後のシフト、または明日以降のシフトを探す
-          const nextShiftRecord = shifts.find(s =>
+          let nextShiftRecord = shifts.find(s =>
             (s.date === todayStr && s.start_time > timeStr) || (s.date > todayStr)
           );
-          if (nextShiftRecord && nextShiftRecord.shift_type === 'work') {
+
+          // 明日の予定がない場合は空のオブジェクト等で入力を促す（場所などを選ばせるため）
+          if (!nextShiftRecord) {
+            // 明日の日付をデフォルトにする
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = tomorrow.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+            
+            // 入力を促すための仮のレコード (新規登録扱いにするために id なし)
+            setPlanningShift({
+              id: '', // 新規作成フラグとして使うか、あるいはUI側で「次回の予定を入力」と出す
+              date: tomorrowStr,
+              location: '',
+              start_time: '09:00:00',
+              end_time: '18:00:00',
+              shift_type: 'work',
+              user_id: user.id
+            } as any);
+            setPlannedWakeUp('07:00');
+            setPlannedLeave('08:00');
+            setDailyMemo('');
+          } else if (nextShiftRecord.shift_type === 'work') {
             setPlanningShift(nextShiftRecord);
             setPlannedWakeUp(nextShiftRecord.planned_wake_up_time?.slice(0, 5) || '');
             setPlannedLeave(nextShiftRecord.planned_leave_time?.slice(0, 5) || '');
@@ -243,12 +299,21 @@ export default function AppDashboard() {
         {/* 管理者ボタン */}
         {user && (() => {
           const r = (user.role || '').toUpperCase();
-          const SUPER_IDS = ['c42cb255-d3ad-41cb-9b48-e6ffcd2f6648', '87e75b91-210c-41bb-9cc3-cc7850d473d4'];
           const isAdmin = SUPER_IDS.includes(user.id) || ['ADMIN', 'PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(r);
           return isAdmin ? (
-            <Link href="/admin/dashboard" className="absolute right-4 top-12 bg-emerald-500 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg hover:bg-emerald-600 transition-all">
-              管理画面へ
-            </Link>
+            <div className="absolute right-4 top-12 flex flex-col items-end gap-2">
+              <Link href="/admin/dashboard" className="bg-emerald-500 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg hover:bg-emerald-600 transition-all">
+                管理画面へ
+              </Link>
+              {isSuperAdmin && (
+                <button
+                  onClick={() => setIsDebugMode(!isDebugMode)}
+                  className={`text-[9px] font-bold px-2 py-1 rounded-md border transition-all ${isDebugMode ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-gray-50 border-gray-200 text-gray-400'}`}
+                >
+                  位置デバッグ: {isDebugMode ? 'ON' : 'OFF'}
+                </button>
+              )}
+            </div>
           ) : null;
         })()}
       </div>
@@ -540,7 +605,7 @@ export default function AppDashboard() {
                     onChange={e => setDailyMemo(e.target.value)}
                     rows={2}
                     className="w-full p-3 border border-gray-200 rounded-xl bg-white shadow-inner text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all resize-none"
-                    placeholder="例：明日は早番！遅れないように寝ます！"
+                    placeholder="共有事項・メモ"
                   />
                 </div>
               </div>
@@ -561,15 +626,36 @@ export default function AppDashboard() {
                     return;
                   }
                   setIsSavingPlan(true);
-                  const res = await updateShiftPlanning(planningShift.id, {
-                    planned_wake_up_time: plannedWakeUp,
-                    planned_leave_time: plannedLeave,
-                    daily_memo: dailyMemo
-                  });
+                  
+                  // 新規作成か既存更新か
+                  let res;
+                  if (planningShift.id) {
+                    res = await updateShiftPlanning(planningShift.id, {
+                      planned_wake_up_time: plannedWakeUp,
+                      planned_leave_time: plannedLeave,
+                      daily_memo: dailyMemo
+                    });
+                  } else {
+                    // 明日の新規シフトとして登録
+                    const { createShift } = await import('@/lib/api/admin');
+                    res = await createShift({
+                      user_id: user?.id || '', 
+                      date: planningShift.date,
+                      location: prompt('勤務先を入力してください') || '勤務先',
+                      start_time: '09:00:00',
+                      end_time: '18:00:00',
+                      planned_wake_up_time: plannedWakeUp,
+                      planned_leave_time: plannedLeave,
+                      daily_memo: dailyMemo,
+                      shift_type: 'work'
+                    });
+                  }
+                  
                   setIsSavingPlan(false);
                   if (res.success) {
                     setPlanningShift(null);
-                    // 完了時に少し待ってリロードするかUIを更新する（ここではモーダルを閉じるだけ）
+                    // 必要に応じて画面を更新
+                    window.location.reload();
                   } else {
                     alert('保存に失敗しました。');
                   }
@@ -584,8 +670,90 @@ export default function AppDashboard() {
         </div>
       )}
 
+      {/* 位置情報デバッグ用モーダル */}
+      {isLocationModalOpen && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="p-5 border-b border-gray-100 text-center">
+              <h3 className="font-bold text-lg text-gray-800">打刻位置のデバッグ設定</h3>
+              <p className="text-xs text-gray-500 mt-1">テスト用に位置情報を手動設定します</p>
+            </div>
+            
+            <div className="p-5 flex-1 overflow-y-auto space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-gray-500 mb-2 ml-1">直接入力 (緯度, 経度)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    step="0.000001"
+                    placeholder="緯度"
+                    className="flex-1 p-2 border border-gray-200 rounded-lg text-sm"
+                    value={debugLocation?.lat || ''}
+                    onChange={e => setDebugLocation(prev => ({ lat: parseFloat(e.target.value), lng: prev?.lng || 0 }))}
+                  />
+                  <input
+                    type="number"
+                    step="0.000001"
+                    placeholder="経度"
+                    className="flex-1 p-2 border border-gray-200 rounded-lg text-sm"
+                    value={debugLocation?.lng || ''}
+                    onChange={e => setDebugLocation(prev => ({ lat: prev?.lat || 0, lng: parseFloat(e.target.value) }))}
+                  />
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-x-0 top-0 flex items-center" aria-hidden="true">
+                  <div className="w-full border-t border-gray-100"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-white px-2 text-gray-400 font-bold">または店舗から選択</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {stores.map(store => (
+                  <button
+                    key={store.id}
+                    onClick={() => {
+                      setDebugLocation({ lat: store.latitude, lng: store.longitude });
+                    }}
+                    className={`w-full text-left p-2.5 rounded-xl border transition-all text-xs ${
+                      debugLocation?.lat === store.latitude && debugLocation?.lng === store.longitude
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-1 ring-emerald-500'
+                        : 'bg-gray-50 border-gray-100 text-gray-600'
+                    }`}
+                  >
+                    <p className="font-bold">{store.name}</p>
+                    <p className="text-[10px] opacity-60">Lat: {store.latitude}, Lng: {store.longitude}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 flex gap-3 border-t border-gray-100">
+              <button
+                onClick={() => {
+                  setIsLocationModalOpen(false);
+                  setIsDebugMode(false);
+                }}
+                className="flex-1 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl text-sm"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => setIsLocationModalOpen(false)}
+                className="flex-1 py-3 bg-emerald-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-200"
+              >
+                この位置で打刻
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* フローティングボトムナビゲーション */}
-      <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 pt-3 pb-8 flex justify-between items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
+      <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 pt-3 pb-8 flex justify-around items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
         <Link href="/" className="flex flex-col items-center text-emerald-600 transition-transform active:scale-95">
           <Home size={24} strokeWidth={2.5} />
           <span className="text-[10px] mt-1.5 font-bold">ホーム</span>

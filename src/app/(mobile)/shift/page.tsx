@@ -21,6 +21,7 @@ type AppUser = {
 
 export default function ShiftSchedule() {
     const { user, loading: liffLoading } = useLiff();
+    const isAdmin = user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase());
 
     const [currentDate, setCurrentDate] = useState(new Date());
     const [shifts, setShifts] = useState<ShiftRecord[]>([]);
@@ -38,6 +39,7 @@ export default function ShiftSchedule() {
     const [selectedDateStr, setSelectedDateStr] = useState('');
     const [selectedShift, setSelectedShift] = useState<ShiftRecord | null>(null);
     const [selectedShifts, setSelectedShifts] = useState<ShiftRecord[]>([]);
+    const [selectedShiftInModal, setSelectedShiftInModal] = useState<string | null>(null); // モーダル内で選択されたシフトID
     const [targetUser, setTargetUser] = useState<AppUser | AdminUserRecord | null>(null);
     const [allUsers, setAllUsers] = useState<AdminUserRecord[]>([]);
     const [showCalendarList, setShowCalendarList] = useState(false);
@@ -72,6 +74,7 @@ export default function ShiftSchedule() {
 
     // Forms
     const [shiftFormData, setShiftFormData] = useState({
+        user_id: '',
         location: '',
         start_time: '10:00',
         end_time: '19:00',
@@ -98,6 +101,7 @@ export default function ShiftSchedule() {
                     const enriched = shiftRes.data.map((s: any) => ({
                         ...s,
                         location: (s.users as any)?.display_name || '名称不明',
+                        user_id: s.user_id || '',
                     }));
                     setShifts(enriched);
                 }
@@ -119,7 +123,8 @@ export default function ShiftSchedule() {
                         // display_name をスタッフ名としてlocationに付加して表示
                         const enriched = shiftRes.data.map((s: any) => ({
                             ...s,
-                            location: `${(s.users as any)?.display_name || '?'} - ${s.location}`,
+                            location: `${(s.users as any)?.display_name || '?'} - ${s.location || ''}`,
+                            user_id: s.user_id || '',
                         }));
                         setShifts(enriched);
                     }
@@ -193,6 +198,7 @@ export default function ShiftSchedule() {
     const handleDayClick = (dateStr: string, dayShifts: ShiftRecord[] = []) => {
         setSelectedDateStr(dateStr);
         setSelectedShifts(dayShifts);
+        setSelectedShiftInModal(null); // モーダルを開くときは未選択
         setShowDayModal(true);
     };
 
@@ -201,6 +207,7 @@ export default function ShiftSchedule() {
         if (targetShift) {
             setSelectedShift(targetShift);
             setShiftFormData({
+                user_id: targetShift.user_id,
                 location: targetShift.location,
                 start_time: targetShift.start_time.substring(0, 5),
                 end_time: targetShift.end_time.substring(0, 5),
@@ -212,10 +219,11 @@ export default function ShiftSchedule() {
         } else {
             setSelectedShift(null);
             setShiftFormData({
-                location: '',
+                user_id: targetUser?.id || user?.id || '',
+                location: selectedStore || '',
                 start_time: '10:00',
                 end_time: '19:00',
-                shift_type: 'plan', // デフォルトは個人予定
+                shift_type: selectedStore ? 'work' : 'plan',
                 planned_wake_up_time: '',
                 planned_leave_time: '',
                 daily_memo: ''
@@ -233,7 +241,7 @@ export default function ShiftSchedule() {
         const isWork = shiftFormData.shift_type === 'work';
 
         const payload: any = {
-            user_id: user.id,
+            user_id: shiftFormData.user_id || user.id,
             date: selectedDateStr,
             location: shiftFormData.location,
             start_time: shiftFormData.start_time.length === 5 ? `${shiftFormData.start_time}:00` : shiftFormData.start_time,
@@ -247,8 +255,11 @@ export default function ShiftSchedule() {
 
         let res;
         if (selectedShift) {
-            // 勤務(work)の場合は、予定項目のみ更新する
-            if (isWork) {
+            // 本人または管理者の場合は全ての項目を更新可能
+            if (isAdmin || selectedShift.user_id === user.id) {
+                res = await updateShift(selectedShift.id, payload);
+            } else if (isWork) {
+                // それ以外の人が勤務(work)を編集する場合は予定項目のみ (現状UIでは本人以外編集ボタンは出ない)
                 res = await updateShiftPlanning(selectedShift.id, {
                     planned_wake_up_time: payload.planned_wake_up_time,
                     planned_leave_time: payload.planned_leave_time,
@@ -272,7 +283,18 @@ export default function ShiftSchedule() {
 
     const handleDeleteShift = async (shiftToDelete?: ShiftRecord) => {
         const targetShift = shiftToDelete || selectedShift;
-        if (!targetShift || !confirm('この予定を削除しますか？')) return;
+        if (!targetShift || !user) return;
+        
+        const isOwner = targetShift.user_id === user.id;
+
+        // 管理者でも本人でもない場合は削除不可
+        if (!isAdmin && !isOwner) {
+            alert('他人の予定は削除できません。');
+            return;
+        }
+
+        if (!confirm('この予定を削除しますか？')) return;
+        
         setSubmitLoading(true);
         const res = await deleteShift(targetShift.id);
         if (res.success) {
@@ -494,7 +516,7 @@ export default function ShiftSchedule() {
             </div>
 
             {/* フローティングボトムナビゲーション */}
-            <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 pt-3 pb-8 flex justify-between items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
+            <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 pt-3 pb-8 flex justify-around items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
                 <Link href="/" className="flex flex-col items-center text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
                     <Home size={24} strokeWidth={2} />
                     <span className="text-[10px] mt-1.5 font-semibold">ホーム</span>
@@ -529,16 +551,30 @@ export default function ShiftSchedule() {
                                 {selectedShifts.map((s, idx) => {
                                     const isWork = s.shift_type === 'work';
                                     const isPlan = s.shift_type === 'plan';
-                                    const canEdit = !selectedGroupRole || targetUser?.id === user?.id || s.user_id === user?.id;
+                                    const isOwner = s.user_id === user?.id;
+                                    const isSelected = selectedShiftInModal === s.id;
+
+                                    // 削除権限: 管理者、または自分の予定
+                                    const canDelete = isAdmin || isOwner;
+                                    // 編集権限: 全員（管理者または本人はフル編集、他人の場合は自分の担当分のみ）
+                                    const canEdit = isAdmin || isOwner;
 
                                     return (
                                         <div key={s.id || idx} className="space-y-3 pb-5 mb-5 border-b border-gray-100 last:border-0 last:mb-0 last:pb-0">
-                                            <div className={`border rounded-2xl p-4 ${isWork ? 'bg-emerald-50 border-emerald-100' :
-                                                isPlan ? 'bg-indigo-50 border-indigo-100' :
-                                                    'bg-amber-50 border-amber-100'}`}>
-                                                <div className={`font-bold mb-1 ${isWork ? 'text-emerald-800' :
-                                                    isPlan ? 'text-indigo-800' :
-                                                        'text-amber-800'}`}>{s.location}</div>
+                                            <div
+                                                onClick={() => setSelectedShiftInModal(isSelected ? null : (s.id || null))}
+                                                className={`border rounded-2xl p-4 transition-all active:scale-[0.98] ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2' : ''} ${isWork ? 'bg-emerald-50 border-emerald-100' :
+                                                    isPlan ? 'bg-indigo-50 border-indigo-100' :
+                                                        'bg-amber-50 border-amber-100'}`}
+                                            >
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <div className={`font-bold ${isWork ? 'text-emerald-800' : isPlan ? 'text-indigo-800' : 'text-amber-800'}`}>
+                                                        {s.location}
+                                                    </div>
+                                                    {isOwner && (
+                                                        <span className="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-gray-500 border border-gray-100">自分</span>
+                                                    )}
+                                                </div>
                                                 <div className={`text-sm font-medium ${isWork ? 'text-emerald-600' :
                                                     isPlan ? 'text-indigo-600' :
                                                         'text-amber-600'}`}>
@@ -554,22 +590,34 @@ export default function ShiftSchedule() {
                                                 )}
                                             </div>
 
-                                            {canEdit && (
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <button onClick={() => openShiftEditModal(s)} className="col-span-2 py-3.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-md">
-                                                        <Edit3 size={18} /> {isWork ? '予定・メモを編集' : '内容を編集'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteShift(s)}
-                                                        disabled={submitLoading || isWork}
-                                                        className="col-span-2 py-3 bg-red-50 text-red-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-100 active:scale-[0.98] transition-all border border-red-200 disabled:opacity-30"
-                                                    >
-                                                        <Trash2 size={18} /> 予定を削除
-                                                    </button>
+                                            {isSelected && (
+                                                <div className="animate-in slide-in-from-top-2 duration-200">
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        {canEdit && (
+                                                            <button onClick={() => openShiftEditModal(s)} className="col-span-2 py-3.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-md">
+                                                                <Edit3 size={18} /> {isWork ? '予定・メモを編集' : '内容を編集'}
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => canDelete && handleDeleteShift(s)}
+                                                            disabled={submitLoading || !canDelete}
+                                                            className={`col-span-2 py-3 font-bold flex items-center justify-center gap-2 rounded-xl transition-all border active:scale-[0.98] ${canDelete
+                                                                ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
+                                                                : 'bg-gray-50 text-gray-400 border-gray-100'
+                                                                }`}
+                                                        >
+                                                            {canDelete ? (
+                                                                <>
+                                                                    <Trash2 size={18} /> {isWork ? '勤務シフトを削除' : '予定を削除'}
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Trash2 size={18} /> 他人の予定は削除不可
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            )}
-                                            {isWork && canEdit && (
-                                                <p className="text-[10px] text-gray-400 text-center">※ 勤務シフトの場所と時間は管理者のみ編集可能です</p>
                                             )}
                                         </div>
                                     );
@@ -581,14 +629,17 @@ export default function ShiftSchedule() {
                             </div>
                         )}
 
-                        {(!selectedGroupRole || targetUser?.id === user?.id) && (
+                        {/* ログインしていれば基本的に追加可能 (自分用) */}
+                        {user && (
                             <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
                                 <button onClick={() => openShiftEditModal()} className="w-full py-4 bg-emerald-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm hover:bg-emerald-600 active:bg-emerald-700 active:scale-[0.98] transition-all">
                                     <CalendarPlus size={20} /> 新しい予定を登録する
                                 </button>
-                                <button onClick={() => { setHolidayDate(selectedDateStr); setShowHolidayModal(true); setShowDayModal(false); }} className="w-full py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
-                                    <span>✨</span> 希望休を申請する
-                                </button>
+                                {(!selectedGroupRole || targetUser?.id === user?.id) && (
+                                    <button onClick={() => { setHolidayDate(selectedDateStr); setShowHolidayModal(true); setShowDayModal(false); }} className="w-full py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                                        <span>✨</span> 希望休を申請する
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -611,7 +662,16 @@ export default function ShiftSchedule() {
                             {!selectedShift && (
                                 <div>
                                     <label className="block text-xs font-bold text-gray-400 mb-1.5 px-1 uppercase tracking-wider">種別</label>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className={`grid ${user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
+                                        {user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShiftFormData({ ...shiftFormData, shift_type: 'work' })}
+                                                className={`py-2 rounded-xl text-xs font-bold border transition-all ${shiftFormData.shift_type === 'work' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
+                                            >
+                                                勤務 (仕事)
+                                            </button>
+                                        )}
                                         <button
                                             type="button"
                                             onClick={() => setShiftFormData({ ...shiftFormData, shift_type: 'plan' })}
@@ -630,20 +690,37 @@ export default function ShiftSchedule() {
                                 </div>
                             )}
 
+                            {/* 対象スタッフ選択 (管理者のみ) */}
+                            {!selectedShift && user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) && (
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 mb-1.5 px-1 uppercase tracking-wider">対象スタッフ</label>
+                                    <select
+                                        value={shiftFormData.user_id}
+                                        onChange={(e) => setShiftFormData({ ...shiftFormData, user_id: e.target.value })}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 outline-none focus:border-emerald-500 font-medium text-sm"
+                                    >
+                                        <option value={user.id}>自分 ({user.display_name})</option>
+                                        {allUsers.filter(u => u.id !== user.id).map(u => (
+                                            <option key={u.id} value={u.id}>{u.display_name} ({u.role})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1.5 px-1 uppercase tracking-wider">
                                     {shiftFormData.shift_type === 'work' ? '勤務場所' : '予定タイトル'}
                                 </label>
                                 <div className="relative">
                                     <MapPin className="absolute left-3.5 top-3.5 text-gray-400" size={18} />
-                                    {shiftFormData.shift_type === 'work' ? (
+                                    {shiftFormData.shift_type === 'work' && !(isAdmin || selectedShift?.user_id === user?.id) ? (
                                         <div className="w-full pl-10 pr-4 py-3 bg-gray-100 border border-gray-100 rounded-2xl text-gray-500 font-bold">
                                             {shiftFormData.location}
                                         </div>
                                     ) : (
                                         <input
                                             required
-                                            placeholder="例：打合せ、私用、○○社訪問など"
+                                            placeholder={shiftFormData.shift_type === 'work' ? "勤務場所を入力 (例: 大阪店)" : "例：打合せ、私用、○○社訪問など"}
                                             value={shiftFormData.location}
                                             onChange={(e) => setShiftFormData({ ...shiftFormData, location: e.target.value })}
                                             className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
@@ -655,7 +732,7 @@ export default function ShiftSchedule() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1.5 px-1 uppercase tracking-wider">開始時間</label>
-                                    {shiftFormData.shift_type === 'work' ? (
+                                    {shiftFormData.shift_type === 'work' && !(isAdmin || selectedShift?.user_id === user?.id) ? (
                                         <div className="w-full px-4 py-3 bg-gray-100 border border-gray-100 rounded-2xl text-gray-500 font-bold">
                                             {shiftFormData.start_time}
                                         </div>
@@ -671,7 +748,7 @@ export default function ShiftSchedule() {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1.5 px-1 uppercase tracking-wider">終了時間</label>
-                                    {shiftFormData.shift_type === 'work' ? (
+                                    {shiftFormData.shift_type === 'work' && !(isAdmin || selectedShift?.user_id === user?.id) ? (
                                         <div className="w-full px-4 py-3 bg-gray-100 border border-gray-100 rounded-2xl text-gray-500 font-bold">
                                             {shiftFormData.end_time}
                                         </div>

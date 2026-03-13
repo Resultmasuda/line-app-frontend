@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { CalendarClock, Search, Filter, ChevronLeft, ChevronRight, Clock, MapPin, UserCheck, UserX, Sun, Navigation, Building2, Plus, Edit2, Trash2, X, Calendar as CalendarIcon, User as UserIcon, Copy, Check } from 'lucide-react';
-import { getAllShifts, getAllAttendances, getAllStores, createStore, updateStore, deleteStore, createShift, updateShift, deleteShift, StoreRecord, getAllUsers, AdminUserRecord } from '@/lib/api/admin';
+import { getAllShifts, getAllAttendances, getAllStores, createStore, updateStore, deleteStore, createShift, updateShift, deleteShift, StoreRecord, getAllUsers, AdminUserRecord, getUserPermissions } from '@/lib/api/admin';
 import { buildInviteStoreLink, getInviteTtlMinutes } from '@/lib/invite';
 type ShiftRecord = {
     id: string;
@@ -34,6 +34,8 @@ export default function AdminShiftsPage() {
     const [userFetchError, setUserFetchError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [userPermissions, setUserPermissions] = useState<any[]>([]);
+    const [currentUser, setCurrentUser] = useState<any>(null);
 
     // シフト管理モーダル用
     const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
@@ -73,9 +75,7 @@ export default function AdminShiftsPage() {
     useEffect(() => {
         async function fetchData() {
             setIsLoading(true);
-            const year = currentDate.getFullYear();
-            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-            const ym = `${year}-${month}`;
+            const ym = currentDate.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit' }).replace(/\//g, '-');
 
             const [shiftRes, attRes, storeRes, userRes] = await Promise.all([
                 getAllShifts(ym),
@@ -110,9 +110,33 @@ export default function AdminShiftsPage() {
                 setUserFetchError(JSON.stringify(userRes.error) || 'Unknown error');
             }
 
+            // ログインユーザー情報と権限の取得
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            if (authUser) {
+                const [profileRes, permRes] = await Promise.all([
+                    supabase.from('users').select('*').eq('id', authUser.id).single(),
+                    getUserPermissions(authUser.id)
+                ]);
+                if (profileRes.data) setCurrentUser(profileRes.data);
+                if (permRes.success && permRes.data) setUserPermissions(permRes.data);
+            }
+
             setIsLoading(false);
         }
         fetchData();
+
+        // リアルタイム更新の購読
+        const { supabase } = require('@/lib/supabase');
+        const channel = supabase
+            .channel('shift_changes')
+            .on('postgres_changes', { event: '*', table: 'shifts', schema: 'public' }, () => {
+                fetchData();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [currentDate]);
 
     const handlePrevMonth = () => {
@@ -123,10 +147,19 @@ export default function AdminShiftsPage() {
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
     };
 
-    const todayJST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
-    const tomorrowJST = new Date(todayJST.getTime() + 24 * 60 * 60 * 1000);
-    const todayStr = todayJST.getFullYear() + '-' + String(todayJST.getMonth() + 1).padStart(2, '0') + '-' + String(todayJST.getDate()).padStart(2, '0');
-    const tomorrowStr = tomorrowJST.getFullYear() + '-' + String(tomorrowJST.getMonth() + 1).padStart(2, '0') + '-' + String(tomorrowJST.getDate()).padStart(2, '0');
+    // 東京時間（JST）の現在日付文字列を取得するヘルパー
+    const getJSTDateStr = (date: Date) => {
+        return new Intl.DateTimeFormat('ja-JP', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            timeZone: 'Asia/Tokyo'
+        }).format(date).replace(/\//g, '-');
+    };
+
+    const now = new Date();
+    const todayStr = getJSTDateStr(now);
+    const tomorrowStr = getJSTDateStr(new Date(now.getTime() + 24 * 60 * 60 * 1000));
 
     const filteredShifts = shifts.filter(s => {
         const matchesSearch = (s.users?.display_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -136,7 +169,19 @@ export default function AdminShiftsPage() {
     }).sort((a, b) => new Date(`${a.date}T${a.start_time}`).getTime() - new Date(`${b.date}T${b.start_time}`).getTime());
 
     // storeTypeFilter に合致する店舗だけを対象にする
-    const filteredStores = stores.filter(s => (s.type || 'store') === storeTypeFilter);
+    const filteredStores = stores.filter(s => {
+        const matchesType = (s.type || 'store') === storeTypeFilter;
+        if (!matchesType) return false;
+
+        // 特権管理者の場合は全て表示
+        const SUPER_IDS = ['c42cb255-d3ad-41cb-9b48-e6ffcd2f6648', '87e75b91-210c-41bb-9cc3-cc7850d473d4'];
+        if (currentUser && (SUPER_IDS.includes(currentUser.id) || currentUser.role === 'PRESIDENT' || currentUser.role === 'EXECUTIVE')) {
+            return true;
+        }
+
+        // それ以外（MANAGERロール等）は MANAGE_STORE 権限がある店舗のみ表示
+        return userPermissions.some(p => p.permission === 'MANAGE_STORE' && p.location_id === s.id);
+    });
 
     // 全ての店舗名を配列のキーとして初期化（シフトが0件でも表示するため）
     const groupedShifts = filteredStores.reduce((acc, store) => {
@@ -340,8 +385,13 @@ export default function AdminShiftsPage() {
                     <div className="flex items-center gap-3 w-full md:w-auto">
                         <button
                             onClick={() => {
-                                const todayStr = currentDate.toISOString().split('T')[0];
-                                setEditingShift({ date: todayStr, start_time: '10:00', end_time: '19:00', location: '' });
+                                const todayStrJST = new Intl.DateTimeFormat('ja-JP', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    timeZone: 'Asia/Tokyo'
+                                }).format(new Date()).replace(/\//g, '-');
+                                setEditingShift({ date: todayStrJST, start_time: '10:00', end_time: '19:00', location: '' });
                                 setIsShiftModalOpen(true);
                             }}
                             className="flex-1 md:flex-none justify-center flex items-center gap-2 px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-600 transition-colors"

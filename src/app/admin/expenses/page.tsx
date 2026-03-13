@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { Receipt, Search, Filter, Download, ArrowDownToLine, ChevronLeft, ChevronRight, Train, Bus, Hotel, ChevronDown, ChevronUp } from 'lucide-react';
-import { getAllExpenses } from '@/lib/api/admin';
+import { getAllExpenses, getAllShifts, getAllAttendances } from '@/lib/api/admin';
 
 type ExpenseRecord = {
     id: string;
@@ -15,8 +15,27 @@ type ExpenseRecord = {
     users?: { display_name: string };
 };
 
+type ShiftRecord = {
+    id: string;
+    date: string;
+    start_time: string;
+    end_time: string;
+    location: string;
+    user_id: string;
+};
+
+type AttendanceRecord = {
+    id: string;
+    user_id: string;
+    date: string;
+    type: 'WAKE_UP' | 'LEAVE' | 'CLOCK_IN' | 'CLOCK_OUT';
+    timestamp: string;
+};
+
 export default function AdminExpensesPage() {
     const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+    const [shifts, setShifts] = useState<ShiftRecord[]>([]);
+    const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -24,19 +43,25 @@ export default function AdminExpensesPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     useEffect(() => {
-        async function fetchExpenses() {
+        async function fetchData() {
             setIsLoading(true);
             const year = currentDate.getFullYear();
             const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-            const res = await getAllExpenses(`${year}-${month}`);
-            if (res.success && res.data) {
-                setExpenses(res.data);
-            } else {
-                setExpenses([]);
-            }
+            const ym = `${year}-${month}`;
+
+            const [expRes, shiftRes, attRes] = await Promise.all([
+                getAllExpenses(ym),
+                getAllShifts(ym),
+                getAllAttendances(ym)
+            ]);
+
+            if (expRes.success && expRes.data) setExpenses(expRes.data);
+            if (shiftRes.success && shiftRes.data) setShifts(shiftRes.data);
+            if (attRes.success && attRes.data) setAttendances(attRes.data);
+
             setIsLoading(false);
         }
-        fetchExpenses();
+        fetchData();
     }, [currentDate]);
 
     const handlePrevMonth = () => {
@@ -47,11 +72,14 @@ export default function AdminExpensesPage() {
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
     };
 
-    const filteredExpenses = expenses.filter(exp =>
-        exp.users?.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        exp.departure.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        exp.arrival.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredExpenses = expenses.filter(exp => {
+        const displayName = exp.users?.display_name || '';
+        return (
+            displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            exp.departure.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            exp.arrival.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    });
 
     const totalAmount = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -76,65 +104,84 @@ export default function AdminExpensesPage() {
     };
 
     const handleXlsxExport = () => {
-        if (filteredExpenses.length === 0) {
+        if (expenses.length === 0) {
             alert("出力するデータがありません");
             return;
         }
 
-        // LINEアプリ内ブラウザ（LIFF等）はファイルのダウンロードをブロックするため警告
-        const isLineApp = typeof window !== 'undefined' && (navigator.userAgent.includes('Line') || navigator.userAgent.includes('li-inapp') || navigator.userAgent.includes('MicroMessenger'));
-        if (isLineApp) {
-            alert("LINEアプリ内のブラウザではExcelファイルをダウンロードできません。\n\n画面右下などの「︙」メニューから「デフォルトのブラウザで開く」または「Safari等で開く」を選択し、ブラウザで開き直してから再度お試しください。");
-            return;
-        }
-
-        // --- xlsx処理開始 ---
-        // xlsxを動的インポートしてエラーを防ぐ (クライアントサイドでのみ実行)
         import('xlsx').then((XLSX) => {
             const wb = XLSX.utils.book_new();
 
-            // シート全体のヘッダー
-            const headers = ['利用日', '種別', '区分', '区間/宿泊先', '到着', '目的/備考', '金額'];
+            // ヘッダー（勤怠＋交通費）
+            const headers = [
+                '利用日', '店舗/場所', '予定時間', 
+                '起床', '出発', '出勤', '退勤',
+                '種別', '区分', '区間/宿泊先', '到着', '目的/備考', '金額'
+            ];
 
-            // 各ユーザーごとのシートを作成
-            userNames.forEach((userName) => {
-                const userExps = groupedExpenses[userName];
-                const sortedExps = [...userExps].sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime());
+            // ユーザーごとに集計
+            const usersWithData = Array.from(new Set([
+                ...expenses.map(e => e.users?.display_name),
+                ...shifts.map(s => (s as any).users?.display_name)
+            ])).filter(Boolean).sort() as string[];
 
-                const rows = sortedExps.map(exp => [
-                    exp.target_date,
-                    exp.transport_type === 'TRAIN' ? '電車' : exp.transport_type === 'HOTEL' ? '宿泊' : 'バス',
-                    exp.transport_type === 'HOTEL' ? '宿泊' : exp.is_round_trip ? '往復' : '片道',
-                    exp.departure,
-                    exp.arrival || '',
-                    exp.purpose || '',
-                    exp.amount
-                ]);
+            usersWithData.forEach((userName) => {
+                const rows: any[] = [];
+                const userExpenses = expenses.filter(e => e.users?.display_name === userName);
+                const userShifts = shifts.filter(s => (s as any).users?.display_name === userName);
+                const userAttendances = attendances.filter(a => (a as any).users?.display_name === userName);
 
-                // 小計行の追加
-                const userTotal = userExps.reduce((sum, e) => sum + e.amount, 0);
-                rows.push(['', '', '', '', '', '合計', userTotal]);
+                // 全ての日付を抽出
+                const allDates = Array.from(new Set([
+                    ...userExpenses.map(e => e.target_date),
+                    ...userShifts.map(s => s.date)
+                ])).sort();
+
+                allDates.forEach(date => {
+                    const dayShifts = userShifts.filter(s => s.date === date);
+                    const dayExps = userExpenses.filter(e => e.target_date === date);
+                    const dayAtts = userAttendances.filter(a => a.date === date);
+
+                    const wakeUp = dayAtts.find(a => a.type === 'WAKE_UP')?.timestamp;
+                    const leave = dayAtts.find(a => a.type === 'LEAVE')?.timestamp;
+                    const clockIn = dayAtts.find(a => a.type === 'CLOCK_IN')?.timestamp;
+                    const clockOut = dayAtts.find(a => a.type === 'CLOCK_OUT')?.timestamp;
+
+                    const formatTime = (ts?: string) => ts ? new Date(ts).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '';
+
+                    // シフトまたは交通費がある場合に1行作成
+                    // 交通費が複数ある場合は複数行
+                    const maxRows = Math.max(1, dayExps.length);
+                    for (let i = 0; i < maxRows; i++) {
+                        const exp = dayExps[i];
+                        const shift = dayShifts[0]; // 基本1日1店舗想定
+
+                        rows.push([
+                            i === 0 ? date : '', // 日付は最初の行だけ
+                            (i === 0 && shift) ? shift.location : '',
+                            (i === 0 && shift) ? `${shift.start_time.substring(0, 5)}〜${shift.end_time.substring(0, 5)}` : '',
+                            (i === 0) ? formatTime(wakeUp) : '',
+                            (i === 0) ? formatTime(leave) : '',
+                            (i === 0) ? formatTime(clockIn) : '',
+                            (i === 0) ? formatTime(clockOut) : '',
+                            exp ? (exp.transport_type === 'TRAIN' ? '電車' : exp.transport_type === 'HOTEL' ? '宿泊' : exp.transport_type === 'COMMUTER_PASS' ? '定期券' : 'バス') : '',
+                            exp ? (exp.transport_type === 'HOTEL' ? '宿泊' : exp.transport_type === 'COMMUTER_PASS' ? '新規購入' : exp.is_round_trip ? '往復' : '片道') : '',
+                            exp ? exp.departure : '',
+                            exp ? (exp.arrival || '') : '',
+                            exp ? (exp.purpose || '') : '',
+                            exp ? exp.amount : 0
+                        ]);
+                    }
+                });
+
+                const userTotal = userExpenses.reduce((sum, e) => sum + e.amount, 0);
+                rows.push(['', '', '', '', '', '', '', '', '', '', '', '合計', userTotal]);
 
                 const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-
-                // シート名が長すぎる場合は切り詰める（Excel仕様上31文字以内）
-                const sheetName = userName.substring(0, 31);
-                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                XLSX.utils.book_append_sheet(wb, ws, userName.substring(0, 31));
             });
 
-            // 全体サマリーシートを追加
-            const summaryHeaders = ['申請者', '件数', '合計金額'];
-            const summaryRows = userNames.map(userName => {
-                const exps = groupedExpenses[userName];
-                const total = exps.reduce((sum, e) => sum + e.amount, 0);
-                return [userName, exps.length, total];
-            });
-            summaryRows.push(['総合計', filteredExpenses.length, totalAmount]);
-            const wsSummary = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryRows]);
-            XLSX.utils.book_append_sheet(wb, wsSummary, '全体サマリー');
-
-            // ファイルダウンロード
-            const fileName = `expenses_${currentDate.getFullYear()}_${String(currentDate.getMonth() + 1).padStart(2, '0')}.xlsx`;
+            const fileName = `attendance_expenses_${currentDate.getFullYear()}_${String(currentDate.getMonth() + 1).padStart(2, '0')}.xlsx`;
             XLSX.writeFile(wb, fileName);
         });
     };

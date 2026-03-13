@@ -23,7 +23,7 @@ export default function ExpenseManagement() {
         const day = String(now.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     });
-    const [transport, setTransport] = useState('TRAIN');
+    const [transport, setTransport] = useState<any>('TRAIN');
     const [departure, setDeparture] = useState('');
     const [arrival, setArrival] = useState('');
     const [isRoundTrip, setIsRoundTrip] = useState(true);
@@ -314,7 +314,7 @@ export default function ExpenseManagement() {
                                 {/* 交通機関 */}
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">交通機関・種別</label>
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                         <button
                                             onClick={() => setTransport('TRAIN')}
                                             className={`${transport === 'TRAIN' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
@@ -329,6 +329,15 @@ export default function ExpenseManagement() {
                                         </button>
                                         <button
                                             onClick={() => {
+                                                setTransport('COMMUTER_PASS');
+                                                setIsRoundTrip(false);
+                                            }}
+                                            className={`${transport === 'COMMUTER_PASS' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
+                                        >
+                                            <Bookmark size={18} /> 定期券
+                                        </button>
+                                        <button
+                                            onClick={() => {
                                                 setTransport('HOTEL');
                                                 setIsRoundTrip(false);
                                                 setArrival('');
@@ -340,16 +349,35 @@ export default function ExpenseManagement() {
                                     </div>
                                 </div>
 
+                                {/* 定期利用の個別切り替え (電車・バスの時のみ) */}
+                                {(transport === 'TRAIN' || transport === 'BUS') && (
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => {
+                                                const currentType = transport as string;
+                                                setTransport((currentType === 'COMMUTER_USE' ? 'TRAIN' : 'COMMUTER_USE') as any);
+                                                if (currentType !== 'COMMUTER_USE') {
+                                                    setAmount('0');
+                                                    setPurpose('定期利用');
+                                                }
+                                            }}
+                                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${transport === 'COMMUTER_USE' ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-emerald-100 text-emerald-600'}`}
+                                        >
+                                            {transport === 'COMMUTER_USE' ? '✓ 定期利用中' : 'この移動を「定期利用」にする'}
+                                        </button>
+                                    </div>
+                                )}
+
                                 {/* 区間 (宿泊時は名称・備考等に変更) */}
                                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 relative">
-                                    {transport !== 'HOTEL' && <div className="absolute left-6 top-9 bottom-9 w-px bg-gray-300 border-dashed border-l"></div>}
+                                    {(transport !== 'HOTEL' && transport !== 'COMMUTER_PASS') && <div className="absolute left-6 top-9 bottom-9 w-px bg-gray-300 border-dashed border-l"></div>}
 
                                     <div className="flex items-center gap-3 relative z-10">
                                         <div className="w-4 h-4 rounded-full border-4 border-emerald-500 bg-white shadow-sm flex-shrink-0"></div>
-                                        <input type="text" value={departure} onChange={(e) => setDeparture(e.target.value)} placeholder={transport === 'HOTEL' ? "宿泊先 (例: アパホテル)" : "出発 (例: JR吹田)"} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 text-sm font-medium" />
+                                        <input type="text" value={departure} onChange={(e) => setDeparture(e.target.value)} placeholder={transport === 'HOTEL' ? "宿泊先 (例: アパホテル)" : transport === 'COMMUTER_PASS' ? "定期区間 (例: 吹田〜大阪)" : "出発 (例: JR吹田)"} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 text-sm font-medium" />
                                     </div>
 
-                                    {transport !== 'HOTEL' && (
+                                    {(transport !== 'HOTEL' && transport !== 'COMMUTER_PASS') && (
                                         <div className="flex items-center gap-3 relative z-10 mt-4">
                                             <div className="w-4 h-4 rounded-full border-4 border-rose-500 bg-white shadow-sm flex-shrink-0"></div>
                                             <input type="text" value={arrival} onChange={(e) => setArrival(e.target.value)} placeholder="到着 (例: JR大阪)" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 text-sm font-medium" />
@@ -358,7 +386,7 @@ export default function ExpenseManagement() {
                                 </div>
 
                                 <div className="flex gap-4">
-                                    {/* 片道復路 / 宿泊日数 */}
+                                    {/* 片道復路 / 宿泊日数 / 定期期間 */}
                                     {transport === 'HOTEL' ? (
                                         <div className="flex-[2]">
                                             <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">宿泊日数</label>
@@ -374,13 +402,19 @@ export default function ExpenseManagement() {
                                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm pointer-events-none">泊</span>
                                             </div>
                                         </div>
+                                    ) : transport === 'COMMUTER_PASS' ? (
+                                        <div className="flex-[3]">
+                                            <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">定期有効期限 (終了日)</label>
+                                            <input type="date" value={arrival} onChange={(e) => setArrival(e.target.value)} className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 font-medium text-sm" />
+                                        </div>
                                     ) : (
                                         <div className="flex-[2]">
                                             <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">区分</label>
                                             <select
                                                 value={isRoundTrip ? 'ROUND_TRIP' : 'ONE_WAY'}
                                                 onChange={(e) => setIsRoundTrip(e.target.value === 'ROUND_TRIP')}
-                                                className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 appearance-none font-medium"
+                                                disabled={transport === 'COMMUTER_USE'}
+                                                className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 appearance-none font-medium disabled:opacity-50"
                                             >
                                                 <option value="ROUND_TRIP">往復</option>
                                                 <option value="ONE_WAY">片道</option>
@@ -393,7 +427,14 @@ export default function ExpenseManagement() {
                                         <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">金額 (円)</label>
                                         <div className="relative">
                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">¥</span>
-                                            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl pl-9 pr-4 py-3 outline-none focus:border-emerald-500 font-black text-lg" />
+                                            <input
+                                                type="number"
+                                                value={amount}
+                                                onChange={(e) => setAmount(e.target.value)}
+                                                disabled={transport === 'COMMUTER_USE'}
+                                                placeholder="0"
+                                                className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl pl-9 pr-4 py-3 outline-none focus:border-emerald-500 font-black text-lg disabled:opacity-75"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -501,18 +542,18 @@ export default function ExpenseManagement() {
                                 </div>
                             </div>
 
-                            <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                             <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                                 <span className="text-xs font-bold text-gray-400">種別</span>
                                 <span className="text-sm font-bold text-gray-800 flex items-center gap-1">
-                                    {transport === 'TRAIN' ? <Train size={14} /> : transport === 'HOTEL' ? <Hotel size={14} /> : <Bus size={14} />}
-                                    {transport === 'TRAIN' ? '電車' : transport === 'HOTEL' ? '宿泊' : 'バス'}
+                                    {transport === 'TRAIN' ? <Train size={14} /> : transport === 'HOTEL' ? <Hotel size={14} /> : transport === 'COMMUTER_PASS' ? <Bookmark size={14} /> : <Bus size={14} />}
+                                    {transport === 'TRAIN' ? '電車' : transport === 'HOTEL' ? '宿泊' : transport === 'COMMUTER_PASS' ? '定期券購入' : transport === 'COMMUTER_USE' ? '定期利用(0円)' : 'バス'}
                                 </span>
                             </div>
 
                             <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                                 <span className="text-xs font-bold text-gray-400">区分</span>
                                 <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                                    {transport === 'HOTEL' ? '宿泊' : isRoundTrip ? '往復' : '片道'}
+                                    {transport === 'HOTEL' ? '宿泊' : transport === 'COMMUTER_PASS' ? '定期券' : transport === 'COMMUTER_USE' ? '定期利用' : isRoundTrip ? '往復' : '片道'}
                                 </span>
                             </div>
 
@@ -549,7 +590,7 @@ export default function ExpenseManagement() {
             )}
 
             {/* フローティングボトムナビゲーション */}
-            <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 pt-3 pb-8 flex justify-between items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
+            <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 pt-3 pb-8 flex justify-around items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
                 <Link href="/" className="flex flex-col items-center text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
                     <Home size={24} strokeWidth={2} />
                     <span className="text-[10px] mt-1.5 font-semibold">ホーム</span>

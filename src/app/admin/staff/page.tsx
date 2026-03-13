@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Users, Search, Filter, Plus, Link as LinkIcon, Edit2, Unlink } from 'lucide-react';
-import { getAllUsers, AdminUserRecord, createPreRegisteredUser, updateUserRole, updateUserPhoneNumber, unlinkUserLineId } from '@/lib/api/admin';
-import { getRoleDisplayLabel, getRoleBadgeClass, ROLE_OPTIONS, isAdminUser } from '@/lib/utils/auth';
+import { Users, Search, Plus, Link as LinkIcon } from 'lucide-react';
+import { getAllUsers, AdminUserRecord, createPreRegisteredUser, updateUserRole } from '@/lib/api/admin';
+import { ROLE_OPTIONS } from '@/lib/utils/auth';
 
 export default function AdminStaffPage() {
     const [users, setUsers] = useState<AdminUserRecord[]>([]);
@@ -16,10 +16,11 @@ export default function AdminStaffPage() {
     const [newUserRole, setNewUserRole] = useState('STAFF');
     const [isCreating, setIsCreating] = useState(false);
 
-    const ROLE_LABELS: Record<string, string> = {
-        'ADMIN': '社長・幹部',
-        'MANAGER': '役職者',
-        'STAFF': '一般'
+    const ROLE_PRIORITY: Record<string, number> = {
+        'PRESIDENT': 0,
+        'EXECUTIVE': 1,
+        'MANAGER': 2,
+        'STAFF': 3
     };
 
     useEffect(() => {
@@ -34,7 +35,14 @@ export default function AdminStaffPage() {
         fetchUsers();
     }, []);
 
-    const filteredUsers = users.filter(user =>
+    const sortedUsers = [...users].sort((a, b) => {
+        const priorityA = ROLE_PRIORITY[a.role.toUpperCase()] ?? 99;
+        const priorityB = ROLE_PRIORITY[b.role.toUpperCase()] ?? 99;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        return a.display_name.localeCompare(b.display_name, 'ja');
+    });
+
+    const filteredUsers = sortedUsers.filter(user =>
         user.display_name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -57,6 +65,12 @@ export default function AdminStaffPage() {
     };
 
     const handleRoleChange = async (userId: string, newRole: string) => {
+        const isSuperAdmin = ['c42cb255-d3ad-41cb-9b48-e6ffcd2f6648', '87e75b91-210c-41bb-9cc3-cc7850d473d4'].includes(userId);
+        if (isSuperAdmin) {
+            alert('システム管理者の権限は内部ロジックで永続化されており、変更できません。');
+            return;
+        }
+
         const res = await updateUserRole(userId, newRole);
         if (res.success) {
             setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
@@ -92,10 +106,6 @@ export default function AdminStaffPage() {
                         />
                     </div>
                     <div className="flex gap-2 w-full sm:w-auto">
-                        <button className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors bg-white whitespace-nowrap">
-                            <Filter size={16} />
-                            絞り込み
-                        </button>
                         <button
                             onClick={() => setShowAddModal(true)}
                             className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm whitespace-nowrap"
@@ -133,65 +143,69 @@ export default function AdminStaffPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredUsers.map((user) => (
-                                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                                                    {user.display_name.slice(0, 2).toUpperCase()}
+                                filteredUsers.map((user) => {
+                                    const isSuperAdmin = ['c42cb255-d3ad-41cb-9b48-e6ffcd2f6648', '87e75b91-210c-41bb-9cc3-cc7850d473d4'].includes(user.id);
+                                    return (
+                                        <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs">
+                                                        {user.display_name.slice(0, 2).toUpperCase()}
+                                                    </div>
+                                                    <span className="font-bold text-gray-800">{user.display_name}</span>
                                                 </div>
-                                                <span className="font-bold text-gray-800">{user.display_name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <select
-                                                value={user.role.toUpperCase()}
-                                                onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer ${user.role.toUpperCase() === 'PRESIDENT' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <select
+                                                    value={user.role.toUpperCase()}
+                                                    disabled={isSuperAdmin}
+                                                    onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                                                    className={`px-2.5 py-1 rounded-lg text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed ${user.role.toUpperCase() === 'PRESIDENT' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                                         user.role.toUpperCase() === 'EXECUTIVE' ? 'bg-rose-50 text-rose-700 border-rose-200' :
                                                             user.role.toUpperCase() === 'MANAGER' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                                                                 'bg-gray-50 text-gray-700 border-gray-200'
-                                                    }`}
-                                            >
-                                                {ROLE_OPTIONS.map(opt => (
-                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                                ))}
-                                            </select>
-                                        </td>
-                                        <td className="px-6 py-4 text-xs whitespace-nowrap">
-                                            <div className="flex flex-col gap-1.5">
-                                                <div className="flex items-center gap-2 group">
-                                                    <span className="font-medium text-gray-700">{user.phone_number || '未登録'}</span>
-                                                </div>
-                                                {user.line_user_id ? (
+                                                        }`}
+                                                >
+                                                    {ROLE_OPTIONS.map(opt => (
+                                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                    ))}
+                                                </select>
+                                            </td>
+                                            <td className="px-6 py-4 text-xs whitespace-nowrap">
+                                                <div className="flex flex-col gap-1.5">
                                                     <div className="flex items-center gap-2 group">
-                                                        <span className="text-emerald-600 font-medium px-2 py-0.5 bg-emerald-50 rounded-md inline-block w-fit text-[10px]">連携済み</span>
+                                                        <span className="font-medium text-gray-700">{user.phone_number || '未登録'}</span>
                                                     </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-amber-600 font-bold px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-md inline-block w-fit text-[10px]">未連携</span>
-                                                        <button
-                                                            onClick={() => {
-                                                                const url = `${window.location.origin}/?link_id=${user.id}`;
-                                                                navigator.clipboard.writeText(url);
-                                                                alert(`連携用URLをコピーしました！スタッフに送信してください。\n${url}`);
-                                                            }}
-                                                            className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-blue-600 transition-colors"
-                                                            title="連携URLをコピー"
-                                                        >
-                                                            <LinkIcon size={14} />
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center whitespace-nowrap">
-                                            <Link href={`/admin/staff/${user.id}`} className="text-emerald-600 font-bold text-[11px] sm:text-xs hover:text-emerald-700 transition-colors bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
-                                                詳細を見る
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                ))
+                                                    {user.line_user_id ? (
+                                                        <div className="flex items-center gap-2 group">
+                                                            <span className="text-emerald-600 font-medium px-2 py-0.5 bg-emerald-50 rounded-md inline-block w-fit text-[10px]">連携済み</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-amber-600 font-bold px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-md inline-block w-fit text-[10px]">未連携</span>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const url = `${window.location.origin}/?link_id=${user.id}`;
+                                                                    navigator.clipboard.writeText(url);
+                                                                    alert(`連携用URLをコピーしました！スタッフに送信してください。\n${url}`);
+                                                                }}
+                                                                className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-blue-600 transition-colors"
+                                                                title="連携URLをコピー"
+                                                            >
+                                                                <LinkIcon size={14} />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center whitespace-nowrap">
+                                                <Link href={`/admin/staff/${user.id}`} className="text-emerald-600 font-bold text-[11px] sm:text-xs hover:text-emerald-700 transition-colors bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                                                    詳細を見る
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>

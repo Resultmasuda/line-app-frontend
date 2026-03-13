@@ -35,6 +35,7 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
 
     const [showRegistration, setShowRegistration] = useState(false);
     const [regProfile, setRegProfile] = useState<{ userId: string, displayName: string } | null>(null);
+    const [pendingRegUser, setPendingRegUser] = useState<any | null>(null);
     const [inviteStoreIdState, setInviteStoreIdState] = useState<string | null>(null);
     const [inviteNonceState, setInviteNonceState] = useState<string | null>(null);
     const [regError, setRegError] = useState<string | null>(null);
@@ -176,9 +177,18 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
                     }
                 }
 
-            } catch (err: unknown) {
+            } catch (err: any) {
                 if (isMounted) {
                     console.error("LIFF initialization failed", err);
+                    
+                    // 「Access token expired」エラーの場合、再ログインを試みる
+                    if (err?.message?.includes('expired') || (typeof err === 'string' && err.includes('expired'))) {
+                        console.log('LIFF token expired, redirecting to login...');
+                        liff.logout();
+                        liff.login({ redirectUri: window.location.href });
+                        return;
+                    }
+
                     if (err instanceof Error) {
                         setError(err.message);
                     } else {
@@ -199,15 +209,13 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
         };
     }, []);
 
-    const handleRegistration = async (phoneNumber: string, pinCode: string) => {
+    const handleRegistrationSubmit = async (phoneNumber: string, pinCode: string) => {
         setRegError(null);
-
-        if (!regProfile) return;
+        if (!regProfile) return { success: false };
 
         const cleanPhone = phoneNumber.trim().replace(/\s/g, '').replace(/-/g, '');
 
         try {
-            // RPCを使用して RLS をバイパスし、ユーザーを検索する（無限ループ回避 + 表記揺れ吸収）
             const { data: matchedUsers, error: searchErr } = await supabase
                 .rpc('find_unlinked_user_by_phone', { p_phone_number: cleanPhone });
 
@@ -215,33 +223,46 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
 
             if (searchErr || !matchedPreReg) {
                 setRegError('入力された電話番号のスタッフ登録が見つかりません。管理者に登録状況を確認してください。');
-                return;
+                return { success: false };
             }
 
-            // 個別のPIN設定があればそれを使用、なければ全体パスワード
             const expectedPin = matchedPreReg.pin_code || process.env.NEXT_PUBLIC_REGISTRATION_PIN || '@Result2020';
-
             if (pinCode !== expectedPin) {
                 setRegError('パスワードが間違っています。');
-                return;
+                return { success: false };
             }
 
+            // まだ紐付けず、確認状態にする
+            setPendingRegUser(matchedPreReg);
+            return { success: true, displayName: matchedPreReg.display_name };
+        } catch (err) {
+            console.error('Registration link search error:', err);
+            setRegError('確認処理中にエラーが発生しました。');
+            return { success: false };
+        }
+    };
+
+    const handleRegistrationConfirm = async () => {
+        if (!regProfile || !pendingRegUser) return;
+
+        try {
             // LINEアカウントと紐付ける
             const { data: linkedUser, error: linkErr } = await supabase
                 .from('users')
                 .update({
                     line_user_id: regProfile.userId
                 })
-                .eq('id', matchedPreReg.id)
+                .eq('id', pendingRegUser.id)
                 .select()
                 .single();
 
             if (linkErr) throw linkErr;
 
-            alert(`認証成功！「${matchedPreReg.display_name}」さんと連携しました。`);
+            alert(`連携完了！「${pendingRegUser.display_name}」さんと連携しました。`);
 
             setUser(linkedUser as AppUser);
             setShowRegistration(false);
+            setPendingRegUser(null);
 
             // 招待URLからの遷移だった場合は店舗に紐付ける
             if (inviteStoreIdState) {
@@ -258,7 +279,7 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
             }
         } catch (err) {
             console.error('Registration link error:', err);
-            setRegError('連携処理中にエラーが発生しました。時間を置いて再度お試しください。');
+            setRegError('連携処理中にエラーが発生しました。');
         }
     };
 
@@ -266,7 +287,8 @@ export default function LiffProvider({ children }: { children: React.ReactNode }
         <LiffContext.Provider value={{ user, loading, error }}>
             {showRegistration && (
                 <RegistrationScreen
-                    onSubmit={handleRegistration}
+                    onSubmit={handleRegistrationSubmit}
+                    onConfirm={handleRegistrationConfirm}
                     error={regError}
                 />
             )}

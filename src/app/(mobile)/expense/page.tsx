@@ -239,7 +239,7 @@ export default function ExpenseManagement() {
                                             <div className="flex items-center justify-between mb-3 border-b border-gray-50 pb-3">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
-                                                        {item.transport_type === 'TRAIN' ? <Train size={20} /> : item.transport_type === 'HOTEL' ? <Hotel size={20} /> : <Bus size={20} />}
+                                                        {item.transport_type === 'TRAIN' ? <Train size={20} /> : item.transport_type === 'HOTEL' ? <Hotel size={20} /> : (item.transport_type === 'COMMUTER_PASS' || item.transport_type === 'COMMUTER_USE') ? <Bookmark size={20} /> : <Bus size={20} />}
                                                     </div>
                                                     <div>
                                                         <p className="text-xs text-gray-400 font-medium mb-0.5">{dateStr} • {item.transport_type === 'HOTEL' ? '宿泊' : item.is_round_trip ? '往復' : '片道'}</p>

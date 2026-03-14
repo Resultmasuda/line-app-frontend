@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Receipt, Search, Filter, Download, ArrowDownToLine, ChevronLeft, ChevronRight, Train, Bus, Hotel, ChevronDown, ChevronUp } from 'lucide-react';
+import { Receipt, Search, Filter, Download, ArrowDownToLine, ChevronLeft, ChevronRight, Train, Bus, Hotel, ChevronDown, ChevronUp, Bookmark } from 'lucide-react';
 import { getAllExpenses, getAllShifts, getAllAttendances } from '@/lib/api/admin';
 
 type ExpenseRecord = {
@@ -343,6 +343,8 @@ export default function AdminExpensesPage() {
                                                                                 <Train size={14} className="text-gray-400" />
                                                                             ) : exp.transport_type === 'HOTEL' ? (
                                                                                 <Hotel size={14} className="text-gray-400" />
+                                                                            ) : (exp.transport_type === 'COMMUTER_PASS' || exp.transport_type === 'COMMUTER_USE') ? (
+                                                                                <Bookmark size={14} className="text-emerald-500" />
                                                                             ) : (
                                                                                 <Bus size={14} className="text-gray-400" />
                                                                             )}

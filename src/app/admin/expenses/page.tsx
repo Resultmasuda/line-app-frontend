@@ -282,17 +282,17 @@ export default function AdminExpensesPage() {
                                             onClick={() => toggleUser(userName)}
                                             className="w-full bg-white hover:bg-gray-50 px-5 py-4 flex items-center justify-between transition-colors focus:outline-none"
                                         >
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm">
+                                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
                                                     {userName.slice(0, 2).toUpperCase()}
                                                 </div>
-                                                <div className="text-left">
-                                                    <h3 className="font-bold text-gray-800">{userName}</h3>
+                                                <div className="text-left truncate">
+                                                    <h3 className="font-bold text-gray-800 truncate">{userName}</h3>
                                                     <p className="text-xs text-gray-500 mt-1">{userExps.length} 件の申請</p>
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-6">
+                                            <div className="flex items-center gap-6 flex-shrink-0 ml-4">
                                                 <div className="text-right">
                                                     <p className="text-xs font-bold text-gray-400 mb-0.5">交通費 小計</p>
                                                     <p className="font-black text-gray-800 text-lg">¥{userTotal.toLocaleString()}</p>
@@ -308,11 +308,11 @@ export default function AdminExpensesPage() {
                                                 <table className="w-full text-left border-collapse min-w-[600px]">
                                                     <thead>
                                                         <tr className="bg-gray-100/50 text-gray-400 text-[11px] uppercase tracking-wider">
-                                                            <th className="px-6 py-3 font-semibold whitespace-nowrap">利用日</th>
-                                                            <th className="px-6 py-3 font-semibold text-center whitespace-nowrap">区分</th>
-                                                            <th className="px-6 py-3 font-semibold whitespace-nowrap">経路 / 区間</th>
-                                                            <th className="px-6 py-3 font-semibold whitespace-nowrap">目的</th>
-                                                            <th className="px-6 py-3 font-semibold text-right whitespace-nowrap">金額</th>
+                                                            <th className="px-6 py-3 font-semibold whitespace-nowrap w-[100px]">利用日</th>
+                                                            <th className="px-6 py-3 font-semibold text-center whitespace-nowrap w-[100px]">区分</th>
+                                                            <th className="px-6 py-3 font-semibold whitespace-nowrap min-w-[200px]">経路 / 区間</th>
+                                                            <th className="px-6 py-3 font-semibold whitespace-nowrap min-w-[200px]">目的</th>
+                                                            <th className="px-6 py-3 font-semibold text-right whitespace-nowrap w-[120px]">金額</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-100 bg-white">
@@ -337,8 +337,8 @@ export default function AdminExpensesPage() {
                                                                             {exp.transport_type === 'HOTEL' ? '宿泊' : exp.transport_type === 'COMMUTER_PASS' ? '定期券' : exp.transport_type === 'COMMUTER_USE' ? '定期利用' : exp.is_round_trip ? '往復' : '片道'}
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                                        <div className="flex items-center gap-2">
+                                                                    <td className="px-6 py-4 whitespace-normal min-w-[200px]">
+                                                                        <div className="flex items-center gap-2 flex-wrap">
                                                                             {exp.transport_type === 'TRAIN' ? (
                                                                                 <Train size={14} className="text-gray-400" />
                                                                             ) : exp.transport_type === 'HOTEL' ? (
@@ -346,12 +346,12 @@ export default function AdminExpensesPage() {
                                                                             ) : (
                                                                                 <Bus size={14} className="text-gray-400" />
                                                                             )}
-                                                                            <span className="text-sm font-bold text-gray-700 flex items-center gap-1">
-                                                                                {exp.departure} {exp.transport_type !== 'HOTEL' && <ChevronRight size={12} className="text-gray-300" />} {exp.transport_type !== 'HOTEL' && exp.arrival}
+                                                                            <span className="text-sm font-bold text-gray-700 flex items-center gap-1 break-all">
+                                                                                {exp.departure} {exp.transport_type !== 'HOTEL' && <ChevronRight size={12} className="text-gray-300 flex-shrink-0" />} {exp.transport_type !== 'HOTEL' && exp.arrival}
                                                                             </span>
                                                                         </div>
                                                                     </td>
-                                                                    <td className="px-6 py-4 text-xs text-gray-500 min-w-[120px]">
+                                                                    <td className="px-6 py-4 text-xs text-gray-500 min-w-[200px] whitespace-normal break-words leading-relaxed">
                                                                         {exp.purpose || '-'}
                                                                     </td>
                                                                     <td className="px-6 py-4 text-right whitespace-nowrap">

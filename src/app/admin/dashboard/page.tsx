@@ -245,7 +245,7 @@ export default function AdminDashboardPage() {
                                                     </div>
                                                     <p className="text-xs text-gray-500 font-medium mt-0.5">{s.location}</p>
                                                     {s.daily_memo && (
-                                                        <p className="text-[10px] text-gray-600 mt-1.5 bg-white p-1.5 rounded border border-gray-100 line-clamp-2 shadow-sm">
+                                                        <p className="text-[10px] text-gray-600 mt-1.5 bg-white p-1.5 rounded border border-gray-100 line-clamp-6 shadow-sm break-words whitespace-pre-wrap">
                                                             {s.daily_memo}
                                                         </p>
                                                     )}
@@ -287,12 +287,12 @@ export default function AdminDashboardPage() {
                                         <tbody className="divide-y divide-gray-50">
                                             {expenses.slice(0, 5).map((exp: AdminExpense) => (
                                                 <tr key={exp.id} className="hover:bg-gray-50/50 transition-colors">
-                                                    <td className="px-5 py-3 whitespace-nowrap">
-                                                        <div className="font-bold text-gray-800 text-sm">{exp.users.display_name}</div>
+                                                    <td className="px-5 py-3 min-w-[100px]">
+                                                        <div className="font-bold text-gray-800 text-sm whitespace-normal break-all">{exp.users.display_name}</div>
                                                         <div className="text-[10px] text-gray-400">{exp.target_date}</div>
                                                     </td>
                                                     <td className="px-5 py-3">
-                                                        <div className="text-xs font-bold text-gray-700 leading-tight">
+                                                        <div className="text-xs font-bold text-gray-700 leading-tight whitespace-normal break-all">
                                                             {exp.departure} 
                                                             {exp.transport_type !== 'HOTEL' && <><span className="text-gray-300 mx-1">→</span> {exp.arrival}</>}
                                                         </div>

@@ -326,11 +326,15 @@ export default function AdminExpensesPage() {
                                                                     <td className="px-6 py-4 text-center whitespace-nowrap">
                                                                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${exp.transport_type === 'HOTEL'
                                                                             ? 'bg-purple-50 text-purple-600 border border-purple-100'
-                                                                            : exp.is_round_trip
-                                                                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                                                                                : 'bg-blue-50 text-blue-600 border border-blue-100'
+                                                                            : exp.transport_type === 'COMMUTER_PASS'
+                                                                                ? 'bg-orange-50 text-orange-600 border border-orange-100'
+                                                                                : exp.transport_type === 'COMMUTER_USE'
+                                                                                    ? 'bg-cyan-50 text-cyan-600 border border-cyan-100'
+                                                                                    : exp.is_round_trip
+                                                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                                                                        : 'bg-blue-50 text-blue-600 border border-blue-100'
                                                                             }`}>
-                                                                            {exp.transport_type === 'HOTEL' ? '宿泊' : exp.is_round_trip ? '往復' : '片道'}
+                                                                            {exp.transport_type === 'HOTEL' ? '宿泊' : exp.transport_type === 'COMMUTER_PASS' ? '定期券' : exp.transport_type === 'COMMUTER_USE' ? '定期利用' : exp.is_round_trip ? '往復' : '片道'}
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -347,7 +351,7 @@ export default function AdminExpensesPage() {
                                                                             </span>
                                                                         </div>
                                                                     </td>
-                                                                    <td className="px-6 py-4 text-xs text-gray-500 truncate max-w-[150px] whitespace-nowrap">
+                                                                    <td className="px-6 py-4 text-xs text-gray-500 min-w-[120px]">
                                                                         {exp.purpose || '-'}
                                                                     </td>
                                                                     <td className="px-6 py-4 text-right whitespace-nowrap">

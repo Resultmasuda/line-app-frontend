@@ -292,10 +292,30 @@ export default function AdminDashboardPage() {
                                                         <div className="text-[10px] text-gray-400">{exp.target_date}</div>
                                                     </td>
                                                     <td className="px-5 py-3">
-                                                        <div className="text-xs font-bold text-gray-700">{exp.departure} <span className="text-gray-400">→</span> {exp.arrival}</div>
-                                                        <div className="text-[10px] text-gray-500">{exp.transport_type} {exp.is_round_trip ? '(往復)' : ''}</div>
+                                                        <div className="text-xs font-bold text-gray-700 leading-tight">
+                                                            {exp.departure} 
+                                                            {exp.transport_type !== 'HOTEL' && <><span className="text-gray-300 mx-1">→</span> {exp.arrival}</>}
+                                                        </div>
+                                                        <div className="flex gap-1.5 mt-1">
+                                                            <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${
+                                                                exp.transport_type === 'HOTEL' ? 'bg-purple-50 text-purple-600' :
+                                                                exp.transport_type === 'COMMUTER_PASS' ? 'bg-orange-50 text-orange-600' :
+                                                                exp.transport_type === 'COMMUTER_USE' ? 'bg-cyan-50 text-cyan-600' :
+                                                                'bg-gray-100 text-gray-500'
+                                                            }`}>
+                                                                {exp.transport_type === 'HOTEL' ? '宿泊' : 
+                                                                 exp.transport_type === 'COMMUTER_PASS' ? '定期券' : 
+                                                                 exp.transport_type === 'COMMUTER_USE' ? '定期利用' : 
+                                                                 exp.transport_type === 'TRAIN' ? '電車' : 'バス'}
+                                                            </span>
+                                                            {exp.transport_type !== 'HOTEL' && exp.transport_type !== 'COMMUTER_PASS' && exp.transport_type !== 'COMMUTER_USE' && (
+                                                                <span className="text-[9px] font-bold bg-gray-50 text-gray-400 px-1 py-0.5 rounded">
+                                                                    {exp.is_round_trip ? '往復' : '片道'}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </td>
-                                                    <td className="px-5 py-3 whitespace-nowrap text-right font-bold text-gray-800 text-sm">
+                                                    <td className="px-5 py-3 whitespace-nowrap text-right font-black text-gray-900 text-sm">
                                                         ¥{exp.amount.toLocaleString()}
                                                     </td>
                                                 </tr>

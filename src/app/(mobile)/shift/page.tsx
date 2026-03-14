@@ -97,11 +97,19 @@ export default function ShiftSchedule() {
         const yearMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
         try {
+            // 常に自分の希望休を取得しておく（表示モードに関わらず重複申請防止や自分用表示に必要）
+            let myHolidays: HolidayRequest[] = [];
+            if (user?.id) {
+                const hRes = await getHolidayRequests(user.id, yearMonth);
+                if (hRes.success && hRes.data) {
+                    myHolidays = hRes.data;
+                }
+            }
+
             // 店舗（販路）表示モード
             if (selectedStore) {
                 const shiftRes = await getStoreMonthlyShifts([selectedStore], yearMonth);
                 if (shiftRes.success && shiftRes.data) {
-                    // display_name を location に設定してUI上スタッフ名が見えるようにする
                     const enriched = shiftRes.data.map((s: any) => ({
                         ...s,
                         location: (s.users as any)?.display_name || '名称不明',
@@ -109,14 +117,14 @@ export default function ShiftSchedule() {
                     }));
                     setShifts(enriched);
                 }
-                setHolidays([]);
+                // 自分の希望休のみ保持
+                setHolidays(myHolidays);
             }
             // グループまとめ表示モード
             else if (selectedGroupRole) {
                 const groupUserIds = allUsers
                     .filter(u => u.role.toUpperCase() === selectedGroupRole)
                     .map(u => u.id);
-                // 自分も同じロールなら追加
                 if (user && user.role.toUpperCase() === selectedGroupRole && !groupUserIds.includes(user.id)) {
                     groupUserIds.push(user.id);
                 }
@@ -124,7 +132,6 @@ export default function ShiftSchedule() {
                 if (groupUserIds.length > 0) {
                     const shiftRes = await getGroupMonthlyShifts(groupUserIds, yearMonth);
                     if (shiftRes.success && shiftRes.data) {
-                        // display_name をスタッフ名としてlocationに付加して表示
                         const enriched = shiftRes.data.map((s: any) => ({
                             ...s,
                             location: `${(s.users as any)?.display_name || '?'} - ${s.location || ''}`,
@@ -133,7 +140,7 @@ export default function ShiftSchedule() {
                         setShifts(enriched);
                     }
                 }
-                setHolidays([]);
+                setHolidays(myHolidays);
             } else {
                 // 個別ユーザーモード
                 const userId = targetUser?.id || user?.id;
@@ -148,6 +155,7 @@ export default function ShiftSchedule() {
                     setShifts(shiftRes.data);
                 }
                 if (holidayRes.success && holidayRes.data) {
+                    // targetUser が自分以外ならその人の希望休を表示、自分なら myHolidays を使用
                     setHolidays(holidayRes.data);
                 }
             }
@@ -204,6 +212,15 @@ export default function ShiftSchedule() {
         if (!user) return;
 
         setSubmitLoading(true);
+
+        // 重複チェック (承認済み、または承認待ちのものに限定)
+        const alreadyHasHoliday = holidays.some(h => h.date === holidayDate && h.status !== 'REJECTED');
+        if (alreadyHasHoliday) {
+            alert('この日は既に希望休を申請済みです。');
+            setSubmitLoading(false);
+            return;
+        }
+
         const res = await createHolidayRequest({
             user_id: user.id,
             date: holidayDate,
@@ -571,6 +588,36 @@ export default function ShiftSchedule() {
                             </button>
                         </div>
 
+                        {/* 希望休の表示を追加 */}
+                        {(() => {
+                            // selectedDateStr が '2026-03-14' のような形式であることを期待
+                            const dayHoliday = holidays.find(h => h.date === selectedDateStr && h.status !== 'REJECTED');
+                            if (!dayHoliday) return null;
+                            return (
+                                <div className="mb-6 animate-in slide-in-from-top-2">
+                                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h4 className="text-sm font-bold text-amber-800 flex items-center gap-1">
+                                                <span>✨</span> 希望休を申請済み
+                                            </h4>
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                                                dayHoliday.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                dayHoliday.status === 'PENDING' ? 'bg-amber-100 text-amber-600 border-amber-200' :
+                                                'bg-rose-50 text-rose-600 border-rose-100'
+                                            }`}>
+                                                {dayHoliday.status === 'APPROVED' ? '承認済み' : dayHoliday.status === 'PENDING' ? '承認待ち' : '却下'}
+                                            </span>
+                                        </div>
+                                        {dayHoliday.reason && (
+                                            <p className="text-xs text-amber-700 bg-white/50 p-2 rounded-lg italic">
+                                                理由: {dayHoliday.reason}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                         {selectedShifts.length > 0 ? (
                             <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
                                 {selectedShifts.map((s, idx) => {
@@ -699,12 +746,15 @@ export default function ShiftSchedule() {
                                             <button
                                                 key={p.label}
                                                 type="button"
-                                                onClick={() => setShiftFormData({ 
-                                                    ...shiftFormData, 
-                                                    start_time: p.start, 
-                                                    end_time: p.end, 
-                                                    shift_type: p.label === '未定' ? 'plan' : (user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) ? 'work' : 'plan')
-                                                })}
+                                                onClick={() => {
+                                                    const isUndecided = p.label === '未定';
+                                                    setShiftFormData({ 
+                                                        ...shiftFormData, 
+                                                        start_time: p.start, 
+                                                        end_time: p.end, 
+                                                        shift_type: isUndecided ? 'plan' : (user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) ? 'work' : 'plan')
+                                                    });
+                                                }}
                                                 className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${p.color} active:scale-95`}
                                             >
                                                 {p.label}
@@ -767,10 +817,44 @@ export default function ShiftSchedule() {
                                         <div className="w-full pl-10 pr-4 py-3 bg-gray-100 border border-gray-100 rounded-2xl text-gray-500 font-bold">
                                             {shiftFormData.location}
                                         </div>
+                                    ) : shiftFormData.shift_type === 'work' ? (
+                                        <select
+                                            required
+                                            value={shiftFormData.location}
+                                            onChange={(e) => setShiftFormData({ ...shiftFormData, location: e.target.value })}
+                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium appearance-none"
+                                        >
+                                            <option value="">勤務場所を選択してください</option>
+                                            {(() => {
+                                                // Prioritize affiliated stores
+                                                const affiliated = stores.filter(s => {
+                                                    try {
+                                                        const staffList = typeof s.affiliated_staff === 'string' ? JSON.parse(s.affiliated_staff) : s.affiliated_staff;
+                                                        return Array.isArray(staffList) && staffList.includes(user?.id);
+                                                    } catch { return false; }
+                                                });
+                                                const others = stores.filter(s => !affiliated.find(a => a.id === s.id));
+                                                
+                                                return (
+                                                    <>
+                                                        {affiliated.length > 0 && (
+                                                            <optgroup label="所属店舗">
+                                                                {affiliated.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                                            </optgroup>
+                                                        )}
+                                                        {others.length > 0 && (
+                                                            <optgroup label="その他の店舗">
+                                                                {others.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                                            </optgroup>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
+                                        </select>
                                     ) : (
                                         <input
                                             required
-                                            placeholder={shiftFormData.shift_type === 'work' ? "勤務場所を入力 (例: 大阪店)" : "例：打合せ、私用、○○社訪問など"}
+                                            placeholder="例：打合せ、私用、○○社訪問など"
                                             value={shiftFormData.location}
                                             onChange={(e) => setShiftFormData({ ...shiftFormData, location: e.target.value })}
                                             className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
@@ -903,10 +987,10 @@ export default function ShiftSchedule() {
                                     </button>
                                     <button
                                         type="submit"
-                                        disabled={submitLoading}
+                                        disabled={submitLoading || holidays.some(h => h.date === holidayDate)}
                                         className="flex-1 py-3 bg-amber-500 text-white font-bold rounded-2xl hover:bg-amber-600 transition-all shadow-md active:scale-95 disabled:opacity-50"
                                     >
-                                        {submitLoading ? '申請中...' : '申請する'}
+                                        {submitLoading ? '申請中...' : holidays.some(h => h.date === holidayDate) ? '申請済み' : '申請する'}
                                     </button>
                                 </div>
                             </form>

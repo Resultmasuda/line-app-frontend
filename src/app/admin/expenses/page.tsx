@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Receipt, Search, Filter, Download, ArrowDownToLine, ChevronLeft, ChevronRight, Train, Bus, Hotel, ChevronDown, ChevronUp, Bookmark } from 'lucide-react';
+import { Receipt, Search, Filter, Download, ArrowDownToLine, ChevronLeft, ChevronRight, Train, Bus, Hotel, ChevronDown, ChevronUp, Bookmark, X, AlertTriangle, Users } from 'lucide-react';
 import { getAllExpenses, getAllShifts, getAllAttendances } from '@/lib/api/admin';
 
 type ExpenseRecord = {
@@ -102,6 +102,38 @@ export default function AdminExpensesPage() {
             [userName]: !prev[userName]
         }));
     };
+
+    // 稼働日数に対して申請が少ないユーザーを特定
+    const [showLowExpUsersModal, setShowLowExpUsersModal] = useState(false);
+    
+    const lowExpUsers = (() => {
+        const allUserIds = Array.from(new Set(shifts.map(s => s.user_id)));
+        const usersInfo = allUserIds.map(uid => {
+            const userShifts = shifts.filter(s => s.user_id === uid);
+            const userExps = expenses.filter(e => (e as any).user_id === uid || (e.users as any)?.id === uid || e.users?.display_name === (userShifts[0] as any)?.users?.display_name);
+            
+            // 実際にはAPIレスポンスの形に合わせる必要があるが、
+            // 現状の ExpenseRecord & ShiftRecord から推測
+            const userName = (userShifts[0] as any)?.users?.display_name || (userExps[0] as any)?.users?.display_name || '不明';
+            
+            const shiftDates = Array.from(new Set(userShifts.map(s => s.date)));
+            const expDates = Array.from(new Set(userExps.map(e => e.target_date)));
+            
+            // 申請漏れの疑い: シフトがあるのに、その日に交通費申請がない（定期券等を除く）
+            const missingDates = shiftDates.filter(d => !expDates.includes(d));
+            
+            return {
+                id: uid,
+                name: userName,
+                shiftCount: shiftDates.length,
+                expCount: expDates.length,
+                missingCount: missingDates.length,
+                missingDates
+            };
+        });
+
+        return usersInfo.filter(u => u.missingCount > 0).sort((a, b) => b.missingCount - a.missingCount);
+    })();
 
     const handleXlsxExport = () => {
         if (expenses.length === 0) {
@@ -222,15 +254,20 @@ export default function AdminExpensesPage() {
                         <Receipt size={24} />
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                <button 
+                    onClick={() => setShowLowExpUsersModal(true)}
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-red-100 flex items-center justify-between hover:bg-red-50/50 transition-colors text-left"
+                >
                     <div>
-                        <p className="text-sm font-bold text-gray-500 mb-1">当月 申請件数</p>
-                        <p className="text-3xl font-black text-gray-800 tracking-tight">{filteredExpenses.length} 件</p>
+                        <p className="text-sm font-bold text-red-500 mb-1 flex items-center gap-1">
+                            <AlertTriangle size={14} /> 交通費 未申請(疑い)
+                        </p>
+                        <p className="text-3xl font-black text-gray-800 tracking-tight">{lowExpUsers.length} <span className="text-sm font-bold text-gray-400">名</span></p>
                     </div>
-                    <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center">
-                        <ArrowDownToLine size={24} />
+                    <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center">
+                        <Users size={24} />
                     </div>
-                </div>
+                </button>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-6xl">
@@ -373,6 +410,63 @@ export default function AdminExpensesPage() {
                     )}
                 </div>
             </div>
+
+            {/* Low Expense Users Modal */}
+            {showLowExpUsersModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowLowExpUsersModal(false)}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-red-50/30">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                    <AlertTriangle className="text-red-500" size={20} />
+                                    交通費 未申請の疑いがあるスタッフ
+                                </h3>
+                                <p className="text-xs text-gray-500">シフトに対して申請日数が不足しているスタッフ一覧</p>
+                            </div>
+                            <button onClick={() => setShowLowExpUsersModal(false)} className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+                                <X size={20} className="text-gray-500" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            {lowExpUsers.length === 0 ? (
+                                <div className="text-center py-12 text-gray-400">
+                                    該当するスタッフはいません
+                                </div>
+                            ) : (
+                                lowExpUsers.map(u => (
+                                    <div key={u.id} className="border border-gray-100 rounded-xl p-4 flex items-center justify-between hover:bg-gray-50 transition-colors bg-white shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center font-bold">
+                                                {u.name.slice(0, 1)}
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-gray-800">{u.name}</div>
+                                                <div className="text-[10px] text-gray-500">
+                                                    稼働: {u.shiftCount}日 / 交通費申請: {u.expCount}日
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-red-600 font-black text-lg">
+                                                -{u.missingCount} <span className="text-[10px]">日分</span>
+                                            </div>
+                                            <div className="text-[9px] text-gray-400">未申請の可能性</div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="p-4 bg-gray-50 border-t border-gray-100">
+                            <button 
+                                onClick={() => setShowLowExpUsersModal(false)}
+                                className="w-full py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+                            >
+                                閉じる
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

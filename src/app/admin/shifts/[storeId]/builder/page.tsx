@@ -13,6 +13,13 @@ import {
 
 // ShiftRecord type is imported from '@/lib/api/admin'
 
+interface ShiftPreset {
+    label: string;
+    start: string;
+    end: string;
+    color: string;
+}
+
 // State mapping for the grid: { "userId_YYYY-MM-DD": { start_time, end_time, shiftId?, isModified?, isDeleted? } }
 type GridState = Record<string, {
     start_time: string;
@@ -26,11 +33,11 @@ type GridState = Record<string, {
     daily_memo?: string;
 }>;
 
-const SHIFT_PRESETS = [
-    { label: '早番', start: '10:00', end: '19:00', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+const SHIFT_PRESETS: ShiftPreset[] = [
+    { label: '早番', start: '10:00', end: '19:00', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
     { label: '中番', start: '11:00', end: '20:00', color: 'bg-blue-50 text-blue-700 border-blue-200' },
     { label: '遅番', start: '12:00', end: '21:00', color: 'bg-purple-50 text-purple-700 border-purple-200' },
-    { label: '未定', start: '', end: '', color: 'bg-gray-50 text-gray-700 border-gray-200' },
+    { label: '未定', start: '00:00', end: '00:00', color: 'bg-gray-50 text-gray-700 border-gray-200' },
 ];
 
 // CSS for Staging Mode Stripes
@@ -70,7 +77,7 @@ export default function AdvancedShiftBuilder() {
     const [copiedTime, setCopiedTime] = useState<{ start: string, end: string } | null>(null);
     const [activePresetIndex, setActivePresetIndex] = useState<number | null>(null);
     const [isStampMode, setIsStampMode] = useState(false);
-    const [showAllStaff, setShowAllStaff] = useState(false);
+    const [showAllStaff, setShowAllStaff] = useState(false); // Default to affiliated only
     const [searchQuery, setSearchQuery] = useState('');
     const [pendingConfirm, setPendingConfirm] = useState<{ message: string, action: () => void } | null>(null);
 
@@ -504,26 +511,52 @@ export default function AdvancedShiftBuilder() {
             }
         }
 
+        if (upserts.length === 0 && deletes.length === 0) {
+            alert('変更がありません');
+            return;
+        }
+
+        setIsSaving(true);
         try {
-            if (deletes.length > 0) {
-                await bulkDeleteShifts(deletes);
-            }
-            if (upserts.length > 0) {
-                await bulkUpsertShifts(upserts);
-            }
+            const [res, delRes] = await Promise.all([
+                upserts.length > 0 ? bulkUpsertShifts(upserts) : Promise.resolve({ success: true, data: [] }),
+                deletes.length > 0 ? bulkDeleteShifts(deletes) : Promise.resolve({ success: true })
+            ]);
 
-            // After save, reset isModified
-            setGridState(prev => {
-                const next = { ...prev };
-                Object.keys(next).forEach(key => {
-                    next[key] = { ...next[key], isModified: false };
+            if (res.success && delRes.success) {
+                // Update gridState with the newly created/updated shifts
+                const newState = { ...gridState };
+                (res.data as ShiftRecord[] || []).forEach((s: ShiftRecord) => {
+                    const key = `${s.user_id}_${s.date}`;
+                    if (newState[key]) {
+                        newState[key] = {
+                            ...newState[key],
+                            shiftId: s.id,
+                            status: s.status || 'published',
+                            isModified: false,
+                            start_time: s.start_time?.substring(0, 5) || '00:00',
+                            end_time: s.end_time?.substring(0, 5) || '00:00',
+                            planned_wake_up_time: s.planned_wake_up_time?.substring(0, 5) || '',
+                            planned_leave_time: s.planned_leave_time?.substring(0, 5) || '',
+                            daily_memo: s.daily_memo || ''
+                        };
+                    }
                 });
-                return next;
-            });
 
-            alert('保存が完了しました');
-            // Refresh initial data to get new IDs
-            window.location.reload();
+                // Remove deleted items from gridState
+                deletes.forEach(id => {
+                    Object.keys(newState).forEach(key => {
+                        if (newState[key].shiftId === id && newState[key].isDeleted) {
+                            delete newState[key];
+                        }
+                    });
+                });
+
+                setGridState(newState);
+                alert(publishAll ? 'シフトを公開しました' : '下書き保存しました');
+            } else {
+                alert('保存に失敗しました');
+            }
         } catch (error) {
             console.error('Save error:', error);
             alert('保存中にエラーが発生しました');
@@ -1003,21 +1036,26 @@ export default function AdvancedShiftBuilder() {
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-gray-500">操作対象:</span>
-                            <select
-                                value={selectedUserForCalendar?.id || ''}
-                                onChange={(e) => {
-                                    const u = users.find(u => u.id === e.target.value);
-                                    setSelectedUserForCalendar(u || null);
-                                }}
-                                className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                            >
-                                <option value="">スタッフを選択してください</option>
-                                    {users.map(u => (
-                                        <option key={u.id} value={u.id}>
-                                            {u.display_name} ({getStaffMonthlyShiftCount(u.id)}日)
-                                        </option>
-                                    ))}
-                            </select>
+                             <select
+                                 value={selectedUserForCalendar?.id || ''}
+                                 onChange={(e) => {
+                                     const u = users.find(u => u.id === e.target.value);
+                                     setSelectedUserForCalendar(u || null);
+                                 }}
+                                 className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                             >
+                                 <option value="">スタッフを選択してください</option>
+                                     {users.map(u => (
+                                         <option key={u.id} value={u.id}>
+                                             {u.display_name}
+                                         </option>
+                                     ))}
+                             </select>
+                             {selectedUserForCalendar && (
+                                 <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+                                     稼働: {getStaffMonthlyShiftCount(selectedUserForCalendar.id)}日
+                                 </span>
+                             )}
                         </div>
                     </div>
 

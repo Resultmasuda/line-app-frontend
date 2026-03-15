@@ -840,7 +840,7 @@ export default function ShiftSchedule() {
                                                         ...shiftFormData, 
                                                         start_time: p.start, 
                                                         end_time: p.end, 
-                                                        shift_type: isUndecided ? 'plan' : (user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) ? 'work' : 'plan')
+                                                        shift_type: isUndecided ? 'plan' : 'work'
                                                     });
                                                 }}
                                                 className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${p.color} active:scale-95`}
@@ -850,8 +850,8 @@ export default function ShiftSchedule() {
                                         ))}
                                     </div>
 
-                                    <div className={`grid ${user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
-                                        {user && ['PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(user.role.toUpperCase()) && (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {(isAdmin || !selectedShift || (selectedShift as any)?.user_id === user?.id) && (
                                             <button
                                                 type="button"
                                                 onClick={() => setShiftFormData({ ...shiftFormData, shift_type: 'work' })}
@@ -901,7 +901,7 @@ export default function ShiftSchedule() {
                                 </label>
                                 <div className="relative">
                                     <MapPin className="absolute left-3.5 top-3.5 text-gray-400" size={18} />
-                                    {shiftFormData.shift_type === 'work' && !(isAdmin || selectedShift?.user_id === user?.id) ? (
+                                    {shiftFormData.shift_type === 'work' && !(isAdmin || !selectedShift || (selectedShift as any)?.user_id === user?.id) ? (
                                         <div className="w-full pl-10 pr-4 py-3 bg-gray-100 border border-gray-100 rounded-2xl text-gray-500 font-bold">
                                             {shiftFormData.location}
                                         </div>

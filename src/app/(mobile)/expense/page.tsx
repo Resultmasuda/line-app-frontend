@@ -205,14 +205,6 @@ export default function ExpenseManagement() {
                         {editId ? '編集' : '新規入力'}
                     </button>
                 </div>
-                {/* Excel出力ボタン (モバイル版はアラート表示) */}
-                <button 
-                    onClick={() => alert('Excel出力はPC版からのみ対応しています。詳細はお問い合わせください。')}
-                    className="absolute top-12 right-5 p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition-colors"
-                    title="Excel出力"
-                >
-                    <FileText size={20} strokeWidth={2.5} />
-                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 z-0">

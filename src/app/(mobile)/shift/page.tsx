@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, CalendarClock, Receipt, Settings, ChevronLeft, ChevronRight, MapPin, CalendarPlus, Edit3, Trash2, X, FileText } from 'lucide-react';
+import { Home, CalendarClock, Receipt, Settings, Plus, Train, Bus, Hotel, ChevronRight, Bookmark, Pencil, Trash2, X, FileText, ChevronLeft, Calendar as CalendarIcon, User as UserIcon, Clock, MapPin, Navigation, Info, AlertCircle, CheckCircle2, Search, Sun, List, Users, Store, Heart, HeartOff, PlusCircle, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
 import {
@@ -9,7 +9,6 @@ import {
     getMonthlyHolidayRequests
 } from '@/lib/api/shift';
 import { createShift, updateShift, deleteShift, getAllStores, getAllUsers, getUserPermissions } from '@/lib/api/admin';
-import { List, User as UserIcon, Users, Store, Heart, HeartOff, PlusCircle } from 'lucide-react';
 import { AdminUserRecord } from '@/lib/api/admin';
 
 // ユーザーデータの型定義 (LiffProviderと合わせる)
@@ -93,6 +92,12 @@ export default function ShiftSchedule() {
     const [holidayReason, setHolidayReason] = useState('');
 
     const [submitLoading, setSubmitLoading] = useState(false);
+    const [activeStorePresets, setActiveStorePresets] = useState([
+        { label: '早番', start: '10:00', end: '19:00', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        { label: '中番', start: '11:00', end: '20:00', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+        { label: '遅番', start: '12:00', end: '21:00', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+        { label: '未定', start: '00:00', end: '00:00', color: 'bg-gray-50 text-gray-700 border-gray-200' },
+    ]);
 
     const fetchShifts = useCallback(async () => {
         setIsLoading(true);
@@ -212,7 +217,22 @@ export default function ShiftSchedule() {
                 getAllStores(),
                 getAllUsers()
             ]);
-            if (storesRes.success) setStores(storesRes.data);
+            if (storesRes.success) {
+                setStores(storesRes.data);
+                // Load presets for affiliated stores or first store
+                if (user?.id) {
+                    const affiliated = storesRes.data.filter((s: any) => {
+                        try {
+                            const staffList = typeof s.affiliated_staff === 'string' ? JSON.parse(s.affiliated_staff) : s.affiliated_staff;
+                            return Array.isArray(staffList) && staffList.includes(user.id);
+                        } catch { return false; }
+                    });
+                    const targetStore = affiliated[0] || storesRes.data[0];
+                    if (targetStore?.presets && Array.isArray(targetStore.presets) && targetStore.presets.length > 0) {
+                        setActiveStorePresets(targetStore.presets);
+                    }
+                }
+            }
             if (usersRes.success) setAllUsers(usersRes.data);
 
             if (user?.id) {
@@ -506,9 +526,10 @@ export default function ShiftSchedule() {
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => setShowCalendarList(true)}
-                        className="p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-brand-blue hover:bg-brand-blue/5 transition-all border border-slate-100 shadow-inner active:scale-95"
+                        className="p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-brand-blue hover:bg-brand-blue/5 transition-all border border-slate-100 shadow-inner active:scale-95 flex items-center gap-1"
                     >
-                        <List size={22} strokeWidth={2.5} />
+                        <Users size={14} strokeWidth={2.5} />
+                        <span className="text-[10px] font-black">切替</span>
                     </button>
                     <div>
                         <h1 className="text-2xl font-black text-slate-800 leading-tight tracking-tighter">
@@ -599,7 +620,7 @@ export default function ShiftSchedule() {
                                             <p className="text-slate-400 text-xs font-black mt-1 uppercase tracking-wider">{shift.start_time.substring(0, 5)} - {shift.end_time.substring(0, 5)}</p>
                                         </div>
                                         <div className="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 group-hover:text-brand-blue transition-colors">
-                                            <MapPin size={22} strokeWidth={2.5} />
+                                            <PlusCircle size={20} strokeWidth={2.5} />
                                         </div>
                                     </div>
                                 </div>
@@ -753,7 +774,7 @@ export default function ShiftSchedule() {
                                                         <div className="grid grid-cols-2 gap-3">
                                                             {canEdit && (
                                                                 <button onClick={() => openShiftEditModal(s)} className="col-span-2 py-3.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-md">
-                                                                    <Edit3 size={18} /> {isWork ? '予定・メモを編集' : '内容を編集'}
+                                                                    <Edit size={18} /> {isWork ? '予定・メモを編集' : '内容を編集'}
                                                                 </button>
                                                             )}
                                                             <button
@@ -792,7 +813,7 @@ export default function ShiftSchedule() {
                         {user && (
                             <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
                                 <button onClick={() => openShiftEditModal()} className="w-full py-4 bg-emerald-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm hover:bg-emerald-600 active:bg-emerald-700 active:scale-[0.98] transition-all group">
-                                    <CalendarPlus size={20} className="group-hover:-rotate-6 transition-transform" /> 新しい予定を登録する
+                                    <PlusCircle size={20} className="group-hover:-rotate-6 transition-transform" /> 新しい予定を登録する
                                 </button>
                                 {(!selectedGroupRole || targetUser?.id === user?.id) && (
                                     <button onClick={() => { setHolidayDate(selectedDateStr); setShowHolidayModal(true); setShowDayModal(false); }} className="w-full py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
@@ -821,33 +842,31 @@ export default function ShiftSchedule() {
                             {/* シフト種別 (新規のみ) */}
                             {!selectedShift && (
                                 <div className="space-y-3">
-                                    <label className="block text-xs font-bold text-gray-400 mb-1.5 px-1 uppercase tracking-wider">種別・プリセット案</label>
-                                    
-                                    {/* クイックプリセット */}
-                                    <div className="grid grid-cols-4 gap-2 mb-3">
-                                        {[
-                                            { label: '早番', start: '10:00', end: '19:00', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                                            { label: '中番', start: '11:00', end: '20:00', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-                                            { label: '遅番', start: '12:00', end: '21:00', color: 'bg-purple-50 text-purple-700 border-purple-200' },
-                                            { label: '未定', start: '00:00', end: '00:00', color: 'bg-gray-50 text-gray-700 border-gray-200' },
-                                        ].map((p) => (
-                                            <button
-                                                key={p.label}
-                                                type="button"
-                                                onClick={() => {
-                                                    const isUndecided = p.label === '未定';
-                                                    setShiftFormData({ 
-                                                        ...shiftFormData, 
-                                                        start_time: p.start, 
-                                                        end_time: p.end, 
-                                                        shift_type: isUndecided ? 'plan' : 'work'
-                                                    });
-                                                }}
-                                                className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${p.color} active:scale-95`}
-                                            >
-                                                {p.label}
-                                            </button>
-                                        ))}
+                                    <div className="min-h-[100px] transition-all duration-300">
+                                        {/* シフト時のみクイックプリセットを表示 */}
+                                        {shiftFormData.shift_type === 'work' && (
+                                            <div className="space-y-3 mb-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                <label className="block text-xs font-bold text-gray-400 px-1 uppercase tracking-wider">プリセット</label>
+                                                <div className="grid grid-cols-4 gap-1.5">
+                                                    {activeStorePresets.map((p) => (
+                                                        <button
+                                                            key={p.label}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setShiftFormData({ 
+                                                                    ...shiftFormData, 
+                                                                    start_time: p.start, 
+                                                                    end_time: p.end
+                                                                });
+                                                            }}
+                                                            className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${p.color} active:scale-95`}
+                                                        >
+                                                            {p.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2">
@@ -857,19 +876,19 @@ export default function ShiftSchedule() {
                                                 onClick={() => setShiftFormData({ ...shiftFormData, shift_type: 'work' })}
                                                 className={`py-2 rounded-xl text-xs font-bold border transition-all ${shiftFormData.shift_type === 'work' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
                                             >
-                                                勤務 (仕事)
+                                                シフト
                                             </button>
                                         )}
                                         <button
                                             type="button"
-                                            onClick={() => setShiftFormData({ ...shiftFormData, shift_type: 'plan' })}
+                                            onClick={() => setShiftFormData({ ...shiftFormData, shift_type: 'plan', start_time: '', end_time: '' })}
                                             className={`py-2 rounded-xl text-xs font-bold border transition-all ${shiftFormData.shift_type === 'plan' ? 'bg-blue-500 text-white border-blue-500' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
                                         >
                                             個人の予定
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => setShiftFormData({ ...shiftFormData, shift_type: 'other' })}
+                                            onClick={() => setShiftFormData({ ...shiftFormData, shift_type: 'other', start_time: '', end_time: '' })}
                                             className={`py-2 rounded-xl text-xs font-bold border transition-all ${shiftFormData.shift_type === 'other' ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
                                         >
                                             その他・打合せ
@@ -910,7 +929,7 @@ export default function ShiftSchedule() {
                                             required
                                             value={shiftFormData.location}
                                             onChange={(e) => setShiftFormData({ ...shiftFormData, location: e.target.value })}
-                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium appearance-none"
+                                            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-black text-sm appearance-none shadow-sm"
                                         >
                                             <option value="">勤務場所を選択してください</option>
                                             {(() => {
@@ -951,40 +970,53 @@ export default function ShiftSchedule() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1.5 px-1 uppercase tracking-wider">開始時間</label>
-                                    {shiftFormData.shift_type === 'work' && !(isAdmin || selectedShift?.user_id === user?.id) ? (
-                                        <div className="w-full px-4 py-3 bg-gray-100 border border-gray-100 rounded-2xl text-gray-500 font-bold">
-                                            {shiftFormData.start_time}
-                                        </div>
-                                    ) : (
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">開始時間</label>
                                         <input
                                             type="time"
-                                            required
+                                            required={shiftFormData.shift_type === 'work'}
                                             value={shiftFormData.start_time}
                                             onChange={(e) => setShiftFormData({ ...shiftFormData, start_time: e.target.value })}
-                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
+                                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-black text-sm"
                                         />
-                                    )}
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1.5 px-1 uppercase tracking-wider">終了時間</label>
-                                    {shiftFormData.shift_type === 'work' && !(isAdmin || selectedShift?.user_id === user?.id) ? (
-                                        <div className="w-full px-4 py-3 bg-gray-100 border border-gray-100 rounded-2xl text-gray-500 font-bold">
-                                            {shiftFormData.end_time}
-                                        </div>
-                                    ) : (
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">終了時間</label>
                                         <input
                                             type="time"
-                                            required
+                                            required={shiftFormData.shift_type === 'work'}
                                             value={shiftFormData.end_time}
                                             onChange={(e) => setShiftFormData({ ...shiftFormData, end_time: e.target.value })}
-                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
+                                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-black text-sm"
                                         />
-                                    )}
+                                    </div>
                                 </div>
-                            </div>
+
+                                {shiftFormData.shift_type !== 'work' && (
+                                    <div className="flex items-center gap-2 px-1">
+                                        <label className="relative flex items-center gap-2 cursor-pointer group">
+                                            <input 
+                                                type="checkbox" 
+                                                className="peer sr-only"
+                                                checked={shiftFormData.start_time === '00:00' && shiftFormData.end_time === '00:00'}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setShiftFormData({ ...shiftFormData, start_time: '00:00', end_time: '00:00' });
+                                                    } else {
+                                                        setShiftFormData({ ...shiftFormData, start_time: '', end_time: '' });
+                                                    }
+                                                }}
+                                            />
+                                            <div className="w-5 h-5 border-2 border-slate-200 rounded-md bg-white peer-checked:bg-blue-500 peer-checked:border-blue-500 transition-all flex items-center justify-center">
+                                                <div className="w-2 h-2 bg-white rounded-[1px] transform scale-0 peer-checked:scale-100 transition-transform"></div>
+                                            </div>
+                                            <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 transition-colors">終日として設定</span>
+                                        </label>
+                                    </div>
+                                )}
+                             </div>
 
                             <div className="border-t border-gray-100 pt-5 space-y-4">
                                 <h4 className="text-sm font-bold text-indigo-600 flex items-center gap-2">

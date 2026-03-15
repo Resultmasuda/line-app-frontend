@@ -505,9 +505,15 @@ export default function AdminShiftsPage() {
 
                                                             return (
                                                                 <tr key={shift.id} className="group hover:bg-gray-50 transition-colors">
-                                                                    <td className="px-8 py-5 text-sm font-black text-slate-700 whitespace-nowrap">
-                                                                        <span className="text-slate-600 font-normal mr-1">{dateStr.split('(')[0]}</span>
-                                                                        <span className="text-brand-blue">({dateStr.split('(')[1]}</span>
+                                                                    <td className="px-8 py-5 whitespace-nowrap">
+                                                                        <div className="flex items-center gap-1.5 font-black text-slate-700 text-sm">
+                                                                            <span>
+                                                                                {dateStr.split('(')[0]}
+                                                                            </span>
+                                                                            <span className="text-slate-400 font-bold">
+                                                                                ({dateStr.split('(')[1]}
+                                                                            </span>
+                                                                        </div>
                                                                     </td>
                                                                     <td className="px-8 py-5 whitespace-nowrap">
                                                                         <div className="flex items-center gap-3">

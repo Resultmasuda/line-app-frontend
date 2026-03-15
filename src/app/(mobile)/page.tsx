@@ -271,8 +271,8 @@ export default function AppDashboard() {
         <div className="absolute bottom-[-20%] left-[-10%] w-[80%] aspect-square bg-brand-gold/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
         
         <div className="relative z-10 flex flex-col items-center animate-in fade-in zoom-in-95 duration-700">
-          <div className="w-24 h-24 bg-white rounded-[32px] p-5 shadow-2xl shadow-brand-blue/10 mb-8 transform transition-transform hover:scale-105 duration-500 border border-slate-50">
-            <img src="/images/company_logo.png" alt="Result Logo" className="w-full h-full object-contain" />
+          <div className="w-32 h-32 bg-white rounded-[40px] p-0 shadow-2xl shadow-brand-blue/10 mb-8 transform transition-transform hover:scale-105 duration-500 border border-slate-50 flex items-center justify-center overflow-hidden">
+            <img src="/images/company_logo.png" alt="Result Logo" className="w-full h-full object-contain scale-[1.8]" />
           </div>
           <div className="flex flex-col items-center">
             <h2 className="text-2xl font-black text-slate-800 tracking-tighter mb-2">RESULT <span className="text-brand-blue">PORTAL</span></h2>
@@ -327,8 +327,8 @@ export default function AppDashboard() {
         <div className="relative z-10 px-6 pt-12">
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-white p-1.5 shadow-xl border border-white/20">
-                <img src="/images/company_logo.png" alt="Logo" className="w-full h-full object-contain" />
+              <div className="w-16 h-16 rounded-2xl bg-white p-0 shadow-xl border border-white/20 flex items-center justify-center overflow-hidden">
+                <img src="/images/company_logo.png" alt="Logo" className="w-full h-full object-contain scale-[1.8]" />
               </div>
               <div>
                 <p className="text-white/50 text-[10px] font-black tracking-[0.2em] uppercase mb-0.5">Official Portal</p>

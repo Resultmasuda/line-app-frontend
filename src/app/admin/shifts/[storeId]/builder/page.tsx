@@ -31,6 +31,7 @@ type GridState = Record<string, {
     planned_wake_up_time?: string;
     planned_leave_time?: string;
     daily_memo?: string;
+    shift_type?: string;
 }>;
 
 const SHIFT_PRESETS: ShiftPreset[] = [
@@ -145,7 +146,8 @@ export default function AdvancedShiftBuilder() {
                             status: s.status || 'published',
                             planned_wake_up_time: s.planned_wake_up_time || '',
                             planned_leave_time: s.planned_leave_time || '',
-                            daily_memo: s.daily_memo || ''
+                            daily_memo: s.daily_memo || '',
+                            shift_type: s.shift_type || 'work'
                         };
                     });
                     setGridState(initialGrid);
@@ -494,7 +496,8 @@ export default function AdvancedShiftBuilder() {
                     status: publishAll ? 'published' : (cell.status || 'published'),
                     planned_wake_up_time: cell.planned_wake_up_time || null,
                     planned_leave_time: cell.planned_leave_time || null,
-                    daily_memo: cell.daily_memo || null
+                    daily_memo: cell.daily_memo || null,
+                    shift_type: cell.shift_type || 'work'
                 };
                 if (cell.shiftId) {
                     shiftData.id = cell.shiftId;
@@ -538,7 +541,8 @@ export default function AdvancedShiftBuilder() {
                             end_time: s.end_time?.substring(0, 5) || '00:00',
                             planned_wake_up_time: s.planned_wake_up_time?.substring(0, 5) || '',
                             planned_leave_time: s.planned_leave_time?.substring(0, 5) || '',
-                            daily_memo: s.daily_memo || ''
+                            daily_memo: s.daily_memo || '',
+                            shift_type: s.shift_type || 'work'
                         };
                     }
                 });
@@ -1134,20 +1138,20 @@ export default function AdvancedShiftBuilder() {
                                                                     title={`${u.display_name}: ${cell.start_time || '未定'}〜${cell.end_time || '未定'}`}
                                                                 >
                                                                     {isEdited ? (
-                                                                        <div className="flex flex-col gap-0.5 items-center justify-center h-full">
+                                                                        <div className="flex flex-col gap-0.5 items-center justify-start h-full">
                                                                             {cell.shiftId && !cell.isDeleted && (
-                                                                                <div className="flex items-center opacity-60 line-through truncate w-full justify-center">
-                                                                                    <span className="hidden sm:inline mr-1">{u.display_name.split(' ')[0]}</span>
-                                                                                    <span className="sm:hidden mr-1">{u.display_name.charAt(0)}</span>
+                                                                                <div className="flex items-center opacity-60 line-through truncate w-full justify-start px-0.5">
+                                                                                    <span className="hidden sm:inline mr-1">{u.display_name.split(/[ 　]/)[0]}</span>
+                                                                                    <span className="sm:hidden mr-1 text-[7px]">{u.display_name.charAt(0)}</span>
                                                                                 </div>
                                                                             )}
                                                                             {cell.shiftId && !cell.isDeleted && (
                                                                                 <div className="text-center text-amber-600 font-bold text-[8px] leading-none">↓</div>
                                                                             )}
-                                                                            <div className="flex items-center justify-center truncate text-amber-700 font-bold w-full">
-                                                                                <span className="hidden sm:inline mr-1">{u.display_name.split(' ')[0]}</span>
-                                                                                <span className="sm:hidden mr-1">{u.display_name.charAt(0)}</span>
-                                                                                {cell.isDeleted && <span>(削除)</span>}
+                                                                            <div className="flex items-center justify-start truncate text-amber-700 font-bold w-full px-0.5">
+                                                                                <span className="hidden sm:inline mr-1">{u.display_name.split(/[ 　]/)[0]}</span>
+                                                                                <span className="sm:hidden mr-1 text-[7px]">{u.display_name.charAt(0)}</span>
+                                                                                {cell.isDeleted && <span>(消)</span>}
                                                                             </div>
                                                                         </div>
                                                                     ) : (

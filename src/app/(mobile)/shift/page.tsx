@@ -440,7 +440,7 @@ export default function ShiftSchedule() {
                         ${hasHoliday ? 'bg-brand-gold/[0.03]' : ''}`}
                 >
                     <div className="flex justify-between items-start">
-                        <span className={`text-[10px] font-black ${isToday ? 'bg-brand-blue text-white w-5 h-5 rounded-full flex items-center justify-center shadow-lg shadow-brand-blue/30' : 'text-slate-400 p-1 group-hover:text-brand-blue'}`}>
+                        <span className={`text-[10px] font-black ${isToday ? 'bg-brand-blue text-white w-5 h-5 rounded-full flex items-center justify-center shadow-lg shadow-brand-blue/30' : 'text-slate-600 p-1 group-hover:text-brand-blue'}`}>
                             {d}
                         </span>
                         <div className="flex flex-col gap-1 items-end pt-1 mr-1">
@@ -511,7 +511,7 @@ export default function ShiftSchedule() {
                         <List size={22} strokeWidth={2.5} />
                     </button>
                     <div>
-                        <h1 className="text-xl font-black text-slate-800 leading-tight tracking-tighter">
+                        <h1 className="text-2xl font-black text-slate-800 leading-tight tracking-tighter">
                             {selectedStore ? `${selectedStore}` :
                                 selectedGroupRole ? `${selectedGroupRole === 'PRESIDENT' ? '社長' : selectedGroupRole === 'EXECUTIVE' ? '幹部' : selectedGroupRole === 'MANAGER' ? '役職社員' : '社員'}` :
                                     targetUser?.id === user?.id ? '自分のシフト' : `${targetUser?.display_name}さん`}
@@ -612,7 +612,7 @@ export default function ShiftSchedule() {
             {/* フローティングボトムナビゲーション */}
             <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-slate-100 px-6 pt-3 pb-8 flex justify-around items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
                 <Link href="/" className="flex flex-col items-center text-slate-400 hover:text-brand-blue transition-all active:scale-90">
-                    <div className="p-2 hover:bg-slate-50 rounded-xl mb-1">
+                    <div className="p-2 hover:bg-slate-50 rounded-xl mb-1 group-hover:-rotate-6 transition-transform">
                         <Home size={22} strokeWidth={2.5} />
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-tighter">ホーム</span>
@@ -624,7 +624,7 @@ export default function ShiftSchedule() {
                     <span className="text-[10px] font-black uppercase tracking-tighter">シフト</span>
                 </Link>
                 <Link href="/expense" className="flex flex-col items-center text-slate-400 hover:text-brand-blue transition-all active:scale-90">
-                    <div className="p-2 hover:bg-slate-50 rounded-xl mb-1">
+                    <div className="p-2 hover:bg-slate-50 rounded-xl mb-1 group-hover:rotate-6 transition-transform">
                         <Receipt size={22} strokeWidth={2.5} />
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-tighter">交通費</span>
@@ -791,8 +791,8 @@ export default function ShiftSchedule() {
                         {/* ログインしていれば基本的に追加可能 (自分用) */}
                         {user && (
                             <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-                                <button onClick={() => openShiftEditModal()} className="w-full py-4 bg-emerald-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm hover:bg-emerald-600 active:bg-emerald-700 active:scale-[0.98] transition-all">
-                                    <CalendarPlus size={20} /> 新しい予定を登録する
+                                <button onClick={() => openShiftEditModal()} className="w-full py-4 bg-emerald-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm hover:bg-emerald-600 active:bg-emerald-700 active:scale-[0.98] transition-all group">
+                                    <CalendarPlus size={20} className="group-hover:-rotate-6 transition-transform" /> 新しい予定を登録する
                                 </button>
                                 {(!selectedGroupRole || targetUser?.id === user?.id) && (
                                     <button onClick={() => { setHolidayDate(selectedDateStr); setShowHolidayModal(true); setShowDayModal(false); }} className="w-full py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
@@ -807,16 +807,17 @@ export default function ShiftSchedule() {
 
             {showShiftEditModal && (
                 <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowShiftEditModal(false)}>
-                    <div className="bg-white w-full max-h-[90vh] rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-5 border-b border-gray-100 pb-4 sticky top-0 bg-white z-10">
-                            <h3 className="text-lg font-bold text-gray-800">
+                <div className="bg-white w-full max-h-[92vh] rounded-t-[32px] shadow-2xl animate-in slide-in-from-bottom flex flex-col" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-between items-center p-6 border-b border-slate-100 sticky top-0 bg-white z-20 shrink-0">
+                            <h3 className="text-xl font-black text-slate-800 tracking-tighter">
                                 {selectedDateStr} の予定{selectedShift ? '編集' : '登録'}
                             </h3>
-                            <button onClick={() => setShowShiftEditModal(false)} className="bg-gray-100 text-gray-500 p-2 rounded-full active:bg-gray-200">
-                                <X size={18} />
-                            </button>
-                        </div>
-                        <form onSubmit={handleSaveShift} className="space-y-5">
+                        <button onClick={() => setShowShiftEditModal(false)} className="bg-slate-50 text-slate-400 p-2.5 rounded-2xl active:bg-slate-100 transition-colors shadow-inner">
+                            <X size={20} strokeWidth={3} />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6 pt-2">
+                        <form onSubmit={handleSaveShift} className="space-y-6 pb-12">
                             {/* シフト種別 (新規のみ) */}
                             {!selectedShift && (
                                 <div className="space-y-3">
@@ -1024,14 +1025,18 @@ export default function ShiftSchedule() {
                             <button
                                 type="submit"
                                 disabled={submitLoading || !shiftFormData.location}
-                                className="w-full py-4 bg-emerald-500 text-white font-bold rounded-2xl shadow-md hover:bg-emerald-600 active:scale-[0.98] transition-all mt-4 disabled:opacity-50"
+                                className="w-full py-4.5 bg-brand-blue text-white font-black rounded-[20px] shadow-xl shadow-brand-blue/20 hover:bg-brand-deep-blue active:scale-[0.98] transition-all mt-10 disabled:opacity-50 text-lg uppercase tracking-widest relative overflow-hidden group/btn"
                             >
-                                {submitLoading ? '保存中...' : '予定を保存'}
+                                <div className="absolute inset-0 bg-white/10 translate-y-full group-active/btn:translate-y-0 transition-transform"></div>
+                                <span className="relative z-10 flex items-center justify-center gap-2">
+                                    {submitLoading ? 'Saving...' : (selectedShift ? '予定を更新する' : '予定を保存する')}
+                                </span>
                             </button>
                         </form>
                     </div>
                 </div>
-            )}
+            </div>
+        )}
 
 
             {/* Holiday Request Modal */}

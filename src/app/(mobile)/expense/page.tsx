@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, CalendarClock, Receipt, Settings, Plus, Train, Bus, Hotel, ChevronRight, Bookmark, Pencil, Trash2, X } from 'lucide-react';
+import { Home, CalendarClock, Receipt, Settings, Plus, Train, Bus, Hotel, ChevronRight, Bookmark, Pencil, Trash2, X, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
 import { getMonthlyExpenses, saveExpense, updateExpense, deleteExpense, ExpenseRecord, ExpenseTemplateRecord, getExpenseTemplates, saveExpenseTemplate, deleteExpenseTemplate } from '@/lib/api/expense';
@@ -205,6 +205,14 @@ export default function ExpenseManagement() {
                         {editId ? '編集' : '新規入力'}
                     </button>
                 </div>
+                {/* Excel出力ボタン (モバイル版はアラート表示) */}
+                <button 
+                    onClick={() => alert('Excel出力はPC版からのみ対応しています。詳細はお問い合わせください。')}
+                    className="absolute top-12 right-5 p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition-colors"
+                    title="Excel出力"
+                >
+                    <FileText size={20} strokeWidth={2.5} />
+                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 z-0">
@@ -229,7 +237,7 @@ export default function ExpenseManagement() {
 
                         {/* 履歴リスト */}
                         {isLoading ? (
-                            <div className="flex justify-center p-5"><div className="animate-spin w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full"></div></div>
+                            <div className="flex justify-center p-5"><div className="animate-spin w-5 h-5 border-2 border-brand-blue border-t-transparent rounded-full"></div></div>
                         ) : expenses.length === 0 ? (
                             <div className="text-center p-5 text-gray-400 text-sm">今月の登録データはありません</div>
                         ) : (
@@ -241,7 +249,7 @@ export default function ExpenseManagement() {
                                         <div key={item.id} className="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 active:scale-[0.98] transition-all group">
                                             <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-4">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-2xl bg-brand-blue/5 flex items-center justify-center text-brand-blue shadow-inner group-hover:rotate-12 transition-transform">
+                                                    <div className="w-12 h-12 rounded-2xl bg-brand-blue/5 flex items-center justify-center text-brand-blue shadow-inner group-hover:-rotate-6 transition-transform">
                                                         {item.transport_type === 'TRAIN' ? <Train size={24} strokeWidth={2.5} /> : item.transport_type === 'HOTEL' ? <Hotel size={24} strokeWidth={2.5} /> : (item.transport_type === 'COMMUTER_PASS' || item.transport_type === 'COMMUTER_USE') ? <Bookmark size={24} strokeWidth={2.5} /> : <Bus size={24} strokeWidth={2.5} />}
                                                     </div>
                                                     <div>
@@ -287,7 +295,7 @@ export default function ExpenseManagement() {
                                                     setIsRoundTrip(t.is_round_trip);
                                                     setAmount(t.amount.toString());
                                                 }}
-                                                className="whitespace-nowrap bg-white border border-emerald-100 text-emerald-700 font-bold text-xs py-2 pl-3 pr-8 rounded-lg shadow-sm active:bg-emerald-50 transition-colors flex items-center gap-1.5"
+                                                className="whitespace-nowrap bg-white border border-brand-blue/20 text-brand-blue font-bold text-xs py-2 pl-3 pr-8 rounded-lg shadow-sm active:bg-brand-blue/5 transition-colors flex items-center gap-1.5"
                                             >
                                                 <Bookmark size={14} />
                                                 {t.template_name}
@@ -312,7 +320,7 @@ export default function ExpenseManagement() {
                                 {/* 利用日 */}
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">利用日</label>
-                                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all font-medium" />
+                                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all font-medium" />
                                 </div>
 
                                 {/* 交通機関 */}
@@ -321,13 +329,13 @@ export default function ExpenseManagement() {
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                         <button
                                             onClick={() => setTransport('TRAIN')}
-                                            className={`${transport === 'TRAIN' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
+                                            className={`${transport === 'TRAIN' ? 'bg-brand-blue/5 border-brand-blue text-brand-blue' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
                                         >
                                             <Train size={18} /> 電車
                                         </button>
                                         <button
                                             onClick={() => setTransport('BUS')}
-                                            className={`${transport === 'BUS' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
+                                            className={`${transport === 'BUS' ? 'bg-brand-blue/5 border-brand-blue text-brand-blue' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
                                         >
                                             <Bus size={18} /> バス
                                         </button>
@@ -336,7 +344,7 @@ export default function ExpenseManagement() {
                                                 setTransport('COMMUTER_PASS');
                                                 setIsRoundTrip(false);
                                             }}
-                                            className={`${transport === 'COMMUTER_PASS' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
+                                            className={`${transport === 'COMMUTER_PASS' ? 'bg-brand-blue/5 border-brand-blue text-brand-blue' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
                                         >
                                             <Bookmark size={18} /> 定期券
                                         </button>
@@ -346,7 +354,7 @@ export default function ExpenseManagement() {
                                                 setIsRoundTrip(false);
                                                 setArrival('');
                                             }}
-                                            className={`${transport === 'HOTEL' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
+                                            className={`${transport === 'HOTEL' ? 'bg-brand-blue/5 border-brand-blue text-brand-blue' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
                                         >
                                             <Hotel size={18} /> 宿泊
                                         </button>
@@ -365,7 +373,7 @@ export default function ExpenseManagement() {
                                                     setPurpose('定期利用');
                                                 }
                                             }}
-                                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${transport === 'COMMUTER_USE' ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-emerald-100 text-emerald-600'}`}
+                                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${transport === 'COMMUTER_USE' ? 'bg-brand-blue border-brand-blue text-white' : 'bg-white border-brand-blue/10 text-brand-blue'}`}
                                         >
                                             {transport === 'COMMUTER_USE' ? '✓ 定期利用中' : 'この移動を「定期利用」にする'}
                                         </button>
@@ -377,14 +385,14 @@ export default function ExpenseManagement() {
                                     {(transport !== 'HOTEL' && transport !== 'COMMUTER_PASS') && <div className="absolute left-6 top-9 bottom-9 w-px bg-gray-300 border-dashed border-l"></div>}
 
                                     <div className="flex items-center gap-3 relative z-10">
-                                        <div className="w-4 h-4 rounded-full border-4 border-emerald-500 bg-white shadow-sm flex-shrink-0"></div>
-                                        <input type="text" value={departure} onChange={(e) => setDeparture(e.target.value)} placeholder={transport === 'HOTEL' ? "宿泊先 (例: アパホテル)" : transport === 'COMMUTER_PASS' ? "定期区間 (例: 吹田〜大阪)" : "出発 (例: JR吹田)"} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 text-sm font-medium" />
+                                        <div className="w-4 h-4 rounded-full border-4 border-brand-blue bg-white shadow-sm flex-shrink-0"></div>
+                                        <input type="text" value={departure} onChange={(e) => setDeparture(e.target.value)} placeholder={transport === 'HOTEL' ? "宿泊先 (例: アパホテル)" : transport === 'COMMUTER_PASS' ? "定期区間 (例: 吹田〜大阪)" : "出発 (例: JR吹田)"} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-brand-blue text-sm font-medium" />
                                     </div>
 
                                     {(transport !== 'HOTEL' && transport !== 'COMMUTER_PASS') && (
                                         <div className="flex items-center gap-3 relative z-10 mt-4">
                                             <div className="w-4 h-4 rounded-full border-4 border-rose-500 bg-white shadow-sm flex-shrink-0"></div>
-                                            <input type="text" value={arrival} onChange={(e) => setArrival(e.target.value)} placeholder="到着 (例: JR大阪)" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 text-sm font-medium" />
+                                            <input type="text" value={arrival} onChange={(e) => setArrival(e.target.value)} placeholder="到着 (例: JR大阪)" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-brand-blue text-sm font-medium" />
                                         </div>
                                     )}
                                 </div>
@@ -475,7 +483,7 @@ export default function ExpenseManagement() {
                                                 value={templateName}
                                                 onChange={(e) => setTemplateName(e.target.value)}
                                                 placeholder="ルート名 (例: 梅田ルート)"
-                                                className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-emerald-500 text-sm font-bold"
+                                                className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-brand-blue text-sm font-bold"
                                             />
                                         </div>
                                     )}
@@ -562,7 +570,7 @@ export default function ExpenseManagement() {
 
                             <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                                 <span className="text-xs font-bold text-gray-400">区分</span>
-                                <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                                <span className="text-sm font-bold text-brand-blue bg-brand-blue/5 px-2 py-0.5 rounded">
                                     {transport === 'HOTEL' ? '宿泊' : transport === 'COMMUTER_PASS' ? '定期券' : transport === 'COMMUTER_USE' ? '定期利用' : isRoundTrip ? '往復' : '片道'}
                                 </span>
                             </div>
@@ -586,7 +594,7 @@ export default function ExpenseManagement() {
                             <button
                                 onClick={handleSave}
                                 disabled={isSaving}
-                                className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl active:bg-emerald-700 transition-all flex justify-center items-center shadow-md shadow-emerald-200"
+                                className="flex-1 py-3.5 bg-brand-blue hover:bg-brand-deep-blue text-white font-bold rounded-xl active:bg-brand-deep-blue transition-all flex justify-center items-center shadow-md shadow-brand-blue/20"
                             >
                                 {isSaving ? (
                                     <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>

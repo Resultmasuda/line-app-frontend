@@ -285,10 +285,6 @@ export default function AdminExpensesPage() {
                         />
                     </div>
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                        <button className="flex-1 md:flex-none justify-center flex items-center gap-2 px-5 py-2.5 border border-slate-200 rounded-xl text-xs font-black text-slate-500 hover:bg-slate-50 transition-all bg-white uppercase tracking-widest active:scale-95">
-                            <Filter size={16} strokeWidth={2.5} />
-                            絞り込み
-                        </button>
                         <button onClick={handleXlsxExport} className="flex-1 md:flex-none justify-center flex items-center gap-2 px-5 py-2.5 bg-brand-blue text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-brand-deep-blue transition-all shadow-lg shadow-brand-blue/20 active:scale-95">
                             <Download size={16} strokeWidth={2.5} />
                             Excel出力
@@ -300,7 +296,7 @@ export default function AdminExpensesPage() {
                     {isLoading ? (
                         <div className="py-12 text-center text-gray-400">
                             <div className="flex justify-center mb-2">
-                                <div className="animate-spin w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full"></div>
+                                <div className="animate-spin w-6 h-6 border-2 border-brand-blue border-t-transparent rounded-full"></div>
                             </div>
                             読み込み中...
                         </div>

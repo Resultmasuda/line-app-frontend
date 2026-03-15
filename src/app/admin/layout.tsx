@@ -127,19 +127,19 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
             {/* モバイル用ボトムナビゲーション */}
             <div className="md:hidden fixed bottom-0 w-full bg-white border-t border-gray-200 z-50 pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
                 <nav className="flex justify-around p-2">
-                    <Link href="/admin/dashboard" className={`flex flex-col items-center p-1.5 transition-colors ${window.location.pathname.includes('dashboard') ? 'text-brand-blue' : 'text-gray-400'}`}>
+                    <Link href="/admin/dashboard" className={`flex flex-col items-center p-1.5 transition-colors ${pathname.includes('dashboard') ? 'text-brand-blue' : 'text-gray-400'}`}>
                         <LayoutDashboard size={20} />
                         <span className="text-[10px] mt-1 font-black uppercase tracking-tighter">トップ</span>
                     </Link>
-                    <Link href="/admin/shifts" className={`flex flex-col items-center p-1.5 transition-colors ${window.location.pathname.includes('shifts') ? 'text-brand-blue' : 'text-gray-400'}`}>
+                    <Link href="/admin/shifts" className={`flex flex-col items-center p-1.5 transition-colors ${pathname.includes('shifts') ? 'text-brand-blue' : 'text-gray-400'}`}>
                         <CalendarClock size={20} />
                         <span className="text-[10px] mt-1 font-black uppercase tracking-tighter">シフト</span>
                     </Link>
-                    <Link href="/admin/expenses" className={`flex flex-col items-center p-1.5 transition-colors ${window.location.pathname.includes('expenses') ? 'text-brand-blue' : 'text-gray-400'}`}>
+                    <Link href="/admin/expenses" className={`flex flex-col items-center p-1.5 transition-colors ${pathname.includes('expenses') ? 'text-brand-blue' : 'text-gray-400'}`}>
                         <Receipt size={20} />
                         <span className="text-[10px] mt-1 font-black uppercase tracking-tighter">交通費</span>
                     </Link>
-                    <Link href="/admin/staff" className={`flex flex-col items-center p-1.5 transition-colors ${window.location.pathname.includes('staff') ? 'text-brand-blue' : 'text-gray-400'}`}>
+                    <Link href="/admin/staff" className={`flex flex-col items-center p-1.5 transition-colors ${pathname.includes('staff') ? 'text-brand-blue' : 'text-gray-400'}`}>
                         <Users size={20} />
                         <span className="text-[10px] mt-1 font-black uppercase tracking-tighter">スタッフ</span>
                     </Link>

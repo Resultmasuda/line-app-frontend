@@ -327,12 +327,12 @@ export default function AppDashboard() {
         <div className="relative z-10 px-6 pt-12">
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-white p-2.5 shadow-xl border border-white/20">
+              <div className="w-12 h-12 rounded-2xl bg-white p-1.5 shadow-xl border border-white/20">
                 <img src="/images/company_logo.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
               <div>
                 <p className="text-white/50 text-[10px] font-black tracking-[0.2em] uppercase mb-0.5">Official Portal</p>
-                <h1 className="text-xl font-black text-white tracking-tighter">RESULT <span className="text-brand-gold">MEMBER</span></h1>
+                <h1 className="text-2xl font-black text-white tracking-tighter">RESULT <span className="text-brand-gold">MEMBER</span></h1>
               </div>
             </div>
             {user && (() => {
@@ -375,7 +375,7 @@ export default function AppDashboard() {
               <div className="pl-3">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-pulse"></span>
-                  <p className="text-brand-blue text-[10px] font-black tracking-[0.2em] uppercase">NEXT SESSION</p>
+                  <p className="text-brand-blue text-[10px] font-black tracking-[0.2em] uppercase">今日の予定</p>
                 </div>
                 <p className="text-slate-800 font-black text-xl tracking-tighter mb-1">{todayShift.location}</p>
                 <div className="flex items-center gap-4">
@@ -387,7 +387,7 @@ export default function AppDashboard() {
                   </p>
                 </div>
               </div>
-              <div className="h-14 w-14 bg-gradient-to-br from-brand-blue to-brand-sky rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-brand-blue/30 group-hover:scale-110 transition-transform">
+              <div className="h-14 w-14 bg-gradient-to-br from-brand-blue to-brand-sky rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-brand-blue/30 group-hover:-rotate-6 transition-transform">
                 <MapPin size={28} strokeWidth={2.5} />
               </div>
             </div>
@@ -467,7 +467,7 @@ export default function AppDashboard() {
               ${lastAction === 'WAKE_UP' ? 'ring-4 ring-brand-gold/20 bg-brand-gold/5' : 'bg-white border border-slate-100'}
             `}
           >
-            <div className={`p-4 rounded-2xl mb-3 shadow-inner transition-colors ${lastAction === 'WAKE_UP' ? 'bg-brand-gold/20 text-brand-gold' : 'bg-slate-50 text-slate-300'}`}>
+            <div className={`p-4 rounded-2xl mb-3 shadow-inner transition-colors ${lastAction === 'WAKE_UP' ? 'bg-brand-gold/20 text-brand-gold' : 'bg-slate-50 text-slate-300'} group-hover:-rotate-3`}>
               <Sun fill={lastAction === 'WAKE_UP' ? 'currentColor' : 'none'} size={32} strokeWidth={2.5} />
             </div>
             <span className={`text-lg font-black tracking-widest ${lastAction === 'WAKE_UP' ? 'text-brand-gold' : 'text-slate-500'}`}>
@@ -485,7 +485,7 @@ export default function AppDashboard() {
               ${lastAction === 'LEAVE' ? 'ring-4 ring-brand-blue/20 bg-brand-blue/5' : 'bg-white border border-slate-100'}
             `}
           >
-            <div className={`p-4 rounded-2xl mb-3 shadow-inner transition-colors ${lastAction === 'LEAVE' ? 'bg-brand-blue/20 text-brand-blue' : 'bg-slate-50 text-slate-300'}`}>
+            <div className={`p-4 rounded-2xl mb-3 shadow-inner transition-colors ${lastAction === 'LEAVE' ? 'bg-brand-blue/20 text-brand-blue' : 'bg-slate-50 text-slate-300'} group-hover:rotate-3`}>
               <Navigation fill={lastAction === 'LEAVE' ? 'currentColor' : 'none'} size={32} strokeWidth={2.5} />
             </div>
             <span className={`text-lg font-black tracking-widest ${lastAction === 'LEAVE' ? 'text-brand-blue' : 'text-slate-500'}`}>
@@ -503,7 +503,7 @@ export default function AppDashboard() {
               ${lastAction === 'CLOCK_IN' ? 'ring-4 ring-brand-blue/30 bg-brand-blue/10' : 'bg-white border border-slate-100'}
             `}
           >
-            <div className={`p-4 rounded-2xl mb-3 shadow-inner transition-colors ${lastAction === 'CLOCK_IN' ? 'bg-brand-blue text-white' : 'bg-slate-50 text-slate-300'}`}>
+            <div className={`p-4 rounded-2xl mb-3 shadow-inner transition-colors ${lastAction === 'CLOCK_IN' ? 'bg-brand-blue text-white' : 'bg-slate-50 text-slate-300'} group-hover:rotate-3`}>
               <Play fill={lastAction === 'CLOCK_IN' ? 'currentColor' : 'none'} className="ml-1" size={32} strokeWidth={2.5} />
             </div>
             <span className={`text-lg font-black tracking-widest ${lastAction === 'CLOCK_IN' ? 'text-brand-blue underline decoration-brand-blue/30 underline-offset-8' : 'text-slate-500'}`}>
@@ -521,7 +521,7 @@ export default function AppDashboard() {
               ${lastAction === 'CLOCK_OUT' ? 'ring-4 ring-slate-200 bg-slate-50' : 'bg-white border border-slate-100'}
             `}
           >
-            <div className={`p-4 rounded-2xl mb-3 shadow-inner transition-colors ${lastAction === 'CLOCK_OUT' ? 'bg-slate-200 text-slate-500' : 'bg-slate-50 text-slate-300'}`}>
+            <div className={`p-4 rounded-2xl mb-3 shadow-inner transition-colors ${lastAction === 'CLOCK_OUT' ? 'bg-slate-200 text-slate-500' : 'bg-slate-50 text-slate-300'} group-hover:-rotate-3`}>
               <Square fill={lastAction === 'CLOCK_OUT' ? 'currentColor' : 'none'} size={32} strokeWidth={2.5} />
             </div>
             <span className={`text-lg font-black tracking-widest ${lastAction === 'CLOCK_OUT' ? 'text-slate-700' : 'text-slate-500'}`}>

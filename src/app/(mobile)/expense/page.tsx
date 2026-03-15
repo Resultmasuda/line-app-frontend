@@ -173,34 +173,36 @@ export default function ExpenseManagement() {
     const totalAmount = expenses.reduce((sum, item) => sum + item.amount, 0);
 
     if (liffLoading) {
-        return <div className="flex h-screen items-center justify-center bg-gray-50 pb-20"><div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full"></div></div>;
+        return <div className="flex h-screen items-center justify-center bg-slate-50 pb-20"><div className="animate-spin w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full shadow-lg"></div></div>;
     }
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 pb-20 relative">
             {/* 画面ヘッダー */}
-            <div className="bg-white px-5 pt-10 pb-0 shadow-sm z-10 sticky top-0">
-                <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-4">
-                    <Receipt className="text-emerald-500" size={22} />
+            <div className="bg-white px-5 pt-12 pb-4 shadow-sm z-10 sticky top-0 border-b border-slate-100">
+                <h1 className="text-2xl font-black text-slate-800 flex items-center gap-3 mb-6 tracking-tighter">
+                    <div className="p-2 bg-brand-blue/5 text-brand-blue rounded-xl shadow-inner">
+                        <Receipt size={24} strokeWidth={2.5} />
+                    </div>
                     交通費精算
                 </h1>
 
                 {/* タブ切り替え */}
-                <div className="flex border-b border-gray-100">
+                <div className="flex">
                     <button
                         onClick={() => {
                             setActiveTab('list');
                             setEditId(null);
                         }}
-                        className={`flex-1 pb-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'list' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-400'}`}
+                        className={`flex-1 pb-3 text-xs font-black text-center border-b-2 transition-all uppercase tracking-widest ${activeTab === 'list' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-300'}`}
                     >
-                        履歴・一覧
+                        利用履歴
                     </button>
                     <button
                         onClick={() => setActiveTab('new')}
-                        className={`flex-1 pb-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'new' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-400'}`}
+                        className={`flex-1 pb-3 text-xs font-black text-center border-b-2 transition-all uppercase tracking-widest ${activeTab === 'new' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-300'}`}
                     >
-                        {editId ? 'データ編集' : '新規入力'}
+                        {editId ? '編集' : '新規入力'}
                     </button>
                 </div>
             </div>
@@ -210,13 +212,14 @@ export default function ExpenseManagement() {
                     /* 履歴一覧タブ */
                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                         {/* サマリーカード */}
-                        <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-200 mb-8">
-                            <p className="text-emerald-100 text-sm font-medium mb-1">{currentMonthStr} 合計</p>
+                        <div className="bg-brand-blue rounded-[32px] p-6 text-white shadow-xl shadow-brand-blue/20 mb-10 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700"></div>
+                            <p className="text-brand-blue-light text-[10px] font-black mb-1 uppercase tracking-widest opacity-80">{currentMonthStr} 合計</p>
                             <div className="flex items-baseline gap-1">
-                                <span className="text-4xl font-black tracking-tight">¥{totalAmount.toLocaleString()}</span>
+                                <span className="text-4xl font-black tracking-tighter">¥{totalAmount.toLocaleString()}</span>
                             </div>
-                            <div className="mt-4 flex justify-between items-center text-xs text-emerald-100 border-t border-emerald-400/30 pt-3">
-                                <span>登録件数: {expenses.length}件</span>
+                            <div className="mt-6 flex justify-between items-center text-[10px] text-white/60 font-black border-t border-white/10 pt-4 uppercase tracking-wider">
+                                <span>件数: {expenses.length} 件</span>
                             </div>
                         </div>
 
@@ -235,29 +238,30 @@ export default function ExpenseManagement() {
                                     const itemDate = new Date(item.target_date);
                                     const dateStr = `${itemDate.getMonth() + 1}/${itemDate.getDate()}`;
                                     return (
-                                        <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 active:scale-[0.98] transition-all">
-                                            <div className="flex items-center justify-between mb-3 border-b border-gray-50 pb-3">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
-                                                        {item.transport_type === 'TRAIN' ? <Train size={20} /> : item.transport_type === 'HOTEL' ? <Hotel size={20} /> : (item.transport_type === 'COMMUTER_PASS' || item.transport_type === 'COMMUTER_USE') ? <Bookmark size={20} /> : <Bus size={20} />}
+                                        <div key={item.id} className="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 active:scale-[0.98] transition-all group">
+                                            <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 rounded-2xl bg-brand-blue/5 flex items-center justify-center text-brand-blue shadow-inner group-hover:rotate-12 transition-transform">
+                                                        {item.transport_type === 'TRAIN' ? <Train size={24} strokeWidth={2.5} /> : item.transport_type === 'HOTEL' ? <Hotel size={24} strokeWidth={2.5} /> : (item.transport_type === 'COMMUTER_PASS' || item.transport_type === 'COMMUTER_USE') ? <Bookmark size={24} strokeWidth={2.5} /> : <Bus size={24} strokeWidth={2.5} />}
                                                     </div>
                                                     <div>
-                                                        <p className="text-xs text-gray-400 font-medium mb-0.5">{dateStr} • {item.transport_type === 'HOTEL' ? '宿泊' : item.is_round_trip ? '往復' : '片道'}</p>
-                                                        <p className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
-                                                            {item.departure} {item.transport_type !== 'HOTEL' && <><ChevronRight size={14} className="text-gray-300" /> {item.arrival}</>}
+                                                        <p className="text-[10px] text-slate-400 font-black mb-1 uppercase tracking-widest">{dateStr} • {item.transport_type === 'HOTEL' ? '宿泊' : item.is_round_trip ? '往復' : '片道'}</p>
+                                                        <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+                                                            <span className="truncate max-w-[80px]">{item.departure}</span> 
+                                                            {item.transport_type !== 'HOTEL' && <><ChevronRight size={14} className="text-slate-300 shrink-0" /> <span className="truncate max-w-[80px]">{item.arrival}</span></>}
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <div className="text-right flex flex-col items-end h-full justify-center">
-                                                    <p className="font-bold text-gray-800 text-lg">¥{item.amount.toLocaleString()}</p>
+                                                <div className="text-right">
+                                                    <p className="font-black text-slate-800 text-xl tracking-tighter">¥{item.amount.toLocaleString()}</p>
                                                 </div>
                                             </div>
-                                            <div className="flex justify-end gap-2">
-                                                <button onClick={() => handleEdit(item)} className="px-3 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs flex items-center gap-1 hover:bg-blue-100 transition-colors">
-                                                    <Pencil size={12} /> 編集
+                                            <div className="flex justify-end gap-3">
+                                                <button onClick={() => handleEdit(item)} className="px-4 py-2 bg-slate-50 text-slate-600 font-black rounded-xl text-[10px] flex items-center gap-1.5 hover:bg-brand-blue/5 hover:text-brand-blue transition-all uppercase tracking-widest border border-slate-100">
+                                                    <Pencil size={12} strokeWidth={2.5} /> 編集
                                                 </button>
-                                                <button onClick={() => handleDelete(item.id)} className="px-3 py-1.5 bg-rose-50 text-rose-600 font-bold rounded-lg text-xs flex items-center gap-1 hover:bg-rose-100 transition-colors">
-                                                    <Trash2 size={12} /> 削除
+                                                <button onClick={() => handleDelete(item.id)} className="px-4 py-2 bg-slate-50 text-slate-400 font-black rounded-xl text-[10px] flex items-center gap-1.5 hover:bg-rose-50 hover:text-rose-500 transition-all uppercase tracking-widest border border-slate-100">
+                                                    <Trash2 size={12} strokeWidth={2.5} /> 削除
                                                 </button>
                                             </div>
                                         </div>
@@ -482,9 +486,9 @@ export default function ExpenseManagement() {
                             <button
                                 onClick={() => setShowConfirm(true)}
                                 disabled={isSaving || !amount || !departure || (transport !== 'HOTEL' && !arrival)}
-                                className="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-70 text-white font-bold py-4 rounded-xl mt-8 shadow-lg shadow-emerald-200 transition-all flex justify-center items-center gap-2"
+                                className="w-full bg-brand-blue hover:bg-brand-deep-blue active:scale-95 disabled:opacity-50 text-white font-black py-5 rounded-[24px] mt-10 shadow-xl shadow-brand-blue/20 transition-all flex justify-center items-center gap-3 text-lg"
                             >
-                                <Plus size={20} /> 入力内容を確認する
+                                <Plus size={24} strokeWidth={3} /> {editId ? '更新内容を確認する' : '入力内容を確認する'}
                             </button>
                         </div>
                     </div>
@@ -596,18 +600,24 @@ export default function ExpenseManagement() {
             )}
 
             {/* フローティングボトムナビゲーション */}
-            <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 pt-3 pb-8 flex justify-around items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
-                <Link href="/" className="flex flex-col items-center text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
-                    <Home size={24} strokeWidth={2} />
-                    <span className="text-[10px] mt-1.5 font-semibold">ホーム</span>
+            <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-slate-100 px-6 pt-3 pb-8 flex justify-around items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
+                <Link href="/" className="flex flex-col items-center text-slate-400 hover:text-brand-blue transition-all active:scale-90">
+                    <div className="p-2 hover:bg-slate-50 rounded-xl mb-1">
+                        <Home size={22} strokeWidth={2.5} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">ホーム</span>
                 </Link>
-                <Link href="/shift" className="flex flex-col items-center text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
-                    <CalendarClock size={24} strokeWidth={2} />
-                    <span className="text-[10px] mt-1.5 font-semibold">シフト</span>
+                <Link href="/shift" className="flex flex-col items-center text-slate-400 hover:text-brand-blue transition-all active:scale-90">
+                    <div className="p-2 hover:bg-slate-50 rounded-xl mb-1">
+                        <CalendarClock size={22} strokeWidth={2.5} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">シフト</span>
                 </Link>
-                <Link href="/expense" className="flex flex-col items-center text-emerald-600 transition-transform active:scale-95">
-                    <Receipt size={24} strokeWidth={2.5} />
-                    <span className="text-[10px] mt-1.5 font-bold">交通費</span>
+                <Link href="/expense" className="flex flex-col items-center text-brand-blue transition-transform active:scale-90">
+                    <div className="p-2 bg-brand-blue/10 rounded-xl mb-1">
+                        <Receipt size={22} strokeWidth={3} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">交通費</span>
                 </Link>
             </div>
         </div>

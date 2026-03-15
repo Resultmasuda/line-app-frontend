@@ -105,6 +105,7 @@ export default function AdminExpensesPage() {
 
     // 稼働日数に対して申請が少ないユーザーを特定
     const [showLowExpUsersModal, setShowLowExpUsersModal] = useState(false);
+    const [selectedLowExpUser, setSelectedLowExpUser] = useState<string | null>(null);
     
     const lowExpUsers = (() => {
         const allUserIds = Array.from(new Set(shifts.map(s => s.user_id)));
@@ -112,14 +113,11 @@ export default function AdminExpensesPage() {
             const userShifts = shifts.filter(s => s.user_id === uid);
             const userExps = expenses.filter(e => (e as any).user_id === uid || (e.users as any)?.id === uid || e.users?.display_name === (userShifts[0] as any)?.users?.display_name);
             
-            // 実際にはAPIレスポンスの形に合わせる必要があるが、
-            // 現状の ExpenseRecord & ShiftRecord から推測
             const userName = (userShifts[0] as any)?.users?.display_name || (userExps[0] as any)?.users?.display_name || '不明';
             
-            const shiftDates = Array.from(new Set(userShifts.map(s => s.date)));
+            const shiftDates = Array.from(new Set(userShifts.map(s => s.date))).sort();
             const expDates = Array.from(new Set(userExps.map(e => e.target_date)));
             
-            // 申請漏れの疑い: シフトがあるのに、その日に交通費申請がない（定期券等を除く）
             const missingDates = shiftDates.filter(d => !expDates.includes(d));
             
             return {
@@ -220,52 +218,56 @@ export default function AdminExpensesPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center max-w-6xl">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                        <Receipt className="text-emerald-500" size={28} />
-                        交通費・経費管理
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 max-w-6xl">
+                <div className="w-full lg:w-auto">
+                    <h1 className="text-2xl sm:text-3xl font-black text-slate-800 flex items-center gap-3 tracking-tighter">
+                        <div className="p-2 bg-brand-gold/10 text-brand-gold rounded-2xl shadow-inner shrink-0">
+                            <Receipt size={28} strokeWidth={2.5} />
+                        </div>
+                        <span className="truncate">交通費・経費管理</span>
                     </h1>
-                    <p className="text-sm text-gray-500 mt-1">
-                        スタッフから申請された全経費の確認と集計
+                    <p className="text-[10px] sm:text-sm font-bold text-slate-400 mt-2 uppercase tracking-widest flex items-center gap-2">
+                        <Bookmark size={14} className="text-brand-gold shrink-0" /> <span className="truncate">交通費・経費精算管理</span>
                     </p>
                 </div>
 
-                <div className="flex items-center gap-4 bg-white px-4 py-2 border border-gray-200 rounded-xl shadow-sm">
-                    <button onClick={handlePrevMonth} className="p-1 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
-                        <ChevronLeft size={20} />
+                <div className="flex items-center justify-between lg:justify-end gap-4 bg-white px-5 py-2.5 border border-slate-200 rounded-[20px] shadow-sm w-full lg:w-auto">
+                    <button onClick={handlePrevMonth} className="p-1.5 text-slate-400 hover:bg-slate-50 hover:text-brand-blue rounded-xl transition-all">
+                        <ChevronLeft size={20} strokeWidth={2.5} />
                     </button>
-                    <span className="font-bold text-gray-800 min-w-[100px] text-center">
+                    <span className="font-black text-slate-700 min-w-[120px] text-center tracking-tight whitespace-nowrap">
                         {currentDate.getFullYear()}年 {currentDate.getMonth() + 1}月
                     </span>
-                    <button onClick={handleNextMonth} className="p-1 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
-                        <ChevronRight size={20} />
+                    <button onClick={handleNextMonth} className="p-1.5 text-slate-400 hover:bg-slate-50 hover:text-brand-blue rounded-xl transition-all">
+                        <ChevronRight size={20} strokeWidth={2.5} />
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-bold text-gray-500 mb-1">当月 申請合計額</p>
-                        <p className="text-3xl font-black text-gray-800 tracking-tight">¥{totalAmount.toLocaleString()}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-6xl">
+                <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100 flex items-center justify-between group overflow-hidden relative">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700"></div>
+                    <div className="relative z-10 w-full">
+                        <p className="text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">月間申請合計</p>
+                        <p className="text-3xl font-black text-slate-800 tracking-tighter">¥{totalAmount.toLocaleString()}</p>
                     </div>
-                    <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center">
-                        <Receipt size={24} />
+                    <div className="w-14 h-14 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center relative z-10 shadow-inner group-hover:rotate-12 transition-transform">
+                        <Receipt size={28} strokeWidth={2.5} />
                     </div>
                 </div>
                 <button 
                     onClick={() => setShowLowExpUsersModal(true)}
-                    className="bg-white p-6 rounded-2xl shadow-sm border border-red-100 flex items-center justify-between hover:bg-red-50/50 transition-colors text-left"
+                    className="bg-white p-6 rounded-[32px] shadow-sm border border-rose-100 flex items-center justify-between hover:shadow-xl hover:shadow-rose-100 transition-all text-left relative group overflow-hidden"
                 >
-                    <div>
-                        <p className="text-sm font-bold text-red-500 mb-1 flex items-center gap-1">
-                            <AlertTriangle size={14} /> 交通費 未申請(疑い)
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700"></div>
+                    <div className="relative z-10 w-full">
+                        <p className="text-[10px] font-black text-rose-500 mb-1 uppercase tracking-widest flex items-center gap-1">
+                            <AlertTriangle size={12} strokeWidth={3} /> 未申請アラート
                         </p>
-                        <p className="text-3xl font-black text-gray-800 tracking-tight">{lowExpUsers.length} <span className="text-sm font-bold text-gray-400">名</span></p>
+                        <p className="text-3xl font-black text-slate-800 tracking-tighter">{lowExpUsers.length} <span className="text-sm font-bold text-slate-400 tracking-normal">名</span></p>
                     </div>
-                    <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center">
-                        <Users size={24} />
+                    <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center relative z-10 shadow-inner group-hover:-rotate-12 transition-transform">
+                        <Users size={28} strokeWidth={2.5} />
                     </div>
                 </button>
             </div>
@@ -283,12 +285,12 @@ export default function AdminExpensesPage() {
                         />
                     </div>
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                        <button className="flex-1 md:flex-none justify-center flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors bg-white">
-                            <Filter size={16} />
+                        <button className="flex-1 md:flex-none justify-center flex items-center gap-2 px-5 py-2.5 border border-slate-200 rounded-xl text-xs font-black text-slate-500 hover:bg-slate-50 transition-all bg-white uppercase tracking-widest active:scale-95">
+                            <Filter size={16} strokeWidth={2.5} />
                             絞り込み
                         </button>
-                        <button onClick={handleXlsxExport} className="flex-1 md:flex-none justify-center flex items-center gap-2 px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold hover:bg-emerald-600 transition-colors shadow-sm">
-                            <Download size={16} />
+                        <button onClick={handleXlsxExport} className="flex-1 md:flex-none justify-center flex items-center gap-2 px-5 py-2.5 bg-brand-blue text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-brand-deep-blue transition-all shadow-lg shadow-brand-blue/20 active:scale-95">
+                            <Download size={16} strokeWidth={2.5} />
                             Excel出力
                         </button>
                     </div>
@@ -303,98 +305,102 @@ export default function AdminExpensesPage() {
                             読み込み中...
                         </div>
                     ) : userNames.length === 0 ? (
-                        <div className="py-12 text-center text-gray-500 text-sm border border-gray-100 rounded-xl bg-gray-50/50">
+                        <div className="py-12 text-center text-slate-500 text-sm border border-slate-100 rounded-[32px] bg-slate-50/50">
                             {searchQuery ? '検索条件に一致するデータがありません' : '指定月の交通費申請はありません'}
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             {userNames.map((userName) => {
                                 const userExps = groupedExpenses[userName];
                                 const userTotal = userExps.reduce((sum, e) => sum + e.amount, 0);
                                 const isExpanded = expandedUsers[userName];
 
                                 return (
-                                    <div key={userName} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm transition-all duration-200">
+                                    <div key={userName} className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden group transition-all hover:shadow-xl hover:shadow-slate-200/50 mb-4 last:mb-0">
                                         <button
                                             onClick={() => toggleUser(userName)}
-                                            className="w-full bg-white hover:bg-gray-50 px-5 py-4 flex items-center justify-between transition-colors focus:outline-none"
+                                            className="w-full bg-white hover:bg-slate-50/50 px-6 py-5 flex items-center justify-between transition-all focus:outline-none group/btn"
                                         >
-                                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                                                    {userName.slice(0, 2).toUpperCase()}
+                                            <div className="flex items-center gap-5 flex-1 min-w-0">
+                                                <div className="w-12 h-12 rounded-2xl bg-brand-blue/5 text-brand-blue flex items-center justify-center font-black text-sm flex-shrink-0 border border-brand-blue/10 shadow-inner group-hover:rotate-6 transition-transform">
+                                                    {userName.slice(0, 1).toUpperCase()}
                                                 </div>
                                                 <div className="text-left truncate">
-                                                    <h3 className="font-bold text-gray-800 truncate">{userName}</h3>
-                                                    <p className="text-xs text-gray-500 mt-1">{userExps.length} 件の申請</p>
+                                                    <h3 className="font-black text-slate-800 truncate text-base tracking-tight">{userName}</h3>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-[10px] font-black text-brand-blue bg-brand-blue/5 px-2 py-0.5 rounded-lg uppercase tracking-tighter border border-brand-blue/10">{userExps.length} 件の申請</span>
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-6 flex-shrink-0 ml-4">
+                                            <div className="flex items-center gap-10 flex-shrink-0 ml-4">
                                                 <div className="text-right">
-                                                    <p className="text-xs font-bold text-gray-400 mb-0.5">交通費 小計</p>
-                                                    <p className="font-black text-gray-800 text-lg">¥{userTotal.toLocaleString()}</p>
+                                                    <p className="text-[9px] font-black text-slate-300 mb-0.5 uppercase tracking-widest">小計</p>
+                                                    <p className="font-black text-slate-800 text-2xl tracking-tighter">¥{userTotal.toLocaleString()}</p>
                                                 </div>
-                                                <div className="text-gray-400">
-                                                    {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isExpanded ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20' : 'bg-slate-50 text-slate-300'}`}>
+                                                    {isExpanded ? <ChevronUp size={20} strokeWidth={3} /> : <ChevronDown size={20} strokeWidth={3} />}
                                                 </div>
                                             </div>
                                         </button>
 
                                         {isExpanded && (
-                                            <div className="bg-gray-50 border-t border-gray-100 overflow-x-auto">
+                                            <div className="bg-slate-50/30 border-t border-slate-100 overflow-x-auto">
                                                 <table className="w-full text-left border-collapse min-w-[600px]">
                                                     <thead>
-                                                        <tr className="bg-gray-100/50 text-gray-400 text-[11px] uppercase tracking-wider">
-                                                            <th className="px-6 py-3 font-semibold whitespace-nowrap w-[100px]">利用日</th>
-                                                            <th className="px-6 py-3 font-semibold text-center whitespace-nowrap w-[100px]">区分</th>
-                                                            <th className="px-6 py-3 font-semibold whitespace-nowrap min-w-[200px]">経路 / 区間</th>
-                                                            <th className="px-6 py-3 font-semibold whitespace-nowrap min-w-[200px]">目的</th>
-                                                            <th className="px-6 py-3 font-semibold text-right whitespace-nowrap w-[120px]">金額</th>
+                                                        <tr className="bg-slate-50/50 text-slate-400 text-[10px] uppercase tracking-widest">
+                                                            <th className="px-8 py-4 font-black whitespace-nowrap w-[120px]">利用日</th>
+                                                            <th className="px-8 py-4 font-black text-center whitespace-nowrap w-[120px]">区分</th>
+                                                            <th className="px-8 py-4 font-black whitespace-nowrap min-w-[200px]">経路 / 区間</th>
+                                                            <th className="px-8 py-4 font-black whitespace-nowrap min-w-[200px]">目的</th>
+                                                            <th className="px-8 py-4 font-black text-right whitespace-nowrap w-[140px]">金額</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody className="divide-y divide-gray-100 bg-white">
+                                                    <tbody className="divide-y divide-slate-100 bg-white">
                                                         {userExps.map((exp) => {
-                                                            const dateStr = new Date(exp.target_date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+                                                            const dateStr = new Date(exp.target_date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' });
                                                             return (
-                                                                <tr key={exp.id} className="hover:bg-gray-50/50 transition-colors">
-                                                                    <td className="px-6 py-4 text-sm font-bold text-gray-700 whitespace-nowrap">
+                                                                <tr key={exp.id} className="hover:bg-slate-50 transition-colors">
+                                                                    <td className="px-8 py-5 text-sm font-black text-slate-700 whitespace-nowrap">
                                                                         {dateStr}
                                                                     </td>
-                                                                    <td className="px-6 py-4 text-center whitespace-nowrap">
-                                                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${exp.transport_type === 'HOTEL'
-                                                                            ? 'bg-purple-50 text-purple-600 border border-purple-100'
+                                                                    <td className="px-8 py-5 text-center whitespace-nowrap">
+                                                                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border ${exp.transport_type === 'HOTEL'
+                                                                            ? 'bg-purple-50 text-purple-600 border-purple-100'
                                                                             : exp.transport_type === 'COMMUTER_PASS'
-                                                                                ? 'bg-orange-50 text-orange-600 border border-orange-100'
+                                                                                ? 'bg-brand-gold/10 text-brand-gold border-brand-gold/30'
                                                                                 : exp.transport_type === 'COMMUTER_USE'
-                                                                                    ? 'bg-cyan-50 text-cyan-600 border border-cyan-100'
+                                                                                    ? 'bg-cyan-50 text-cyan-600 border-cyan-100'
                                                                                     : exp.is_round_trip
-                                                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                                                                                        : 'bg-blue-50 text-blue-600 border border-blue-100'
+                                                                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                                                                        : 'bg-brand-blue/5 text-brand-blue border-brand-blue/10'
                                                                             }`}>
                                                                             {exp.transport_type === 'HOTEL' ? '宿泊' : exp.transport_type === 'COMMUTER_PASS' ? '定期券' : exp.transport_type === 'COMMUTER_USE' ? '定期利用' : exp.is_round_trip ? '往復' : '片道'}
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-normal min-w-[200px]">
-                                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                                            {exp.transport_type === 'TRAIN' ? (
-                                                                                <Train size={14} className="text-gray-400" />
-                                                                            ) : exp.transport_type === 'HOTEL' ? (
-                                                                                <Hotel size={14} className="text-gray-400" />
-                                                                            ) : (exp.transport_type === 'COMMUTER_PASS' || exp.transport_type === 'COMMUTER_USE') ? (
-                                                                                <Bookmark size={14} className="text-emerald-500" />
-                                                                            ) : (
-                                                                                <Bus size={14} className="text-gray-400" />
-                                                                            )}
-                                                                            <span className="text-sm font-bold text-gray-700 flex items-center gap-1 break-all">
-                                                                                {exp.departure} {exp.transport_type !== 'HOTEL' && <ChevronRight size={12} className="text-gray-300 flex-shrink-0" />} {exp.transport_type !== 'HOTEL' && exp.arrival}
+                                                                    <td className="px-8 py-5 whitespace-normal min-w-[200px]">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center flex-shrink-0">
+                                                                                {exp.transport_type === 'TRAIN' ? (
+                                                                                    <Train size={14} />
+                                                                                ) : exp.transport_type === 'HOTEL' ? (
+                                                                                    <Hotel size={14} />
+                                                                                ) : (exp.transport_type === 'COMMUTER_PASS' || exp.transport_type === 'COMMUTER_USE') ? (
+                                                                                    <Bookmark size={14} className="text-brand-gold" />
+                                                                                ) : (
+                                                                                    <Bus size={14} />
+                                                                                )}
+                                                                            </div>
+                                                                            <span className="text-sm font-black text-slate-700 break-all leading-tight">
+                                                                                {exp.departure} {exp.transport_type !== 'HOTEL' && <ChevronRight size={14} className="inline text-slate-300 mx-1" />} {exp.transport_type !== 'HOTEL' && exp.arrival}
                                                                             </span>
                                                                         </div>
                                                                     </td>
-                                                                    <td className="px-6 py-4 text-xs text-gray-500 min-w-[200px] whitespace-normal break-words leading-relaxed">
+                                                                    <td className="px-8 py-5 text-xs font-bold text-slate-400 min-w-[200px] whitespace-normal break-words leading-relaxed">
                                                                         {exp.purpose || '-'}
                                                                     </td>
-                                                                    <td className="px-6 py-4 text-right whitespace-nowrap">
-                                                                        <span className="font-bold text-gray-800">¥{exp.amount.toLocaleString()}</span>
+                                                                    <td className="px-8 py-5 text-right whitespace-nowrap">
+                                                                        <span className="font-black text-slate-800 text-lg tracking-tighter">¥{exp.amount.toLocaleString()}</span>
                                                                     </td>
                                                                 </tr>
                                                             );
@@ -413,55 +419,129 @@ export default function AdminExpensesPage() {
 
             {/* Low Expense Users Modal */}
             {showLowExpUsersModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowLowExpUsersModal(false)}>
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-red-50/30">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                    <AlertTriangle className="text-red-500" size={20} />
-                                    交通費 未申請の疑いがあるスタッフ
-                                </h3>
-                                <p className="text-xs text-gray-500">シフトに対して申請日数が不足しているスタッフ一覧</p>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4" onClick={() => { setShowLowExpUsersModal(false); setSelectedLowExpUser(null); }}>
+                    <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                        <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white relative">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-400 to-rose-600"></div>
+                            <div className="flex items-center gap-4">
+                                {selectedLowExpUser && (
+                                    <button 
+                                        onClick={() => setSelectedLowExpUser(null)}
+                                        className="p-2 -ml-2 text-slate-400 hover:text-brand-blue hover:bg-slate-50 rounded-xl transition-all"
+                                    >
+                                        <ChevronLeft size={24} strokeWidth={2.5} />
+                                    </button>
+                                )}
+                                <div>
+                                    <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3 tracking-tighter">
+                                        <div className="p-2 bg-rose-50 text-rose-500 rounded-2xl">
+                                            <AlertTriangle size={24} strokeWidth={2.5} />
+                                        </div>
+                                        {selectedLowExpUser ? `${lowExpUsers.find(u => u.id === selectedLowExpUser)?.name} の未申請詳細` : '交通費 未申請アラート'}
+                                    </h3>
+                                    <p className="text-[10px] font-black text-slate-400 mt-1 uppercase tracking-widest">
+                                        {selectedLowExpUser ? '未申請の日付詳細' : '交通費 未申請アラート (概要)'}
+                                    </p>
+                                </div>
                             </div>
-                            <button onClick={() => setShowLowExpUsersModal(false)} className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
-                                <X size={20} className="text-gray-500" />
+                            <button 
+                                onClick={() => { setShowLowExpUsersModal(false); setSelectedLowExpUser(null); }}
+                                className="p-3 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-2xl transition-all active:scale-90"
+                            >
+                                <X size={24} strokeWidth={2.5} />
                             </button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                            {lowExpUsers.length === 0 ? (
-                                <div className="text-center py-12 text-gray-400">
-                                    該当するスタッフはいません
-                                </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-8 bg-white">
+                            {!selectedLowExpUser ? (
+                                <>
+                                    <div className="bg-rose-50 rounded-3xl p-6 mb-8 border border-rose-100/50">
+                                        <p className="text-sm font-bold text-rose-700 leading-relaxed flex gap-3">
+                                            <div className="w-5 h-5 rounded-full bg-rose-200 text-rose-600 flex items-center justify-center flex-shrink-0 text-[10px] font-black mt-0.5">!</div>
+                                            当月の稼働日数に対して、交通費の申請が極端に少ないスタッフです。名前をクリックして未申請の日付を確認してください。
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {lowExpUsers.length === 0 ? (
+                                            <div className="text-center py-20 text-slate-300">
+                                                <p className="font-black text-sm uppercase tracking-widest">該当するスタッフはいません</p>
+                                            </div>
+                                        ) : (
+                                            lowExpUsers.map((u) => (
+                                                <button 
+                                                    key={u.id} 
+                                                    onClick={() => setSelectedLowExpUser(u.id)}
+                                                    className="w-full text-left bg-slate-50/50 rounded-3xl p-5 border border-slate-100 flex flex-wrap items-center justify-between gap-4 group hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300"
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 rounded-2xl bg-white text-slate-400 flex items-center justify-center font-black text-sm border border-slate-100 shadow-sm group-hover:bg-brand-blue group-hover:text-white group-hover:border-brand-blue transition-all">
+                                                            {u.name.slice(0, 1).toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-black text-slate-800 text-base tracking-tight">{u.name}</h4>
+                                                            <div className="flex items-center gap-3 mt-1">
+                                                                <span className="text-[10px] font-black text-rose-500 uppercase tracking-tighter">申請率: {Math.round((u.expCount / u.shiftCount) * 100)}%</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-6 ml-auto sm:ml-0">
+                                                        <div className="text-center bg-white px-4 py-2 rounded-2xl border border-slate-100 shadow-sm">
+                                                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5">稼働日数</p>
+                                                            <p className="font-black text-slate-800 text-lg tracking-tighter">{u.shiftCount}</p>
+                                                        </div>
+                                                        <div className="text-center bg-white px-4 py-2 rounded-2xl border border-rose-100 shadow-sm">
+                                                            <p className="text-[9px] font-black text-rose-300 uppercase tracking-widest mb-0.5">申請済み</p>
+                                                            <p className="font-black text-rose-500 text-lg tracking-tighter">{u.expCount}</p>
+                                                        </div>
+                                                        <ChevronRight size={20} className="text-slate-300 group-hover:text-brand-blue transition-colors ml-2" />
+                                                    </div>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                </>
                             ) : (
-                                lowExpUsers.map(u => (
-                                    <div key={u.id} className="border border-gray-100 rounded-xl p-4 flex items-center justify-between hover:bg-gray-50 transition-colors bg-white shadow-sm">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center font-bold">
-                                                {u.name.slice(0, 1)}
-                                            </div>
-                                            <div>
-                                                <div className="font-bold text-gray-800">{u.name}</div>
-                                                <div className="text-[10px] text-gray-500">
-                                                    稼働: {u.shiftCount}日 / 交通費申請: {u.expCount}日
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-red-600 font-black text-lg">
-                                                -{u.missingCount} <span className="text-[10px]">日分</span>
-                                            </div>
-                                            <div className="text-[9px] text-gray-400">未申請の可能性</div>
+                                <div className="animate-in slide-in-from-right-4 duration-300">
+                                    <div className="bg-slate-50 rounded-3xl p-6 mb-8 border border-slate-100">
+                                        <h4 className="text-slate-500 font-black text-[10px] uppercase tracking-widest mb-4">未申請の可能性がある日付の一覧</h4>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                            {lowExpUsers.find(u => u.id === selectedLowExpUser)?.missingDates.map(date => {
+                                                const d = new Date(date);
+                                                const isSunday = d.getDay() === 0;
+                                                const isSaturday = d.getDay() === 6;
+                                                return (
+                                                    <div key={date} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-1">
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                                                            {d.getFullYear()}年{d.getMonth() + 1}月
+                                                        </span>
+                                                        <span className={`text-xl font-black tracking-tighter ${isSunday ? 'text-rose-500' : isSaturday ? 'text-brand-blue' : 'text-slate-700'}`}>
+                                                            {d.getDate()}<span className="text-xs ml-0.5">({['日','月','火','水','木','金','土'][d.getDay()]})</span>
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
-                                ))
+                                    <p className="text-xs font-bold text-slate-400 text-center leading-relaxed px-4">
+                                        ※ 上記の日付はシフトが設定されていますが、交通費申請が確認できません。<br/>スタッフに直接確認を行うか、申請漏れがないかチェックしてください。
+                                    </p>
+                                </div>
                             )}
                         </div>
-                        <div className="p-4 bg-gray-50 border-t border-gray-100">
+
+                        <div className="p-8 border-t border-slate-100 bg-slate-50/30">
                             <button 
-                                onClick={() => setShowLowExpUsersModal(false)}
-                                className="w-full py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+                                onClick={() => {
+                                    if (selectedLowExpUser) {
+                                        setSelectedLowExpUser(null);
+                                    } else {
+                                        setShowLowExpUsersModal(false);
+                                    }
+                                }}
+                                className="w-full py-4 bg-slate-800 text-white rounded-[20px] font-black text-sm uppercase tracking-widest shadow-lg shadow-slate-200 transition-all hover:bg-slate-900 active:scale-[0.98]"
                             >
-                                閉じる
+                                {selectedLowExpUser ? 'スタッフ一覧に戻る' : 'ダッシュボードを閉じる'}
                             </button>
                         </div>
                     </div>

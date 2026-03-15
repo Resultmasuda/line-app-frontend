@@ -265,8 +265,8 @@ export default function AppDashboard() {
 
   if (liffLoading || isLoadingData) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-50 pb-20">
-        <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full"></div>
+      <div className="flex h-screen items-center justify-center bg-slate-50 pb-20">
+        <div className="animate-spin w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full shadow-lg"></div>
       </div>
     );
   }
@@ -304,13 +304,13 @@ export default function AppDashboard() {
           const isAdmin = SUPER_IDS.includes(user.id) || ['ADMIN', 'PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(r);
           return isAdmin ? (
             <div className="absolute right-4 top-12 flex flex-col items-end gap-2">
-              <Link href="/admin/dashboard" className="bg-emerald-500 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg hover:bg-emerald-600 transition-all">
+              <Link href="/admin/dashboard" className="bg-brand-blue text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg shadow-brand-blue/20 hover:bg-brand-deep-blue transition-all active:scale-95">
                 管理画面へ
               </Link>
               {isSuperAdmin && (
                 <button
                   onClick={() => setIsDebugMode(!isDebugMode)}
-                  className={`text-[9px] font-bold px-2 py-1 rounded-md border transition-all ${isDebugMode ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-gray-50 border-gray-200 text-gray-400'}`}
+                  className={`text-[9px] font-black px-2 py-1 rounded-md border transition-all uppercase tracking-widest ${isDebugMode ? 'bg-brand-gold/10 border-brand-gold/30 text-brand-gold shadow-inner' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
                 >
                   位置デバッグ: {isDebugMode ? 'ON' : 'OFF'}
                 </button>
@@ -325,20 +325,20 @@ export default function AppDashboard() {
         {/* シフト予定エリア */}
         <div className="space-y-3 mb-8">
           {todayShift ? (
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 flex items-center justify-between transform transition-all hover:scale-[1.02] relative overflow-hidden">
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
-              <div className="pl-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-emerald-500 text-[10px] font-black tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full">TODAY</p>
-                  <p className="text-gray-800 font-bold text-sm">{formatDate(todayShift.date)}</p>
+            <div className="bg-white rounded-[24px] p-5 shadow-sm border border-brand-blue/10 flex items-center justify-between transform transition-all active:scale-98 relative overflow-hidden group">
+              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-blue"></div>
+              <div className="pl-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <p className="text-brand-blue text-[10px] font-black tracking-widest bg-brand-blue/5 px-2.5 py-1 rounded-full uppercase">本日</p>
+                  <p className="text-slate-800 font-black text-sm">{formatDate(todayShift.date)}</p>
                 </div>
-                <p className="text-gray-800 font-bold text-base">{todayShift.location}</p>
-                <p className="text-gray-500 text-xs font-medium mt-0.5 flex items-center gap-1">
-                  <CalendarClock size={12} /> {todayShift.start_time.substring(0, 5)} - {todayShift.end_time.substring(0, 5)}
+                <p className="text-slate-800 font-black text-lg tracking-tight">{todayShift.location}</p>
+                <p className="text-slate-400 text-xs font-bold mt-1 flex items-center gap-1.5">
+                  <CalendarClock size={14} className="text-brand-blue" /> {todayShift.start_time.substring(0, 5)} - {todayShift.end_time.substring(0, 5)}
                 </p>
               </div>
-              <div className="h-10 w-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shrink-0">
-                <MapPin size={20} />
+              <div className="h-12 w-12 bg-brand-blue/5 rounded-2xl flex items-center justify-center text-brand-blue shrink-0 shadow-inner group-hover:rotate-12 transition-transform">
+                <MapPin size={24} strokeWidth={2.5} />
               </div>
             </div>
           ) : (
@@ -351,7 +351,7 @@ export default function AppDashboard() {
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between transform transition-all hover:scale-[1.02]">
               <div className="pl-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="text-gray-400 text-[10px] font-black tracking-wider bg-gray-50 px-2 py-0.5 rounded-full">NEXT SHIFT</p>
+                  <p className="text-gray-400 text-[10px] font-black tracking-wider bg-gray-50 px-2 py-0.5 rounded-full">次回のシフト</p>
                   <p className="text-gray-600 font-bold text-sm">{formatDate(nextShift.date)}</p>
                 </div>
                 <p className="text-gray-600 font-bold text-base">{nextShift.location}</p>
@@ -364,9 +364,9 @@ export default function AppDashboard() {
         {/* --- 共演メンバーのメモ (共有事項・メモ) --- */}
         {coworkerShifts.length > 0 && (
           <div className="mb-8">
-            <h3 className="text-xs font-bold text-gray-500 mb-3 ml-1 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              同じシフトのメンバーの共有事項・メモ
+            <h3 className="text-[11px] font-black text-slate-400 mb-3 ml-1 flex items-center gap-2 uppercase tracking-widest">
+              <span className="w-2 h-2 rounded-full bg-brand-gold shadow-sm"></span>
+              同じシフトのメンバー
             </h3>
             <div className="space-y-2.5">
               {coworkerShifts.map((cs) => (
@@ -412,15 +412,15 @@ export default function AppDashboard() {
             onClick={() => handlePunch('WAKE_UP')}
             disabled={actionLoading}
             className={`
-              relative w-full aspect-square rounded-3xl flex flex-col items-center justify-center
+              relative w-full aspect-square rounded-[32px] flex flex-col items-center justify-center
               shadow-lg transition-all duration-300 transform active:scale-95 disabled:opacity-70
-              ${lastAction === 'WAKE_UP' ? 'ring-4 ring-amber-200 bg-amber-50' : 'bg-white hover:bg-gray-50 border border-gray-100'}
+              ${lastAction === 'WAKE_UP' ? 'ring-4 ring-brand-gold/20 bg-brand-gold/5' : 'bg-white border border-slate-100'}
             `}
           >
-            <div className={`p-4 rounded-full mb-3 ${lastAction === 'WAKE_UP' ? 'bg-amber-100 text-amber-500' : 'bg-gray-100 text-gray-400'}`}>
-              <Sun fill={lastAction === 'WAKE_UP' ? 'currentColor' : 'none'} size={28} />
+            <div className={`p-4 rounded-2xl mb-3 shadow-inner transition-colors ${lastAction === 'WAKE_UP' ? 'bg-brand-gold/20 text-brand-gold' : 'bg-slate-50 text-slate-300'}`}>
+              <Sun fill={lastAction === 'WAKE_UP' ? 'currentColor' : 'none'} size={32} strokeWidth={2.5} />
             </div>
-            <span className={`text-xl font-black tracking-wider ${lastAction === 'WAKE_UP' ? 'text-amber-600' : 'text-gray-600'}`}>
+            <span className={`text-lg font-black tracking-widest ${lastAction === 'WAKE_UP' ? 'text-brand-gold' : 'text-slate-500'}`}>
               起 床
             </span>
           </button>
@@ -430,15 +430,15 @@ export default function AppDashboard() {
             onClick={() => handlePunch('LEAVE')}
             disabled={actionLoading}
             className={`
-              relative w-full aspect-square rounded-3xl flex flex-col items-center justify-center
+              relative w-full aspect-square rounded-[32px] flex flex-col items-center justify-center
               shadow-lg transition-all duration-300 transform active:scale-95 disabled:opacity-70
-              ${lastAction === 'LEAVE' ? 'ring-4 ring-blue-200 bg-blue-50' : 'bg-white hover:bg-gray-50 border border-gray-100'}
+              ${lastAction === 'LEAVE' ? 'ring-4 ring-brand-blue/20 bg-brand-blue/5' : 'bg-white border border-slate-100'}
             `}
           >
-            <div className={`p-4 rounded-full mb-3 ${lastAction === 'LEAVE' ? 'bg-blue-100 text-blue-500' : 'bg-gray-100 text-gray-400'}`}>
-              <Navigation fill={lastAction === 'LEAVE' ? 'currentColor' : 'none'} size={28} />
+            <div className={`p-4 rounded-2xl mb-3 shadow-inner transition-colors ${lastAction === 'LEAVE' ? 'bg-brand-blue/20 text-brand-blue' : 'bg-slate-50 text-slate-300'}`}>
+              <Navigation fill={lastAction === 'LEAVE' ? 'currentColor' : 'none'} size={32} strokeWidth={2.5} />
             </div>
-            <span className={`text-xl font-black tracking-wider ${lastAction === 'LEAVE' ? 'text-blue-600' : 'text-gray-600'}`}>
+            <span className={`text-lg font-black tracking-widest ${lastAction === 'LEAVE' ? 'text-brand-blue' : 'text-slate-500'}`}>
               出 発
             </span>
           </button>
@@ -448,15 +448,15 @@ export default function AppDashboard() {
             onClick={() => handlePunch('CLOCK_IN')}
             disabled={actionLoading}
             className={`
-              relative w-full aspect-square rounded-3xl flex flex-col items-center justify-center
-              shadow-lg transition-all duration-300 transform active:scale-95 disabled:opacity-70
-              ${lastAction === 'CLOCK_IN' ? 'ring-4 ring-emerald-200 bg-emerald-50' : 'bg-white hover:bg-gray-50 border border-gray-100'}
+              relative w-full aspect-square rounded-[32px] flex flex-col items-center justify-center
+              shadow-xl transition-all duration-300 transform active:scale-95 disabled:opacity-70
+              ${lastAction === 'CLOCK_IN' ? 'ring-4 ring-brand-blue/30 bg-brand-blue/10' : 'bg-white border border-slate-100'}
             `}
           >
-            <div className={`p-4 rounded-full mb-3 ${lastAction === 'CLOCK_IN' ? 'bg-emerald-100 text-emerald-500' : 'bg-gray-100 text-gray-400'}`}>
-              <Play fill={lastAction === 'CLOCK_IN' ? 'currentColor' : 'none'} className="ml-1" size={28} />
+            <div className={`p-4 rounded-2xl mb-3 shadow-inner transition-colors ${lastAction === 'CLOCK_IN' ? 'bg-brand-blue text-white' : 'bg-slate-50 text-slate-300'}`}>
+              <Play fill={lastAction === 'CLOCK_IN' ? 'currentColor' : 'none'} className="ml-1" size={32} strokeWidth={2.5} />
             </div>
-            <span className={`text-xl font-black tracking-wider ${lastAction === 'CLOCK_IN' ? 'text-emerald-600' : 'text-gray-600'}`}>
+            <span className={`text-lg font-black tracking-widest ${lastAction === 'CLOCK_IN' ? 'text-brand-blue underline decoration-brand-blue/30 underline-offset-8' : 'text-slate-500'}`}>
               出 勤
             </span>
           </button>
@@ -466,30 +466,30 @@ export default function AppDashboard() {
             onClick={() => handlePunch('CLOCK_OUT')}
             disabled={actionLoading}
             className={`
-              relative w-full aspect-square rounded-3xl flex flex-col items-center justify-center
+              relative w-full aspect-square rounded-[32px] flex flex-col items-center justify-center
               shadow-lg transition-all duration-300 transform active:scale-95 disabled:opacity-70
-              ${lastAction === 'CLOCK_OUT' ? 'ring-4 ring-rose-200 bg-rose-50' : 'bg-white hover:bg-gray-50 border border-gray-100'}
+              ${lastAction === 'CLOCK_OUT' ? 'ring-4 ring-slate-200 bg-slate-50' : 'bg-white border border-slate-100'}
             `}
           >
-            <div className={`p-4 rounded-full mb-3 ${lastAction === 'CLOCK_OUT' ? 'bg-rose-100 text-rose-500' : 'bg-gray-100 text-gray-400'}`}>
-              <Square fill={lastAction === 'CLOCK_OUT' ? 'currentColor' : 'none'} size={28} />
+            <div className={`p-4 rounded-2xl mb-3 shadow-inner transition-colors ${lastAction === 'CLOCK_OUT' ? 'bg-slate-200 text-slate-500' : 'bg-slate-50 text-slate-300'}`}>
+              <Square fill={lastAction === 'CLOCK_OUT' ? 'currentColor' : 'none'} size={32} strokeWidth={2.5} />
             </div>
-            <span className={`text-xl font-black tracking-wider ${lastAction === 'CLOCK_OUT' ? 'text-rose-600' : 'text-gray-600'}`}>
+            <span className={`text-lg font-black tracking-widest ${lastAction === 'CLOCK_OUT' ? 'text-slate-700' : 'text-slate-500'}`}>
               退 勤
             </span>
           </button>
         </div>
 
         {/* ステータスインジケーター */}
-        <div className="flex items-center justify-center space-x-2 text-sm bg-white/60 py-2 px-4 rounded-full w-fit mx-auto border border-gray-100">
+        <div className="flex items-center justify-center space-x-3 text-sm bg-white py-3 px-6 rounded-2xl w-fit mx-auto border border-slate-100 shadow-sm">
           <span className="relative flex h-3 w-3">
-            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${lastAction && lastAction !== 'CLOCK_OUT' ? 'bg-emerald-400' : 'bg-gray-400'}`}></span>
-            <span className={`relative inline-flex rounded-full h-3 w-3 ${lastAction && lastAction !== 'CLOCK_OUT' ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>
+            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${lastAction && lastAction !== 'CLOCK_OUT' ? 'bg-brand-blue' : 'bg-slate-300'}`}></span>
+            <span className={`relative inline-flex rounded-full h-3 w-3 ${lastAction && lastAction !== 'CLOCK_OUT' ? 'bg-brand-blue' : 'bg-slate-300'}`}></span>
           </span>
-          <span className="text-gray-700 font-bold">
+          <span className="text-slate-800 font-black tracking-tight">
             {lastAction === 'WAKE_UP' ? '起床済み / 出発待ち' :
               lastAction === 'LEAVE' ? '移動中' :
-                lastAction === 'CLOCK_IN' ? `勤務中${todayShift ? ` (${todayShift.location})` : ''}` :
+                lastAction === 'CLOCK_IN' ? `勤務中 (${todayShift?.location || '現場'})` :
                   lastAction === 'CLOCK_OUT' ? '退勤済み' : '業務外 (未稼働)'}
           </span>
         </div>
@@ -520,14 +520,14 @@ export default function AppDashboard() {
                 const details = getRecordDetails(record.type);
 
                 return (
-                  <div key={record.id || index} className="animate-in fade-in slide-in-from-bottom-2 bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white shadow-sm ${details.colorClass}`}>
+                  <div key={record.id || index} className="animate-in fade-in slide-in-from-bottom-2 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110 ${details.colorClass}`}>
                         {details.icon}
                       </div>
-                      <span className="font-bold text-gray-700">{details.label}</span>
+                      <span className="font-black text-slate-700 tracking-tight">{details.label}</span>
                     </div>
-                    <span className="font-bold text-gray-800 tracking-wider text-lg">{timeStr}</span>
+                    <span className="font-black text-slate-800 tracking-widest text-xl">{timeStr}</span>
                   </div>
                 );
               })}
@@ -544,10 +544,10 @@ export default function AppDashboard() {
               <h3 className="font-bold text-lg text-gray-800">確認</h3>
               <p className="text-sm text-gray-600 mt-2 font-medium">{pendingConfirm.message}</p>
             </div>
-            <div className="p-4 flex gap-3 bg-white">
+            <div className="p-4 flex gap-3 bg-slate-50 border-t border-slate-100">
               <button
                 onClick={() => setPendingConfirm(null)}
-                className="flex-1 py-3.5 bg-gray-100 text-gray-500 font-bold rounded-xl active:bg-gray-200 transition-colors"
+                className="flex-1 py-4 bg-white text-slate-400 font-black rounded-2xl active:bg-slate-50 transition-all border border-slate-200 outline-none"
               >
                 キャンセル
               </button>
@@ -556,9 +556,9 @@ export default function AppDashboard() {
                   pendingConfirm.action();
                   setPendingConfirm(null);
                 }}
-                className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl active:bg-emerald-700 transition-all shadow-md shadow-emerald-200"
+                className="flex-1 py-4 bg-brand-blue hover:bg-brand-deep-blue text-white font-black rounded-2xl active:scale-95 transition-all shadow-lg shadow-brand-blue/20 outline-none"
               >
-                実行する
+                打刻する
               </button>
             </div>
           </div>
@@ -576,7 +576,7 @@ export default function AppDashboard() {
 
             <div className="p-5 space-y-4 bg-gray-50/50 overflow-y-auto">
               <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-center">
-                <p className="text-[10px] text-emerald-500 font-bold tracking-wider mb-0.5">NEXT SHIFT</p>
+                <p className="text-[10px] text-emerald-500 font-bold tracking-wider mb-0.5">次回のシフト</p>
                 <p className="text-gray-800 font-bold text-sm">{formatDate(planningShift.date)}</p>
                 <p className="text-gray-600 font-medium text-xs mt-1">{planningShift.location} ({planningShift.start_time?.slice(0, 5)} - {planningShift.end_time?.slice(0, 5)})</p>
               </div>
@@ -763,18 +763,24 @@ export default function AppDashboard() {
       )}
 
       {/* フローティングボトムナビゲーション */}
-      <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 pt-3 pb-8 flex justify-around items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
-        <Link href="/" className="flex flex-col items-center text-emerald-600 transition-transform active:scale-95">
-          <Home size={24} strokeWidth={2.5} />
-          <span className="text-[10px] mt-1.5 font-bold">ホーム</span>
+      <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-slate-100 px-6 pt-3 pb-8 flex justify-around items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
+        <Link href="/" className="flex flex-col items-center text-brand-blue transition-transform active:scale-90">
+          <div className="p-2 bg-brand-blue/10 rounded-xl mb-1">
+            <Home size={22} strokeWidth={3} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-tighter">ホーム</span>
         </Link>
-        <Link href="/shift" className="flex flex-col items-center text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
-          <CalendarClock size={24} strokeWidth={2} />
-          <span className="text-[10px] mt-1.5 font-semibold">シフト</span>
+        <Link href="/shift" className="flex flex-col items-center text-slate-400 hover:text-brand-blue transition-all active:scale-90">
+          <div className="p-2 hover:bg-slate-50 rounded-xl mb-1">
+            <CalendarClock size={22} strokeWidth={2.5} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-tighter">シフト</span>
         </Link>
-        <Link href="/expense" className="flex flex-col items-center text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
-          <Receipt size={24} strokeWidth={2} />
-          <span className="text-[10px] mt-1.5 font-semibold">交通費</span>
+        <Link href="/expense" className="flex flex-col items-center text-slate-400 hover:text-brand-blue transition-all active:scale-90">
+          <div className="p-2 hover:bg-slate-50 rounded-xl mb-1">
+            <Receipt size={22} strokeWidth={2.5} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-tighter">交通費</span>
         </Link>
       </div>
     </div>

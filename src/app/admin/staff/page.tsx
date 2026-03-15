@@ -82,8 +82,10 @@ export default function AdminStaffPage() {
         <div className="space-y-6">
             <div className="flex justify-between items-center max-w-5xl">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                        <Users className="text-emerald-500" size={28} />
+                    <h1 className="text-2xl font-black text-slate-800 flex items-center gap-3 tracking-tighter">
+                        <div className="p-2 bg-brand-blue/10 text-brand-blue rounded-xl shadow-inner">
+                            <Users size={28} strokeWidth={2.5} />
+                        </div>
                         スタッフ一覧
                     </h1>
                     <p className="text-sm text-gray-500 mt-1">
@@ -107,9 +109,9 @@ export default function AdminStaffPage() {
                     <div className="flex gap-2 w-full sm:w-auto">
                         <button
                             onClick={() => setShowAddModal(true)}
-                            className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm whitespace-nowrap"
+                            className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black text-white bg-brand-blue hover:bg-brand-deep-blue transition-all shadow-lg shadow-brand-blue/20 uppercase tracking-widest active:scale-95"
                         >
-                            <Plus size={16} />
+                            <Plus size={16} strokeWidth={3} />
                             スタッフを追加
                         </button>
                     </div>
@@ -148,8 +150,8 @@ export default function AdminStaffPage() {
                                         <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                                                        {user.display_name.slice(0, 2).toUpperCase()}
+                                                    <div className="w-9 h-9 rounded-xl bg-brand-blue/10 text-brand-blue flex items-center justify-center font-black text-sm shadow-inner group-hover/row:scale-110 transition-transform">
+                                                        {user.display_name.slice(0, 1).toUpperCase()}
                                                     </div>
                                                     <span className="font-bold text-gray-800">{user.display_name}</span>
                                                 </div>
@@ -177,11 +179,11 @@ export default function AdminStaffPage() {
                                                     </div>
                                                     {user.line_user_id ? (
                                                         <div className="flex items-center gap-2 group">
-                                                            <span className="text-emerald-600 font-medium px-2 py-0.5 bg-emerald-50 rounded-md inline-block w-fit text-[10px]">連携済み</span>
+                                                            <span className="text-brand-blue font-black px-2 py-0.5 bg-brand-blue/5 rounded-md inline-block w-fit text-[10px] border border-brand-blue/10 whitespace-nowrap">連携済み</span>
                                                         </div>
                                                     ) : (
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-amber-600 font-bold px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-md inline-block w-fit text-[10px]">未連携</span>
+                                                            <span className="text-brand-gold font-black px-2 py-0.5 bg-brand-gold/5 border border-brand-gold/20 rounded-md inline-block w-fit text-[10px] whitespace-nowrap">未連携</span>
                                                             <button
                                                                 onClick={() => {
                                                                     const url = `${window.location.origin}/?link_id=${user.id}`;
@@ -198,7 +200,7 @@ export default function AdminStaffPage() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-center whitespace-nowrap">
-                                                <Link href={`/admin/staff/${user.id}`} className="text-emerald-600 font-bold text-[11px] sm:text-xs hover:text-emerald-700 transition-colors bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                                                <Link href={`/admin/staff/${user.id}`} className="text-brand-blue font-black text-[11px] sm:text-xs hover:text-brand-deep-blue transition-all bg-brand-blue/5 px-4 py-2 rounded-xl border border-brand-blue/10 hover:shadow-md active:scale-95">
                                                     詳細を見る
                                                 </Link>
                                             </td>
@@ -216,8 +218,8 @@ export default function AdminStaffPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="p-6">
-                            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                <span className="bg-emerald-100 text-emerald-600 p-1.5 rounded-xl"><Users size={18} /></span>
+                            <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-3 tracking-tight">
+                                <span className="p-2 bg-brand-blue/10 text-brand-blue rounded-xl shadow-inner"><Users size={18} strokeWidth={2.5} /></span>
                                 新規スタッフの事前登録
                             </h3>
                             <p className="text-xs text-gray-500 mb-6 leading-relaxed">

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { CalendarClock, Search, Filter, ChevronLeft, ChevronRight, Clock, MapPin, UserCheck, UserX, Sun, Navigation, Building2, Plus, Edit2, Trash2, X, Calendar as CalendarIcon, User as UserIcon, Copy, Check } from 'lucide-react';
+import { CalendarClock, Search, Filter, ChevronLeft, ChevronRight, Clock, MapPin, UserCheck, UserX, Sun, Navigation, Building2, Plus, Edit2, Trash2, X, Calendar as CalendarIcon, User as UserIcon, Copy, Check, Bookmark } from 'lucide-react';
 import { getAllShifts, getAllAttendances, getAllStores, createStore, updateStore, deleteStore, createShift, updateShift, deleteShift, StoreRecord, getAllUsers, AdminUserRecord, getUserPermissions } from '@/lib/api/admin';
 import { useLiff } from '@/components/LiffProvider';
 import { supabase } from '@/lib/supabase';
@@ -314,40 +314,42 @@ export default function AdminShiftsPage() {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center max-w-6xl gap-4">
                 <div className="flex-shrink-0">
-                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                        <CalendarClock className="text-emerald-500" size={28} />
+                    <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3 tracking-tighter">
+                        <div className="p-2 bg-brand-blue/10 text-brand-blue rounded-2xl shadow-inner">
+                            <CalendarClock size={28} strokeWidth={2.5} />
+                        </div>
                         シフト・勤怠管理
                     </h1>
-                    <p className="text-sm text-gray-500 mt-1">
-                        月ごとの全スタッフのシフトと実労働状況の確認
+                    <p className="text-sm font-bold text-slate-400 mt-2 uppercase tracking-widest flex items-center gap-2">
+                        <Bookmark size={14} className="text-brand-gold" /> 勤怠・スケジュールの管理
                     </p>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto mt-2 md:mt-0">
-                    <div className="flex items-center bg-indigo-50 p-1 rounded-xl border border-indigo-100 flex-1 md:flex-none">
+                    <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200 flex-1 md:flex-none shadow-inner">
                         <button
                             onClick={() => setStoreTypeFilter('store')}
-                            className={`flex-1 md:flex-none px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${storeTypeFilter === 'store' ? 'bg-indigo-600 text-white shadow-sm' : 'text-indigo-600 hover:bg-indigo-100'}`}
+                            className={`flex-1 md:flex-none px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${storeTypeFilter === 'store' ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20 scale-105' : 'text-slate-500 hover:text-brand-blue'}`}
                         >
                             シフト
                         </button>
                         <button
                             onClick={() => setStoreTypeFilter('role_group')}
-                            className={`flex-1 md:flex-none px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${storeTypeFilter === 'role_group' ? 'bg-indigo-600 text-white shadow-sm' : 'text-indigo-600 hover:bg-indigo-100'}`}
+                            className={`flex-1 md:flex-none px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${storeTypeFilter === 'role_group' ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20 scale-105' : 'text-slate-500 hover:text-brand-blue'}`}
                         >
                             予定
                         </button>
                     </div>
-                    <div className="flex items-center bg-gray-100 p-1 rounded-xl shadow-inner border border-gray-200 flex-1 md:flex-none overflow-x-auto hide-scrollbar">
+                    <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl shadow-inner border border-slate-200 flex-1 md:flex-none overflow-x-auto hide-scrollbar">
                         <button
                             onClick={() => setActiveTab('today')}
-                            className={`flex-1 md:flex-none px-3 sm:px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'today' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                            className={`flex-1 md:flex-none px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'today' ? 'bg-white text-brand-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                         >
                             本日 ({todayStr.slice(5).replace('-', '/')})
                         </button>
                         <button
                             onClick={() => setActiveTab('tomorrow')}
-                            className={`flex-1 md:flex-none px-3 sm:px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'tomorrow' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                            className={`flex-1 md:flex-none px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'tomorrow' ? 'bg-white text-brand-blue shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                         >
                             明日 ({tomorrowStr.slice(5).replace('-', '/')})
                         </button>
@@ -396,10 +398,10 @@ export default function AdminShiftsPage() {
                                 setEditingShift({ date: todayStrJST, start_time: '10:00', end_time: '19:00', location: '' });
                                 setIsShiftModalOpen(true);
                             }}
-                            className="flex-1 md:flex-none justify-center flex items-center gap-2 px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-600 transition-colors"
+                            className="flex-1 md:flex-none justify-center flex items-center gap-2 px-5 py-2.5 bg-brand-blue text-white rounded-xl text-xs font-black tracking-widest uppercase shadow-lg shadow-brand-blue/20 hover:bg-brand-deep-blue transition-all active:scale-95"
                         >
-                            <Plus size={16} />
-                            シフトを作成
+                            <Plus size={16} strokeWidth={3} />
+                            シフト作成
                         </button>
                         <button
                             onClick={() => setIsStoreModalOpen(true)}
@@ -430,36 +432,40 @@ export default function AdminShiftsPage() {
                                 const storeId = storeObj ? storeObj.id : 'unknown';
 
                                 return (
-                                    <div key={store} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                                        <div className="bg-indigo-50 px-4 py-3 flex items-center gap-4 border-b border-indigo-100 flex-wrap">
-                                            <div className="flex items-center gap-2 -ml-2">
-                                                <MapPin size={18} className="text-indigo-600 ml-2" />
-                                                <Link href={`/admin/shifts/${storeId}`} className="group flex items-center gap-1 hover:opacity-80 transition-opacity">
-                                                    <h2 className="font-bold text-indigo-900 group-hover:underline decoration-indigo-400 underline-offset-4">{store}</h2>
-                                                    <ChevronRight size={16} className="text-indigo-500 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                                                </Link>
+                                    <div key={store} className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden group/store transition-all hover:shadow-xl hover:shadow-slate-200/50">
+                                        <div className="bg-slate-50/50 px-6 py-5 flex items-center gap-4 border-b border-slate-100 flex-wrap sm:flex-nowrap">
+                                            <div className="flex items-center gap-4 flex-wrap flex-1">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-brand-blue/10 text-brand-blue rounded-xl shadow-inner">
+                                                        <MapPin size={20} strokeWidth={2.5} />
+                                                    </div>
+                                                    <Link href={`/admin/shifts/${storeId}`} className="group/link flex items-center gap-2 hover:opacity-80 transition-opacity">
+                                                        <h2 className="font-black text-slate-800 text-lg tracking-tight group-hover/link:text-brand-blue">{store}</h2>
+                                                        <ChevronRight size={18} className="text-slate-300 group-hover/link:text-brand-blue transition-all" />
+                                                    </Link>
+                                                </div>
+                                                <span className="text-[10px] font-black text-brand-blue bg-white border border-brand-blue/10 px-3 py-1 rounded-full shadow-sm uppercase tracking-widest whitespace-nowrap">
+                                                    {groupedShifts[store].length} 件の予定
+                                                </span>
                                             </div>
-                                            <span className="text-xs font-bold text-indigo-600 bg-white px-2 py-1 rounded-full shadow-sm">
-                                                {groupedShifts[store].length} シフト
-                                            </span>
 
                                             {/* シフトビルダーへの導線ボタン */}
                                             {storeObj && (
-                                                <div className="ml-auto flex items-center gap-2">
+                                                <div className="w-full sm:w-auto flex items-center gap-2 mt-2 sm:mt-0 justify-end sm:justify-start">
                                                     <button
                                                         onClick={() => handleCopyInviteLink(storeId)}
-                                                        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg shadow-sm border transition-all ${copiedId === storeId
+                                                        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg shadow-sm border transition-all whitespace-nowrap ${copiedId === storeId
                                                             ? 'bg-emerald-500 text-white border-emerald-500'
                                                             : 'bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50'
                                                             }`}
                                                         title="スタッフをこの店舗に招待するリンクをコピー"
                                                     >
                                                         {copiedId === storeId ? <Check size={14} /> : <Copy size={14} />}
-                                                        {copiedId === storeId ? 'コピー完了' : '招待用URL'}
+                                                        {copiedId === storeId ? '招待用URL' : '招待用URL'}
                                                     </button>
                                                     <Link
                                                         href={`/admin/shifts/${storeId}/builder`}
-                                                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition-colors"
+                                                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition-colors whitespace-nowrap"
                                                     >
                                                         <CalendarIcon size={16} />
                                                         シフトビルダーを開く
@@ -470,12 +476,12 @@ export default function AdminShiftsPage() {
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-left border-collapse min-w-[700px]">
                                                 <thead>
-                                                    <tr className="bg-gray-50/50 text-gray-500 text-[11px] uppercase tracking-wider">
-                                                        <th className="px-6 py-3 font-semibold border-b border-gray-100 whitespace-nowrap">日付</th>
-                                                        <th className="px-6 py-3 font-semibold border-b border-gray-100 whitespace-nowrap">スタッフ名</th>
-                                                        <th className="px-6 py-3 font-semibold border-b border-gray-100 whitespace-nowrap">時間</th>
-                                                        <th className="px-6 py-3 font-semibold border-b border-gray-100 whitespace-nowrap">出退勤状況</th>
-                                                        <th className="px-6 py-3 font-semibold border-b border-gray-100 text-right whitespace-nowrap">操作</th>
+                                                    <tr className="bg-slate-50/30 text-slate-400 text-[10px] uppercase tracking-widest">
+                                                        <th className="px-8 py-4 font-black border-b border-slate-50 whitespace-nowrap">日付</th>
+                                                        <th className="px-8 py-4 font-black border-b border-slate-50 whitespace-nowrap">スタッフ</th>
+                                                        <th className="px-8 py-4 font-black border-b border-slate-50 whitespace-nowrap">時間</th>
+                                                        <th className="px-8 py-4 font-black border-b border-slate-50 whitespace-nowrap">稼働状況</th>
+                                                        <th className="px-8 py-4 font-black border-b border-slate-50 text-right whitespace-nowrap">操作</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-100 bg-white">
@@ -499,15 +505,16 @@ export default function AdminShiftsPage() {
 
                                                             return (
                                                                 <tr key={shift.id} className="group hover:bg-gray-50 transition-colors">
-                                                                    <td className="px-6 py-4 text-sm font-bold text-gray-700 whitespace-nowrap">
-                                                                        {dateStr}
+                                                                    <td className="px-8 py-5 text-sm font-black text-slate-700 whitespace-nowrap">
+                                                                        <span className="text-slate-300 font-normal mr-1">{dateStr.split('(')[0]}</span>
+                                                                        <span className="text-brand-blue">({dateStr.split('(')[1]}</span>
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-[10px]">
-                                                                                {(shift.users?.display_name || '不').slice(0, 2).toUpperCase()}
+                                                                    <td className="px-8 py-5 whitespace-nowrap">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className="w-10 h-10 rounded-xl bg-brand-blue/5 text-brand-blue flex items-center justify-center font-black text-xs border border-brand-blue/10 shadow-inner">
+                                                                                {(shift.users?.display_name || '不').slice(0, 1).toUpperCase()}
                                                                             </div>
-                                                                            <span className="font-bold text-gray-800 text-sm">{shift.users?.display_name || '不明'}</span>
+                                                                            <span className="font-black text-slate-700 text-sm">{shift.users?.display_name || '不明'}</span>
                                                                         </div>
                                                                     </td>
                                                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -516,64 +523,64 @@ export default function AdminShiftsPage() {
                                                                             {shift.start_time.slice(0, 5)} 〜 {shift.end_time.slice(0, 5)}
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <td className="px-8 py-5 whitespace-nowrap">
                                                                         <div className="flex items-center gap-3">
                                                                             {isFuture ? (
-                                                                                <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
+                                                                                <span className="text-[10px] font-black text-slate-400 bg-slate-50 border border-slate-100 px-3 py-1 rounded-full uppercase tracking-widest">
                                                                                     予定
                                                                                 </span>
                                                                             ) : clockIn || wakeUp || leave || clockOut ? (
-                                                                                <div className="flex flex-col gap-1.5">
+                                                                                <div className="flex flex-col gap-2">
                                                                                     <div className="flex items-center gap-2">
                                                                                         {wakeUp ? (
-                                                                                            <span className="text-[10px] text-amber-500 font-bold bg-amber-50 px-1.5 py-0.5 rounded flex items-center"><Sun size={10} className="mr-0.5" />起 {new Date(wakeUp.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                                                        ) : <span className="text-[10px] text-gray-300">起床未</span>}
+                                                                                            <span className="text-[9px] text-purple-600 font-black bg-purple-50 border border-purple-100 px-2.5 py-1 rounded-lg flex items-center uppercase tracking-tighter"><Sun size={12} strokeWidth={3} className="mr-0.5" /> 起床 {new Date(wakeUp.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                                        ) : <span className="text-[9px] text-slate-200 font-black uppercase tracking-tighter">起床記録なし</span>}
                                                                                         {leave ? (
-                                                                                            <span className="text-[10px] text-blue-500 font-bold bg-blue-50 px-1.5 py-0.5 rounded flex items-center"><Navigation size={10} className="mr-0.5" />発 {new Date(leave.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                                                        ) : <span className="text-[10px] text-gray-300">出発未</span>}
+                                                                                            <span className="text-[9px] text-cyan-600 font-black bg-cyan-50 border border-cyan-100 px-2.5 py-1 rounded-lg flex items-center uppercase tracking-tighter"><Navigation size={12} strokeWidth={3} className="mr-0.5" /> 出発 {new Date(leave.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                                        ) : <span className="text-[9px] text-slate-200 font-black uppercase tracking-tighter">出発記録なし</span>}
                                                                                     </div>
-                                                                                    <div className="flex items-center gap-2 text-sm">
+                                                                                    <div className="flex items-center gap-2">
                                                                                         {clockIn ? (
-                                                                                            <span className="font-bold text-emerald-600 flex items-center gap-1">
-                                                                                                <UserCheck size={14} />
+                                                                                            <span className="font-black text-emerald-600 text-sm flex items-center gap-1">
+                                                                                                <UserCheck size={16} strokeWidth={3} />
                                                                                                 {new Date(clockIn.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                                                                                             </span>
-                                                                                        ) : <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded"><UserX size={10} className="inline mr-0.5" />未出勤</span>}
-                                                                                        <span className="text-gray-300 mx-1">-</span>
+                                                                                        ) : <span className="text-[10px] font-black text-rose-500 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-lg flex items-center gap-1 uppercase tracking-tighter"><UserX size={12} strokeWidth={3} /> 未打刻</span>}
+                                                                                        <span className="text-slate-200 px-1">/</span>
                                                                                         {clockOut ? (
-                                                                                            <span className="font-bold text-blue-600">
+                                                                                            <span className="font-black text-brand-blue text-sm">
                                                                                                 {new Date(clockOut.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                                                                                             </span>
                                                                                         ) : clockIn ? (
-                                                                                            <span className="text-[10px] font-bold text-amber-500">勤務中</span>
-                                                                                        ) : <span className="text-[10px] text-gray-300">--:--</span>}
+                                                                                            <span className="text-[10px] font-black text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded-lg uppercase tracking-widest">稼働中</span>
+                                                                                        ) : <span className="text-slate-200">--:--</span>}
                                                                                     </div>
                                                                                 </div>
                                                                             ) : (
-                                                                                <span className="text-[11px] font-bold text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full flex items-center gap-1">
-                                                                                    <UserX size={12} /> 打刻なし
+                                                                                <span className="text-[10px] font-black text-rose-500 bg-rose-50 border border-rose-100 px-3 py-1 rounded-full flex items-center gap-1.5 uppercase tracking-widest">
+                                                                                    <UserX size={14} strokeWidth={3} /> 記録なし
                                                                                 </span>
                                                                             )}
                                                                         </div>
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                                        <div className="flex justify-end gap-2 transition-opacity">
+                                                                    <td className="px-8 py-5 whitespace-nowrap">
+                                                                        <div className="flex justify-end gap-3 transition-opacity">
                                                                             <button
                                                                                 onClick={() => {
                                                                                     setEditingShift(shift);
                                                                                     setIsShiftModalOpen(true);
                                                                                 }}
-                                                                                className="p-1.5 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"
+                                                                                className="p-2.5 text-slate-400 bg-slate-50 hover:bg-white hover:text-brand-blue hover:shadow-lg rounded-2xl transition-all border border-slate-100 active:scale-90"
                                                                                 title="編集"
                                                                             >
-                                                                                <Edit2 size={14} />
+                                                                                <Edit2 size={16} strokeWidth={2.5} />
                                                                             </button>
                                                                             <button
                                                                                 onClick={() => handleDeleteShift(shift.id)}
-                                                                                className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100"
+                                                                                className="p-2.5 text-slate-400 bg-slate-50 hover:bg-rose-50 hover:text-rose-500 hover:shadow-lg rounded-2xl transition-all border border-slate-100 active:scale-90"
                                                                                 title="削除"
                                                                             >
-                                                                                <Trash2 size={14} />
+                                                                                <Trash2 size={16} strokeWidth={2.5} />
                                                                             </button>
                                                                         </div>
                                                                     </td>

@@ -91,7 +91,7 @@ export default function AdminDashboardPage() {
     if (isLoading) {
         return (
             <div className="h-64 flex items-center justify-center">
-                <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full"></div>
+                <div className="animate-spin w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full shadow-lg"></div>
             </div>
         );
     }
@@ -108,11 +108,11 @@ export default function AdminDashboardPage() {
 
     const getStatusBadge = (type: string) => {
         switch (type) {
-            case 'WAKE_UP': return <span className="bg-amber-100 text-amber-700 font-bold px-2.5 py-1 rounded text-xs flex items-center gap-1 w-fit"><Sun size={12} /> 起床済</span>;
-            case 'LEAVE': return <span className="bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded text-xs flex items-center gap-1 w-fit"><Navigation size={12} /> 移動中</span>;
-            case 'CLOCK_IN': return <span className="bg-emerald-100 text-emerald-700 font-bold px-2.5 py-1 rounded text-xs flex items-center gap-1 w-fit"><Play size={12} /> 勤務中</span>;
-            case 'CLOCK_OUT': return <span className="bg-gray-100 text-gray-600 font-bold px-2.5 py-1 rounded text-xs flex items-center gap-1 w-fit"><Square size={12} /> 退勤済</span>;
-            default: return <span className="bg-gray-100 text-gray-500 font-bold px-2.5 py-1 rounded text-xs w-fit">未稼働</span>;
+            case 'WAKE_UP': return <span className="bg-purple-50 text-purple-600 font-black px-2.5 py-1 rounded-lg text-[10px] flex items-center gap-1 w-fit border border-purple-100 uppercase tracking-wider"><Sun size={12} strokeWidth={3} /> 起床済</span>;
+            case 'LEAVE': return <span className="bg-cyan-50 text-cyan-600 font-black px-2.5 py-1 rounded-lg text-[10px] flex items-center gap-1 w-fit border border-cyan-100 uppercase tracking-wider"><Navigation size={12} strokeWidth={3} /> 移動中</span>;
+            case 'CLOCK_IN': return <span className="bg-emerald-50 text-emerald-600 font-black px-2.5 py-1 rounded-lg text-[10px] flex items-center gap-1 w-fit border border-emerald-100 uppercase tracking-wider"><Play size={12} strokeWidth={3} /> 勤務中</span>;
+            case 'CLOCK_OUT': return <span className="bg-slate-100 text-slate-500 font-black px-2.5 py-1 rounded-lg text-[10px] flex items-center gap-1 w-fit border border-slate-200 uppercase tracking-wider"><Square size={12} strokeWidth={3} /> 退勤済</span>;
+            default: return <span className="bg-slate-100 text-slate-400 font-black px-2.5 py-1 rounded-lg text-[10px] border border-slate-200 uppercase tracking-wider">未稼働</span>;
         }
     };
 
@@ -143,17 +143,30 @@ export default function AdminDashboardPage() {
     };
 
     return (
-        <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-800 tracking-tight">本日のサマリー</h1>
+        <div className="space-y-8 pb-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-slate-200 pb-6 mb-2 gap-4">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tighter">本日のサマリー</h1>
+                    <p className="text-[10px] sm:text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest flex items-center gap-2">
+                        <Bookmark size={14} className="text-brand-gold" /> デイリー稼働・実績概要
+                    </p>
+                </div>
+                <div className="text-right ml-auto sm:ml-0">
+                    <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase">最終更新</p>
+                    <p className="text-lg font-black text-brand-blue">{formatTime(now.toISOString())}</p>
+                </div>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                 {/* 左側: 本日の出勤状況 */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="p-5 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
-                        <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                            <Clock className="text-emerald-500" size={18} />
-                            リアルタイム稼働状況 ({Object.keys(currentStatusByUser).length}名)
+                <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden">
+                    <div className="p-6 border-b border-slate-50 bg-slate-50/30 flex justify-between items-center">
+                        <h2 className="font-black text-slate-700 flex items-center gap-3">
+                            <div className="p-2 bg-emerald-50 text-emerald-500 rounded-xl shadow-inner">
+                                <Clock size={20} strokeWidth={2.5} />
+                            </div>
+                            リアルタイム稼働状況 <span className="px-3 py-1 bg-white border border-slate-100 rounded-full text-xs text-slate-400 ml-2 shadow-sm font-black">{Object.keys(currentStatusByUser).length}名</span>
                         </h2>
                     </div>
                     <div className="p-0">
@@ -162,10 +175,10 @@ export default function AdminDashboardPage() {
                         ) : (
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-gray-50/80 text-gray-500 text-[10px] uppercase tracking-wider">
-                                        <th className="px-4 py-3 font-semibold">スタッフ</th>
-                                        <th className="px-4 py-3 font-semibold">ステータス</th>
-                                        <th className="px-4 py-3 font-semibold">最終更新</th>
+                                    <tr className="bg-slate-50/80 text-slate-400 text-[10px] uppercase tracking-widest">
+                                        <th className="px-6 py-4 font-black">スタッフ</th>
+                                        <th className="px-6 py-4 font-black">状態</th>
+                                        <th className="px-6 py-4 font-black">更新時間</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50 text-[13px]">
@@ -204,13 +217,15 @@ export default function AdminDashboardPage() {
                 {/* 右側: 本日のシフト & 経費 */}
                 <div className="space-y-6">
                     {/* 本日のシフト */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="p-5 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
-                            <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                                <MapPin className="text-blue-500" size={18} />
+                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="p-6 border-b border-slate-50 bg-slate-50/30 flex justify-between items-center">
+                            <h2 className="font-black text-slate-700 flex items-center gap-3">
+                                <div className="p-2 bg-brand-blue/10 text-brand-blue rounded-xl shadow-inner">
+                                    <MapPin size={20} strokeWidth={2.5} />
+                                </div>
                                 本日の予定シフト
                             </h2>
-                            <span className="text-xs font-bold text-gray-400">{todayStr}</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{todayStr}</span>
                         </div>
                         <div className="p-5 space-y-3">
                             {todaysShifts.length === 0 ? (
@@ -219,9 +234,9 @@ export default function AdminDashboardPage() {
                                 todaysShifts.map(s => {
                                     const late = isShiftLate(s);
                                     return (
-                                        <div key={s.id} className={`flex justify-between items-center rounded-xl p-3 border ${late ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
-                                            <div className="flex gap-3 items-center">
-                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                                        <div key={s.id} className={`flex justify-between items-center rounded-2xl p-4 border transition-all hover:scale-[1.01] ${late ? 'bg-rose-50 border-rose-100 shadow-lg shadow-rose-200/20' : 'bg-slate-50 border-slate-100 shadow-sm'}`}>
+                                            <div className="flex gap-4 items-center">
+                                                <div className="w-10 h-10 rounded-xl bg-brand-blue/10 text-brand-blue flex items-center justify-center font-black text-sm shadow-inner group-hover:scale-110 transition-transform">
                                                     {s.users.display_name.substring(0, 1)}
                                                 </div>
                                                 <div>
@@ -264,10 +279,12 @@ export default function AdminDashboardPage() {
                     </div>
 
                     {/* 最新の交通費申請 */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="p-5 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
-                            <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                                <Receipt className="text-purple-500" size={18} />
+                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="p-6 border-b border-slate-50 bg-slate-50/30 flex justify-between items-center">
+                            <h2 className="font-black text-slate-700 flex items-center gap-3">
+                                <div className="p-2 bg-brand-gold/10 text-brand-gold rounded-xl shadow-inner">
+                                    <Receipt size={20} strokeWidth={2.5} />
+                                </div>
                                 最新の交通費申請
                             </h2>
                         </div>
@@ -297,11 +314,11 @@ export default function AdminDashboardPage() {
                                                             {exp.transport_type !== 'HOTEL' && <><span className="text-gray-300 mx-1">→</span> {exp.arrival}</>}
                                                         </div>
                                                         <div className="flex gap-1.5 mt-1">
-                                                            <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${
-                                                                exp.transport_type === 'HOTEL' ? 'bg-purple-50 text-purple-600' :
-                                                                exp.transport_type === 'COMMUTER_PASS' ? 'bg-orange-50 text-orange-600' :
-                                                                exp.transport_type === 'COMMUTER_USE' ? 'bg-cyan-50 text-cyan-600' :
-                                                                'bg-gray-100 text-gray-500'
+                                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-lg border uppercase tracking-tighter ${
+                                                                exp.transport_type === 'HOTEL' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                                exp.transport_type === 'COMMUTER_PASS' ? 'bg-brand-gold/10 text-brand-gold border-brand-gold/30' :
+                                                                exp.transport_type === 'COMMUTER_USE' ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
+                                                                'bg-slate-100 text-slate-500 border-slate-200'
                                                             }`}>
                                                                 {exp.transport_type === 'HOTEL' ? '宿泊' : 
                                                                  exp.transport_type === 'COMMUTER_PASS' ? '定期券' : 
@@ -328,14 +345,16 @@ export default function AdminDashboardPage() {
                     </div>
 
                     {/* 承認待ちの希望休 */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="p-5 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
-                            <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                                <CalendarOff className="text-rose-500" size={18} />
+                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="p-6 border-b border-slate-50 bg-slate-50/30 flex justify-between items-center">
+                            <h2 className="font-black text-slate-700 flex items-center gap-3">
+                                <div className="p-2 bg-rose-50 text-rose-500 rounded-xl shadow-inner">
+                                    <CalendarOff size={20} strokeWidth={2.5} />
+                                </div>
                                 承認待ちの希望休
                             </h2>
                             {pendingHolidays.length > 0 && (
-                                <span className="bg-rose-100 text-rose-600 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                                <span className="bg-rose-500 text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg shadow-rose-200 shadow-inner">
                                     {pendingHolidays.length}件
                                 </span>
                             )}
@@ -368,23 +387,23 @@ export default function AdminDashboardPage() {
                                                     {holiday.reason}
                                                 </div>
                                             )}
-                                            <div className="flex gap-3">
+                                            <div className="flex gap-4">
                                                 <button
                                                     onClick={() => handleHolidayAction(holiday.id, 'REJECTED')}
                                                     disabled={actionLoading === holiday.id}
-                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
+                                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-slate-100 text-slate-500 font-black rounded-2xl hover:bg-slate-200 transition-all active:scale-95 disabled:opacity-50 text-xs uppercase tracking-widest"
                                                 >
-                                                    <XCircle size={16} /> 却下
+                                                    <XCircle size={16} strokeWidth={3} /> 却下
                                                 </button>
                                                 <button
                                                     onClick={() => handleHolidayAction(holiday.id, 'APPROVED')}
                                                     disabled={actionLoading === holiday.id}
-                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors shadow-sm shadow-emerald-200 disabled:opacity-50"
+                                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-brand-blue text-white font-black rounded-2xl hover:bg-brand-deep-blue transition-all active:scale-95 shadow-lg shadow-brand-blue/20 disabled:opacity-50 text-xs uppercase tracking-widest"
                                                 >
                                                     {actionLoading === holiday.id ? (
                                                         <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
                                                     ) : (
-                                                        <><CheckCircle size={16} /> 承認</>
+                                                        <><CheckCircle size={16} strokeWidth={3} /> 承認</>
                                                     )}
                                                 </button>
                                             </div>

@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useLiff } from '@/components/LiffProvider';
 import {
     getMonthlyShifts, ShiftRecord, getHolidayRequests, createHolidayRequest,
-    HolidayRequest, updateShiftPlanning, getGroupMonthlyShifts, getStoreMonthlyShifts
+    HolidayRequest, updateShiftPlanning, getGroupMonthlyShifts, getStoreMonthlyShifts,
+    getMonthlyHolidayRequests
 } from '@/lib/api/shift';
 import { createShift, updateShift, deleteShift, getAllStores, getAllUsers, getUserPermissions } from '@/lib/api/admin';
 import { List, User as UserIcon, Users, Store, Heart, HeartOff, PlusCircle } from 'lucide-react';
@@ -26,6 +27,7 @@ export default function ShiftSchedule() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [shifts, setShifts] = useState<ShiftRecord[]>([]);
     const [holidays, setHolidays] = useState<HolidayRequest[]>([]);
+    const [allHolidays, setAllHolidays] = useState<HolidayRequest[]>([]);
     const [stores, setStores] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -141,6 +143,35 @@ export default function ShiftSchedule() {
                     }
                 }
                 setHolidays(myHolidays);
+
+                // ストア/グループ表示の場合は全ユーザーの休み状況を取得
+                const allHRes = await getMonthlyHolidayRequests(yearMonth);
+                if (allHRes.success && allHRes.data) {
+                    let filteredHolidays = allHRes.data;
+
+                    // 1. 店舗表示モードの場合: その店舗に今月一度でもシフトが入っている人の休み希望のみに絞る
+                    if (selectedStore) {
+                        // 今月のその店舗の全シフトを取得して、ユーザーIDを抽出
+                        const storeShiftsRes = await getStoreMonthlyShifts([selectedStore], yearMonth);
+                        if (storeShiftsRes.success && storeShiftsRes.data) {
+                            const storeUserIds = Array.from(new Set(storeShiftsRes.data.map((s: any) => s.user_id)));
+                            filteredHolidays = filteredHolidays.filter(h => storeUserIds.includes(h.user_id));
+                        } else {
+                            filteredHolidays = [];
+                        }
+                    } 
+                    // 2. グループ表示モードの場合: そのロールのユーザーのみに絞る
+                    else if (selectedGroupRole) {
+                        const groupUserIds = allUsers
+                            .filter(u => u.role.toUpperCase() === selectedGroupRole)
+                            .map(u => u.id);
+                        filteredHolidays = filteredHolidays.filter(h => groupUserIds.includes(h.user_id));
+                    }
+
+                    setAllHolidays(filteredHolidays);
+                } else {
+                    setAllHolidays([]);
+                }
             } else {
                 // 個別ユーザーモード
                 const userId = targetUser?.id || user?.id;
@@ -158,6 +189,7 @@ export default function ShiftSchedule() {
                     // targetUser が自分以外ならその人の希望休を表示、自分なら myHolidays を使用
                     setHolidays(holidayRes.data);
                 }
+                setAllHolidays([]);
             }
         } catch (error) {
             console.error("Failed to fetch data:", error);
@@ -219,6 +251,17 @@ export default function ShiftSchedule() {
             alert('この日は既に希望休を申請済みです。');
             setSubmitLoading(false);
             return;
+        }
+
+        // 他の人の申請状況の確認 (注意喚起のみ)
+        if (selectedStore || selectedGroupRole) {
+            const othersRequest = allHolidays.some(h => h.date === holidayDate && h.status !== 'REJECTED' && h.user_id !== user.id);
+            if (othersRequest) {
+                if (!confirm('同じ日に他のスタッフも休みを希望しています。提出しますか？')) {
+                    setSubmitLoading(false);
+                    return;
+                }
+            }
         }
 
         const res = await createHolidayRequest({
@@ -383,7 +426,7 @@ export default function ShiftSchedule() {
             const dayShifts = shifts.filter(s => s.date === dateStr);
             const hasShift = dayShifts.length > 0;
 
-            const dayHoliday = holidays.find(h => h.date === dateStr);
+            const dayHoliday = (selectedStore || selectedGroupRole) ? null : holidays.find(h => h.date === dateStr);
             const hasHoliday = !!dayHoliday;
 
             const isPast = dateStr < todayStr;
@@ -392,18 +435,23 @@ export default function ShiftSchedule() {
                 <div
                     key={dateStr}
                     onClick={() => handleDayClick(dateStr, dayShifts)}
-                    className={`p-1 border-b border-r border-gray-100 min-h-[80px] shadow-inner transition-colors cursor-pointer active:bg-gray-100 ${isToday ? 'bg-emerald-50/30' : 'bg-white'} ${hasHoliday ? 'bg-amber-50/20' : ''}`}
+                    className={`p-1 border-b border-r border-slate-100 min-h-[90px] transition-all cursor-pointer active:bg-slate-100 relative group
+                        ${isToday ? 'bg-brand-blue/[0.03]' : 'bg-white'} 
+                        ${hasHoliday ? 'bg-brand-gold/[0.03]' : ''}`}
                 >
                     <div className="flex justify-between items-start">
-                        <span className={`text-xs font-semibold ${isToday ? 'bg-emerald-500 text-white w-5 h-5 rounded-full flex items-center justify-center' : 'text-gray-700 p-1'}`}>
+                        <span className={`text-[10px] font-black ${isToday ? 'bg-brand-blue text-white w-5 h-5 rounded-full flex items-center justify-center shadow-lg shadow-brand-blue/30' : 'text-slate-400 p-1 group-hover:text-brand-blue'}`}>
                             {d}
                         </span>
                         <div className="flex flex-col gap-1 items-end pt-1 mr-1">
                             {hasShift && (
-                                <div className={`w-1.5 h-1.5 rounded-full ${isPast ? 'bg-gray-400' : 'bg-emerald-500'}`}></div>
+                                <div className={`w-1.5 h-1.5 rounded-full shadow-sm ${isPast ? 'bg-slate-300' : 'bg-brand-blue'}`}></div>
                             )}
                             {hasHoliday && (
-                                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></div>
+                                <div className="w-1.5 h-1.5 rounded-full bg-brand-gold shadow-sm animate-pulse"></div>
+                            )}
+                            {(selectedStore || selectedGroupRole) && allHolidays.some(h => h.date === dateStr && h.user_id !== user?.id && h.status !== 'REJECTED') && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-slate-200 border border-white"></div>
                             )}
                         </div>
                     </div>
@@ -418,17 +466,17 @@ export default function ShiftSchedule() {
                         <div className="mt-1 flex flex-col gap-0.5 overflow-hidden">
                             {dayShifts.slice(0, 3).map((dayShift, idx) => (
                                 <div key={dayShift.id || idx} className="flex flex-col gap-0">
-                                    <div className={`text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-sm flex items-center gap-1 shadow-sm border truncate
-                                        ${isPast ? 'bg-gray-100 text-gray-400 border-gray-200' :
-                                            dayShift.shift_type === 'work' ? 'bg-emerald-500 text-white border-emerald-400' :
-                                                dayShift.shift_type === 'plan' ? 'bg-indigo-500 text-white border-indigo-400' :
-                                                    'bg-amber-500 text-white border-amber-400'}`}>
+                                    <div className={`text-[8px] font-black px-1.5 py-0.5 rounded-sm flex items-center gap-1 shadow-sm border truncate leading-tight
+                                        ${isPast ? 'bg-slate-100 text-slate-400 border-slate-200' :
+                                            dayShift.shift_type === 'work' ? 'bg-brand-blue text-white border-brand-blue-deep' :
+                                                dayShift.shift_type === 'plan' ? 'bg-slate-700 text-white border-slate-800' :
+                                                    'bg-brand-gold text-white border-brand-gold-deep'}`}>
                                         {dayShift.location}
                                     </div>
-                                    <div className={`text-[7px] font-black px-1 tracking-tighter truncate leading-tight ${isPast ? 'text-gray-300' :
-                                        dayShift.shift_type === 'work' ? 'text-emerald-600' :
-                                            dayShift.shift_type === 'plan' ? 'text-indigo-600' :
-                                                'text-amber-600'}`}>
+                                    <div className={`text-[7px] font-black px-1 tracking-tighter truncate leading-tight mt-0.5 ${isPast ? 'text-slate-300' :
+                                        dayShift.shift_type === 'work' ? 'text-brand-blue' :
+                                            dayShift.shift_type === 'plan' ? 'text-slate-600' :
+                                                'text-brand-gold'}`}>
                                         {dayShift.start_time.substring(0, 5)} - {dayShift.end_time.substring(0, 5)}
                                     </div>
                                 </div>
@@ -448,34 +496,34 @@ export default function ShiftSchedule() {
     const upcomingShifts = shifts.filter(s => s.date >= todayStr).slice(0, 3);
 
     if (liffLoading) {
-        return <div className="flex h-screen items-center justify-center bg-gray-50 pb-20"><div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full"></div></div>;
+        return <div className="flex h-screen items-center justify-center bg-slate-50 pb-20"><div className="animate-spin w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full shadow-lg"></div></div>;
     }
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 pb-20 relative">
             {/* 画面ヘッダー */}
-            <div className="bg-white px-5 pt-10 pb-4 shadow-sm z-10 sticky top-0 flex justify-between items-center">
-                <div className="flex items-center gap-3">
+            <div className="bg-white px-5 pt-12 pb-4 shadow-sm z-10 sticky top-0 flex justify-between items-center border-b border-slate-100">
+                <div className="flex items-center gap-4">
                     <button
                         onClick={() => setShowCalendarList(true)}
-                        className="p-2 bg-gray-50 rounded-xl text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 transition-all border border-gray-100"
+                        className="p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-brand-blue hover:bg-brand-blue/5 transition-all border border-slate-100 shadow-inner active:scale-95"
                     >
-                        <List size={22} />
+                        <List size={22} strokeWidth={2.5} />
                     </button>
                     <div>
-                        <h1 className="text-lg font-bold text-gray-800 leading-tight">
-                            {selectedStore ? `${selectedStore}のカレンダー` :
-                                selectedGroupRole ? `${selectedGroupRole === 'PRESIDENT' ? '社長' : selectedGroupRole === 'EXECUTIVE' ? '幹部' : selectedGroupRole === 'MANAGER' ? '役職社員' : '社員'}のカレンダー` :
-                                    targetUser?.id === user?.id ? '自分のシフト' : `${targetUser?.display_name}さんのシフト`}
+                        <h1 className="text-xl font-black text-slate-800 leading-tight tracking-tighter">
+                            {selectedStore ? `${selectedStore}` :
+                                selectedGroupRole ? `${selectedGroupRole === 'PRESIDENT' ? '社長' : selectedGroupRole === 'EXECUTIVE' ? '幹部' : selectedGroupRole === 'MANAGER' ? '役職社員' : '社員'}` :
+                                    targetUser?.id === user?.id ? '自分のシフト' : `${targetUser?.display_name}さん`}
                         </h1>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5">Shift & Schedule</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mt-1">シフト・スケジュール</p>
                     </div>
                 </div>
                 <button
                     onClick={() => { setHolidayDate(todayStr); setShowHolidayModal(true); }}
-                    className="text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200 px-3 py-1.5 rounded-full hover:bg-amber-100 transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                    className="text-[10px] font-black bg-brand-gold/10 text-brand-gold border border-brand-gold/30 px-4 py-2 rounded-full hover:bg-brand-gold/20 transition-all flex items-center gap-1.5 shadow-sm active:scale-95 uppercase tracking-wider"
                 >
-                    <span className="text-sm">✨</span> 希望休申請
+                    <span className="text-xs">✨</span> 希望休申請
                 </button>
             </div>
 
@@ -534,20 +582,24 @@ export default function ShiftSchedule() {
                                 <div
                                     key={shift.id}
                                     onClick={() => handleDayClick(shift.date, shifts.filter(s => s.date === shift.date))}
-                                    className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3 hover:border-emerald-200 active:bg-gray-50 transition-colors cursor-pointer"
+                                    className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 mb-4 hover:border-brand-blue/30 active:scale-98 transition-all cursor-pointer group relative overflow-hidden"
                                 >
-                                    <div className="flex justify-between items-center border-b border-gray-50 pb-3 mb-3">
-                                        <span className="font-bold tracking-wide text-gray-800">
-                                            {d.getMonth() + 1}月{d.getDate()}日 <span className="text-xs font-normal text-gray-500">({days[d.getDay()]})</span>
+                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-blue opacity-20 group-hover:opacity-100 transition-opacity"></div>
+                                    <div className="flex justify-between items-center border-b border-slate-50 pb-4 mb-4">
+                                        <span className="font-black tracking-tight text-slate-800 text-sm">
+                                            {d.getMonth() + 1}月{d.getDate()}日 <span className="text-[10px] font-black text-slate-400 uppercase ml-1">({days[d.getDay()]})</span>
                                         </span>
                                         {isToday && (
-                                            <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-1 rounded-md">TODAY</span>
+                                            <span className="bg-brand-blue text-white text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-brand-blue/20 animate-pulse">本日</span>
                                         )}
                                     </div>
                                     <div className="flex justify-between items-end">
                                         <div>
-                                            <p className="font-bold text-gray-800 text-lg">{shift.location}</p>
-                                            <p className="text-gray-500 text-sm mt-1">{shift.start_time.substring(0, 5)} - {shift.end_time.substring(0, 5)}</p>
+                                            <p className="font-black text-slate-800 text-lg tracking-tighter">{shift.location}</p>
+                                            <p className="text-slate-400 text-xs font-black mt-1 uppercase tracking-wider">{shift.start_time.substring(0, 5)} - {shift.end_time.substring(0, 5)}</p>
+                                        </div>
+                                        <div className="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 group-hover:text-brand-blue transition-colors">
+                                            <MapPin size={22} strokeWidth={2.5} />
                                         </div>
                                     </div>
                                 </div>
@@ -558,18 +610,24 @@ export default function ShiftSchedule() {
             </div>
 
             {/* フローティングボトムナビゲーション */}
-            <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 pt-3 pb-8 flex justify-around items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
-                <Link href="/" className="flex flex-col items-center text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
-                    <Home size={24} strokeWidth={2} />
-                    <span className="text-[10px] mt-1.5 font-semibold">ホーム</span>
+            <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-slate-100 px-6 pt-3 pb-8 flex justify-around items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
+                <Link href="/" className="flex flex-col items-center text-slate-400 hover:text-brand-blue transition-all active:scale-90">
+                    <div className="p-2 hover:bg-slate-50 rounded-xl mb-1">
+                        <Home size={22} strokeWidth={2.5} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">ホーム</span>
                 </Link>
-                <Link href="/shift" className="flex flex-col items-center text-emerald-600 transition-transform active:scale-95">
-                    <CalendarClock size={24} strokeWidth={2.5} />
-                    <span className="text-[10px] mt-1.5 font-bold">シフト</span>
+                <Link href="/shift" className="flex flex-col items-center text-brand-blue transition-transform active:scale-90">
+                    <div className="p-2 bg-brand-blue/10 rounded-xl mb-1">
+                        <CalendarClock size={22} strokeWidth={3} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">シフト</span>
                 </Link>
-                <Link href="/expense" className="flex flex-col items-center text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
-                    <Receipt size={24} strokeWidth={2} />
-                    <span className="text-[10px] mt-1.5 font-semibold">交通費</span>
+                <Link href="/expense" className="flex flex-col items-center text-slate-400 hover:text-brand-blue transition-all active:scale-90">
+                    <div className="p-2 hover:bg-slate-50 rounded-xl mb-1">
+                        <Receipt size={22} strokeWidth={2.5} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">交通費</span>
                 </Link>
             </div>
 
@@ -578,7 +636,7 @@ export default function ShiftSchedule() {
             {/* Day Action Modal */}
             {showDayModal && (
                 <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 font-sans" onClick={() => setShowDayModal(false)}>
-                    <div className="bg-white w-full rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-white w-full max-h-[88vh] rounded-t-[32px] p-6 shadow-2xl animate-in slide-in-from-bottom flex flex-col pb-[env(safe-area-inset-bottom)]" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
                             <h3 className="text-lg font-bold text-gray-800">
                                 {selectedDateStr.split('-')[1]}月{selectedDateStr.split('-')[2]}日の予定
@@ -588,118 +646,147 @@ export default function ShiftSchedule() {
                             </button>
                         </div>
 
-                        {/* 希望休の表示を追加 */}
-                        {(() => {
-                            // selectedDateStr が '2026-03-14' のような形式であることを期待
-                            const dayHoliday = holidays.find(h => h.date === selectedDateStr && h.status !== 'REJECTED');
-                            if (!dayHoliday) return null;
-                            return (
-                                <div className="mb-6 animate-in slide-in-from-top-2">
-                                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h4 className="text-sm font-bold text-amber-800 flex items-center gap-1">
-                                                <span>✨</span> 希望休を申請済み
-                                            </h4>
-                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
-                                                dayHoliday.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                dayHoliday.status === 'PENDING' ? 'bg-amber-100 text-amber-600 border-amber-200' :
-                                                'bg-rose-50 text-rose-600 border-rose-100'
-                                            }`}>
-                                                {dayHoliday.status === 'APPROVED' ? '承認済み' : dayHoliday.status === 'PENDING' ? '承認待ち' : '却下'}
-                                            </span>
-                                        </div>
-                                        {dayHoliday.reason && (
-                                            <p className="text-xs text-amber-700 bg-white/50 p-2 rounded-lg italic">
-                                                理由: {dayHoliday.reason}
-                                            </p>
+
+                        <div className="flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2 pb-4">
+                            {/* 希望休の表示 */}
+                            {(() => {
+                                // 自分の休み
+                                const myHoliday = holidays.find(h => h.date === selectedDateStr && h.status !== 'REJECTED');
+                                // 他の人の休み (ストア/グループ表示時のみ)
+                                const othersHolidays = (selectedStore || selectedGroupRole) 
+                                    ? allHolidays.filter(h => h.date === selectedDateStr && h.user_id !== user?.id && h.status !== 'REJECTED')
+                                    : [];
+
+                                if (!myHoliday && othersHolidays.length === 0) return null;
+
+                                return (
+                                    <div className="mb-6 space-y-4 pt-2">
+                                        {myHoliday && (
+                                            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <h4 className="text-sm font-bold text-amber-800 flex items-center gap-1">
+                                                        <span>✨</span> 自分の希望休
+                                                    </h4>
+                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                                                        myHoliday.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                        myHoliday.status === 'PENDING' ? 'bg-amber-100 text-amber-600 border-amber-200' :
+                                                        'bg-rose-50 text-rose-600 border-rose-100'
+                                                    }`}>
+                                                        {myHoliday.status === 'APPROVED' ? '承認済み' : myHoliday.status === 'PENDING' ? '承認待ち' : '却下'}
+                                                    </span>
+                                                </div>
+                                                {myHoliday.reason && (
+                                                    <p className="text-xs text-amber-700 bg-white/50 p-2 rounded-lg italic">
+                                                        理由: {myHoliday.reason}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {othersHolidays.length > 0 && (
+                                            <div className="bg-sky-50 border border-sky-100 rounded-2xl p-4 shadow-sm">
+                                                <h4 className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-3 px-1">他スタッフの休み希望</h4>
+                                                <div className="space-y-2">
+                                                    {othersHolidays.map((h, i) => (
+                                                        <div key={i} className="flex justify-between items-center bg-white/70 backdrop-blur-sm p-2 rounded-xl border border-sky-100">
+                                                            <span className="text-xs font-bold text-sky-800">{h.users?.display_name || '不明'} さん</span>
+                                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border ${
+                                                                h.status === 'APPROVED' ? 'bg-sky-100 text-sky-600 border-sky-200' : 'bg-white text-sky-400 border-sky-100'
+                                                            }`}>
+                                                                {h.status === 'APPROVED' ? '承認済' : '申請中'}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
-                                </div>
-                            );
-                        })()}
+                                );
+                            })()}
 
-                        {selectedShifts.length > 0 ? (
-                            <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
-                                {selectedShifts.map((s, idx) => {
-                                    const isWork = s.shift_type === 'work';
-                                    const isPlan = s.shift_type === 'plan';
-                                    const isOwner = s.user_id === user?.id;
-                                    const isSelected = selectedShiftInModal === s.id;
+                            {selectedShifts.length > 0 ? (
+                                <div className="space-y-4 pr-1">
+                                    {selectedShifts.map((s, idx) => {
+                                        const isWork = s.shift_type === 'work';
+                                        const isPlan = s.shift_type === 'plan';
+                                        const isOwner = s.user_id === user?.id;
+                                        const isSelected = selectedShiftInModal === s.id;
 
-                                    // 削除権限: 管理者、または自分の予定
-                                    const canDelete = isAdmin || isOwner;
-                                    // 編集権限: 全員（管理者または本人はフル編集、他人の場合は自分の担当分のみ）
-                                    const canEdit = isAdmin || isOwner;
+                                        // 削除権限: 管理者、または自分の予定
+                                        const canDelete = isAdmin || isOwner;
+                                        // 編集権限: 全員（管理者または本人はフル編集、他人の場合は自分の担当分のみ）
+                                        const canEdit = isAdmin || isOwner;
 
-                                    return (
-                                        <div key={s.id || idx} className="space-y-3 pb-5 mb-5 border-b border-gray-100 last:border-0 last:mb-0 last:pb-0">
-                                            <div
-                                                onClick={() => setSelectedShiftInModal(isSelected ? null : (s.id || null))}
-                                                className={`border rounded-2xl p-4 transition-all active:scale-[0.98] ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2' : ''} ${isWork ? 'bg-emerald-50 border-emerald-100' :
-                                                    isPlan ? 'bg-indigo-50 border-indigo-100' :
-                                                        'bg-amber-50 border-amber-100'}`}
-                                            >
-                                                <div className="flex justify-between items-start mb-1">
-                                                    <div className={`font-bold ${isWork ? 'text-emerald-800' : isPlan ? 'text-indigo-800' : 'text-amber-800'}`}>
-                                                        {s.location}
+                                        return (
+                                            <div key={s.id || idx} className="space-y-3 pb-5 mb-5 border-b border-gray-100 last:border-0 last:mb-0 last:pb-0">
+                                                <div
+                                                    onClick={() => setSelectedShiftInModal(isSelected ? null : (s.id || null))}
+                                                    className={`border rounded-2xl p-4 transition-all active:scale-[0.98] ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2' : ''} ${isWork ? 'bg-emerald-50 border-emerald-100' :
+                                                        isPlan ? 'bg-indigo-50 border-indigo-100' :
+                                                            'bg-amber-50 border-amber-100'}`}
+                                                >
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <div className={`font-bold ${isWork ? 'text-emerald-800' : isPlan ? 'text-indigo-800' : 'text-amber-800'}`}>
+                                                            {s.location}
+                                                        </div>
+                                                        {isOwner && (
+                                                            <span className="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-gray-500 border border-gray-100">自分</span>
+                                                        )}
                                                     </div>
-                                                    {isOwner && (
-                                                        <span className="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-gray-500 border border-gray-100">自分</span>
+                                                    <div className={`text-sm font-medium ${isWork ? 'text-emerald-600' :
+                                                        isPlan ? 'text-indigo-600' :
+                                                            'text-amber-600'}`}>
+                                                        {s.start_time.substring(0, 5)} - {s.end_time.substring(0, 5)}
+                                                    </div>
+                                                    {(s.planned_wake_up_time || s.daily_memo) && (
+                                                        <div className={`mt-3 pt-3 border-t text-xs space-y-1 ${isWork ? 'border-emerald-100/50 text-emerald-700' :
+                                                            isPlan ? 'border-indigo-100/50 text-indigo-700' :
+                                                                'border-amber-100/50 text-amber-700'}`}>
+                                                            {s.planned_wake_up_time && <p>⏰ 起床: {s.planned_wake_up_time.substring(0, 5)}</p>}
+                                                            {s.daily_memo && <p>📝 {s.daily_memo}</p>}
+                                                        </div>
                                                     )}
                                                 </div>
-                                                <div className={`text-sm font-medium ${isWork ? 'text-emerald-600' :
-                                                    isPlan ? 'text-indigo-600' :
-                                                        'text-amber-600'}`}>
-                                                    {s.start_time.substring(0, 5)} - {s.end_time.substring(0, 5)}
-                                                </div>
-                                                {(s.planned_wake_up_time || s.daily_memo) && (
-                                                    <div className={`mt-3 pt-3 border-t text-xs space-y-1 ${isWork ? 'border-emerald-100/50 text-emerald-700' :
-                                                        isPlan ? 'border-indigo-100/50 text-indigo-700' :
-                                                            'border-amber-100/50 text-amber-700'}`}>
-                                                        {s.planned_wake_up_time && <p>⏰ 起床: {s.planned_wake_up_time.substring(0, 5)}</p>}
-                                                        {s.daily_memo && <p>📝 {s.daily_memo}</p>}
+
+                                                {isSelected && (
+                                                    <div className="animate-in slide-in-from-top-2 duration-200">
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            {canEdit && (
+                                                                <button onClick={() => openShiftEditModal(s)} className="col-span-2 py-3.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-md">
+                                                                    <Edit3 size={18} /> {isWork ? '予定・メモを編集' : '内容を編集'}
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => canDelete && handleDeleteShift(s)}
+                                                                disabled={submitLoading || !canDelete}
+                                                                className={`col-span-2 py-3 font-bold flex items-center justify-center gap-2 rounded-xl transition-all border active:scale-[0.98] ${canDelete
+                                                                    ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
+                                                                    : 'bg-gray-50 text-gray-400 border-gray-100'
+                                                                    }`}
+                                                            >
+                                                                {canDelete ? (
+                                                                    <>
+                                                                        <Trash2 size={18} /> {isWork ? '勤務シフトを削除' : '予定を削除'}
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Trash2 size={18} /> 他人の予定は削除不可
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
-
-                                            {isSelected && (
-                                                <div className="animate-in slide-in-from-top-2 duration-200">
-                                                    <div className="grid grid-cols-2 gap-3">
-                                                        {canEdit && (
-                                                            <button onClick={() => openShiftEditModal(s)} className="col-span-2 py-3.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-md">
-                                                                <Edit3 size={18} /> {isWork ? '予定・メモを編集' : '内容を編集'}
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            onClick={() => canDelete && handleDeleteShift(s)}
-                                                            disabled={submitLoading || !canDelete}
-                                                            className={`col-span-2 py-3 font-bold flex items-center justify-center gap-2 rounded-xl transition-all border active:scale-[0.98] ${canDelete
-                                                                ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
-                                                                : 'bg-gray-50 text-gray-400 border-gray-100'
-                                                                }`}
-                                                        >
-                                                            {canDelete ? (
-                                                                <>
-                                                                    <Trash2 size={18} /> {isWork ? '勤務シフトを削除' : '予定を削除'}
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Trash2 size={18} /> 他人の予定は削除不可
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <p className="text-center text-gray-500 text-sm py-4">この日の予定はありません</p>
-                            </div>
-                        )}
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <p className="text-center text-gray-500 text-sm py-8">この日の予定はありません</p>
+                                </div>
+                            )}
+                        </div>
 
                         {/* ログインしていれば基本的に追加可能 (自分用) */}
                         {user && (
@@ -987,10 +1074,10 @@ export default function ShiftSchedule() {
                                     </button>
                                     <button
                                         type="submit"
-                                        disabled={submitLoading || holidays.some(h => h.date === holidayDate)}
+                                        disabled={submitLoading || holidays.some(h => h.date === holidayDate && h.status !== 'REJECTED')}
                                         className="flex-1 py-3 bg-amber-500 text-white font-bold rounded-2xl hover:bg-amber-600 transition-all shadow-md active:scale-95 disabled:opacity-50"
                                     >
-                                        {submitLoading ? '申請中...' : holidays.some(h => h.date === holidayDate) ? '申請済み' : '申請する'}
+                                        {submitLoading ? '申請中...' : holidays.some(h => h.date === holidayDate && h.status !== 'REJECTED') ? '申請済み' : '申請する'}
                                     </button>
                                 </div>
                             </form>

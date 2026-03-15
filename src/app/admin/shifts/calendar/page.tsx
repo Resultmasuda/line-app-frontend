@@ -375,7 +375,7 @@ export default function AllStaffCalendarPage() {
             `}</style>
             {selectedDateShifts && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={() => setSelectedDateShifts(null)}>
-                    <div className="bg-gray-50 rounded-[32px] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                    <div className="bg-gray-50 rounded-[32px] shadow-2xl w-full max-w-2xl max-h-[82vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
                             <div>
                                 <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
@@ -398,7 +398,7 @@ export default function AllStaffCalendarPage() {
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between px-1">
                                             <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1.5">
-                                                <AlertCircle size={14} strokeWidth={3} /> 希望休を申請中のスタッフ ({validHolidays.length}名)
+                                                <AlertCircle size={14} strokeWidth={3} /> 希望休のスタッフ ({validHolidays.length}名)
                                             </h4>
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -407,7 +407,12 @@ export default function AllStaffCalendarPage() {
                                                     <div className="absolute top-0 left-0 w-1 h-full bg-red-400"></div>
                                                     <div className="flex justify-between items-start mb-2">
                                                         <span className="font-black text-gray-800">{users.find(u => u.id === h.user_id)?.display_name || '不明'}</span>
-                                                        <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-black">LEAVE REQUEST</span>
+                                                        <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black border ${
+                                                            h.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
+                                                            'bg-red-100 text-red-600 border-red-200'
+                                                        }`}>
+                                                            {h.status === 'APPROVED' ? '許可済み' : '申請中'}
+                                                        </span>
                                                     </div>
                                                     {h.reason ? (
                                                         <p className="text-xs text-red-600/70 italic bg-red-50/50 p-2 rounded-xl border border-red-100/30">

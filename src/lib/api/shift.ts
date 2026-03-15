@@ -22,6 +22,7 @@ export interface HolidayRequest {
     reason?: string | null;
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
     created_at: string;
+    users?: { display_name: string };
 }
 
 /**
@@ -224,5 +225,27 @@ export async function getStoreTodayShiftsWithMemos(storeName: string, date: stri
     } catch (error) {
         console.error('Error fetching store today shifts:', error);
         return { success: false, error, data: null };
+    }
+}
+
+export async function getMonthlyHolidayRequests(yearMonthPrefix: string) {
+    try {
+        const [year, month] = yearMonthPrefix.split('-');
+        const lastDay = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
+        const startDate = `${yearMonthPrefix}-01`;
+        const endDate = `${yearMonthPrefix}-${lastDay}`;
+
+        const { data, error } = await supabase
+            .from('holiday_requests')
+            .select('*, users(display_name)')
+            .gte('date', startDate)
+            .lte('date', endDate)
+            .order('date', { ascending: true });
+
+        if (error) throw error;
+        return { success: true, data: data as HolidayRequest[] };
+    } catch (error) {
+        console.error('Error fetching monthly holiday requests:', error);
+        return { success: false, error, data: [] };
     }
 }

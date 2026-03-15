@@ -259,7 +259,7 @@ export default function StaffDetailView() {
     if (isLoading) {
         return (
             <div className="flex h-[80vh] items-center justify-center">
-                <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full"></div>
+                <div className="animate-spin w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full shadow-lg"></div>
             </div>
         );
     }
@@ -268,7 +268,7 @@ export default function StaffDetailView() {
         return (
             <div className="text-center py-20 text-gray-500">
                 ユーザー情報が見つかりませんでした。<br />
-                <button onClick={() => router.back()} className="text-emerald-500 underline mt-4">戻る</button>
+                <button onClick={() => router.back()} className="text-brand-blue font-black underline mt-4">戻る</button>
             </div>
         );
     }
@@ -294,7 +294,7 @@ export default function StaffDetailView() {
                                     {user.display_name}
                                 </h1>
                                 {isAdminUser(currentUser?.role || '', currentUser?.id || '') && (
-                                    <button onClick={handleEditName} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="氏名を編集">
+                                    <button onClick={handleEditName} className="text-slate-300 hover:text-brand-blue transition-colors p-1" title="氏名を編集">
                                         <Edit2 size={18} />
                                     </button>
                                 )}
@@ -318,8 +318,8 @@ export default function StaffDetailView() {
                                     </span>
                                 )}
                                 
-                                <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-500 rounded-full border border-gray-200 text-[10px] font-mono">
-                                    System ID: {user.id.slice(0, 8)}...
+                                <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 text-slate-400 rounded-full border border-slate-200 text-[10px] font-black tracking-widest uppercase shadow-inner">
+                                    システムID: {user.id.slice(0, 8)}
                                 </div>
                             </div>
                         </div>
@@ -333,7 +333,7 @@ export default function StaffDetailView() {
                                     {user.phone_number ? user.phone_number : '未設定'}
                                 </span>
                                 {isAdminUser(currentUser?.role || '', currentUser?.id || '') && (
-                                    <button onClick={handleEditPhone} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="電話番号を編集">
+                                    <button onClick={handleEditPhone} className="text-slate-300 hover:text-brand-blue transition-colors p-1" title="電話番号を編集">
                                         <Edit2 size={13} />
                                     </button>
                                 )}
@@ -345,7 +345,7 @@ export default function StaffDetailView() {
                             <div className="flex items-center gap-2">
                                 {user.line_user_id ? (
                                     <>
-                                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">連携済み</span>
+                                        <span className="text-[10px] font-black text-brand-blue bg-brand-blue/5 px-2.5 py-1 rounded-md border border-brand-blue/10 uppercase tracking-widest shadow-inner">連携済み</span>
                                         {isAdminUser(currentUser?.role || '', currentUser?.id || '') && (
                                             <button onClick={handleUnlinkLineId} className="text-gray-400 hover:text-rose-500 transition-colors p-1" title="連携を解除">
                                                 <Unlink size={13} />
@@ -365,7 +365,7 @@ export default function StaffDetailView() {
                                     {user.pin_code ? '個別設定中' : '全体共通'}
                                 </span>
                                 {isAdminUser(currentUser?.role || '', currentUser?.id || '') && (
-                                    <button onClick={handleEditPin} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title="パスワードを変更">
+                                    <button onClick={handleEditPin} className="text-slate-300 hover:text-brand-blue transition-colors p-1" title="パスワードを変更">
                                         <KeyRound size={13} />
                                     </button>
                                 )}
@@ -429,29 +429,29 @@ export default function StaffDetailView() {
                 {isAdminUser(currentUser?.role || '', currentUser?.id || '') && (
                     <div className="mt-8 pt-6 border-t border-gray-100">
                         <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <KeyRound size={14} className="text-emerald-500 pb-0.5" />
+                            <KeyRound size={14} className="text-brand-blue pb-0.5" />
                             アプリ・管理詳細権限の設定
                         </h3>
                         
                         <div className="space-y-8">
                             {/* マスター管理者権限 */}
-                            <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100/50">
+                            <div className="bg-brand-blue/5 p-6 rounded-2xl border border-brand-blue/10">
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
-                                            <KeyRound size={20} />
+                                        <div className="w-10 h-10 bg-brand-blue text-white rounded-xl flex items-center justify-center shadow-lg shadow-brand-blue/20">
+                                            <KeyRound size={20} strokeWidth={2.5} />
                                         </div>
                                         <div>
-                                            <h4 className="text-sm font-black text-gray-800">マスター管理者 (Master Admin)</h4>
-                                            <p className="text-[10px] font-bold text-gray-400">システム全般の全ての操作を許可します</p>
+                                            <h4 className="text-sm font-black text-slate-800">マスター管理者 (Master Admin)</h4>
+                                            <p className="text-[10px] font-bold text-slate-400">システム全般の全ての操作を許可します</p>
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => handlePermissionToggle('ADMIN_MASTER')}
                                         disabled={isUpdatingPermission}
                                         className={`px-6 py-2.5 rounded-xl text-xs font-black border transition-all shadow-sm ${hasPermission('ADMIN_MASTER')
-                                            ? 'bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600'
-                                            : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
+                                            ? 'bg-brand-blue text-white border-brand-blue hover:bg-brand-deep-blue'
+                                            : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'
                                         }`}
                                     >
                                         {hasPermission('ADMIN_MASTER') ? '有効' : '解除中'}
@@ -510,8 +510,8 @@ export default function StaffDetailView() {
                         <p className="text-2xl font-black text-gray-800">{shifts.length} <span className="text-sm text-gray-500 font-bold">日</span></p>
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-gray-400 mb-1">当月交通費総額</p>
-                        <p className="text-2xl font-black text-emerald-600"><span className="text-sm font-bold mr-1">¥</span>{totalExpense.toLocaleString()}</p>
+                        <p className="text-xs font-bold text-slate-400 mb-1">当月交通費総額</p>
+                        <p className="text-2xl font-black text-brand-blue"><span className="text-sm font-bold mr-1">¥</span>{totalExpense.toLocaleString()}</p>
                     </div>
                 </div>
             </div>
@@ -629,10 +629,10 @@ export default function StaffDetailView() {
                                                                     href={mapsUrl}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-                                                                    className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100 hover:bg-emerald-100 transition-colors flex items-center gap-1"
+                                                                    className="text-[10px] font-black text-brand-blue bg-brand-blue/5 px-3 py-1.5 rounded-full border border-brand-blue/10 hover:bg-brand-blue/10 transition-all flex items-center gap-1.5 shadow-sm"
                                                                 >
-                                                                    <MapPin size={10} />
-                                                                    {typeLabel} 地点を確認
+                                                                    <MapPin size={10} strokeWidth={3} />
+                                                                    {typeLabel}地点を確認
                                                                 </a>
                                                             );
                                                         })}
@@ -649,9 +649,9 @@ export default function StaffDetailView() {
 
                 {/* 右列：交通費申請 */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-[600px]">
-                    <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
-                        <Receipt size={18} className="text-emerald-500" />
-                        <h2 className="font-bold text-gray-700">交通費申請ログ ({expenses.length}件)</h2>
+                    <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+                        <Receipt size={18} className="text-brand-gold" strokeWidth={2.5} />
+                        <h2 className="font-black text-slate-700">交通費申請ログ ({expenses.length}件)</h2>
                     </div>
                     <div className="p-4 overflow-y-auto flex-1 space-y-4">
                         {expenses.length === 0 ? (
@@ -666,7 +666,7 @@ export default function StaffDetailView() {
                                         <div className="flex justify-between items-start mb-2 border-b border-gray-50 pb-2">
                                             <div>
                                                 <span className="font-bold text-gray-800 text-sm">{dateStr}</span>
-                                                <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold ${exp.is_round_trip ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                                                <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-black border uppercase tracking-widest ${exp.is_round_trip ? 'bg-brand-blue/5 text-brand-blue border-brand-blue/10' : 'bg-brand-gold/5 text-brand-gold border-brand-gold/10'}`}>
                                                     {exp.is_round_trip ? '往復' : '片道'}
                                                 </span>
                                             </div>

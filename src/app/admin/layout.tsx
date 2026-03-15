@@ -75,31 +75,32 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
         <div className="flex h-screen bg-gray-50 font-sans">
             {/* 左側サイドバー (PC向け固定ナビゲーション) */}
             <aside className="w-64 bg-white border-r border-gray-200 flex flex-col hidden md:flex">
-                <div className="p-6 border-b border-gray-100 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center overflow-hidden shadow-sm border border-gray-50">
-                        <img src="/images/company_logo.png" alt="Logo" className="w-full h-full object-contain" />
+                <div className="p-6 border-b border-gray-100 flex items-center gap-3 bg-slate-50/50">
+                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center overflow-hidden shadow-sm border border-brand-blue/10">
+                        <img src="/images/company_logo.png" alt="Logo" className="w-full h-full object-contain p-1.5" />
                     </div>
                     <div>
-                        <h1 className="font-black text-gray-800 tracking-tight text-lg">Result <span className="text-brand-blue">管理ポータル</span></h1>
-                        <p className="text-[10px] text-gray-400 font-black tracking-widest uppercase">管理システム</p>
+                        <h1 className="font-black text-gray-800 tracking-tighter text-lg leading-none">RESULT <span className="text-brand-blue">ADMIN</span></h1>
+                        <p className="text-[9px] text-brand-sky font-black tracking-[0.2em] uppercase mt-1">Management System</p>
                     </div>
                 </div>
 
-                <nav className="flex-1 px-4 py-8 space-y-2">
-                    <Link href="/admin/dashboard" className="flex items-center gap-3 px-4 py-3.5 bg-brand-blue/5 border-l-4 border-brand-blue text-brand-blue rounded-r-xl font-black text-sm transition-all group">
-                        <LayoutDashboard size={18} strokeWidth={2.5} />
+                <nav className="flex-1 px-4 py-8 space-y-2 relative">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+                    <Link href="/admin/dashboard" className="flex items-center gap-3 px-4 py-3.5 bg-brand-blue/10 text-brand-blue rounded-xl font-black text-sm transition-all group border border-brand-blue/10">
+                        <LayoutDashboard size={18} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform" />
                         概要サマリー
                     </Link>
                     <Link href="/admin/shifts" className="flex items-center gap-3 px-4 py-3.5 text-slate-500 hover:bg-slate-50 hover:text-brand-blue rounded-xl font-black text-sm transition-all group">
-                        <CalendarClock size={18} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+                        <CalendarClock size={18} strokeWidth={2.5} className="group-hover:scale-110 group-hover:text-brand-blue transition-all" />
                         シフト・勤怠管理
                     </Link>
                     <Link href="/admin/expenses" className="flex items-center gap-3 px-4 py-3.5 text-slate-500 hover:bg-slate-50 hover:text-brand-blue rounded-xl font-black text-sm transition-all group">
-                        <Receipt size={18} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+                        <Receipt size={18} strokeWidth={2.5} className="group-hover:scale-110 group-hover:text-brand-blue transition-all" />
                         交通費・経費管理
                     </Link>
                     <Link href="/admin/staff" className="flex items-center gap-3 px-4 py-3.5 text-slate-500 hover:bg-slate-50 hover:text-brand-blue rounded-xl font-black text-sm transition-all group">
-                        <Users size={18} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+                        <Users size={18} strokeWidth={2.5} className="group-hover:scale-110 group-hover:text-brand-blue transition-all" />
                         スタッフ一覧
                     </Link>
                 </nav>
@@ -146,18 +147,22 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
 
             {/* メインコンテンツエリア */}
             <main className="flex-1 flex flex-col md:pt-0 pt-16 pb-20 md:pb-0 overflow-hidden">
-                <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 py-5 px-10 flex justify-between items-center hidden md:flex sticky top-0 z-40">
-                    <h2 className="text-xl font-black text-slate-800 tracking-tighter">
-                        ダッシュボード <span className="text-slate-300 font-thin mx-2">/</span> <span className="text-brand-blue text-sm uppercase tracking-[0.2em] font-black">概要</span>
-                    </h2>
+                <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 py-4 px-10 flex justify-between items-center hidden md:flex sticky top-0 z-40">
+                    <div className="flex items-center gap-4">
+                        <div className="h-8 w-1 bg-brand-blue rounded-full"></div>
+                        <h2 className="text-xl font-black text-slate-800 tracking-tighter">
+                            DASHBOARD <span className="text-slate-300 font-thin mx-2">/</span> <span className="text-brand-blue text-sm uppercase tracking-[0.2em] font-black">概要サマリー</span>
+                        </h2>
+                    </div>
                     <div className="flex items-center gap-6">
                         <div className="text-right">
-                            <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase mb-0.5">{getRoleDisplayLabel(user.role, user.id)}</p>
+                            <p className="text-[10px] font-black text-brand-sky tracking-widest uppercase mb-0.5">{getRoleDisplayLabel(user.role, user.id)}</p>
                             <p className="text-sm font-black text-slate-800">
                                 {user.display_name}
                             </p>
                         </div>
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-blue to-brand-sky text-white font-black border-4 border-white shadow-xl flex items-center justify-center text-sm transform hover:rotate-6 transition-transform">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-blue to-brand-sky text-white font-black border-4 border-white shadow-xl flex items-center justify-center text-sm transform hover:rotate-6 transition-transform overflow-hidden relative group">
+                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             {user.display_name.substring(0, 2).toUpperCase()}
                         </div>
                     </div>

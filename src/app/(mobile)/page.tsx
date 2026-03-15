@@ -265,8 +265,30 @@ export default function AppDashboard() {
 
   if (liffLoading || isLoadingData) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 pb-20">
-        <div className="animate-spin w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full shadow-lg"></div>
+      <div className="flex flex-col h-screen items-center justify-center bg-white relative overflow-hidden">
+        {/* 背景の装飾 */}
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+          <img src="/images/result_brand_visual.png" alt="" className="w-full h-full object-cover" />
+        </div>
+        <div className="absolute top-[-20%] right-[-10%] w-[80%] aspect-square bg-brand-blue/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-[-20%] left-[-10%] w-[80%] aspect-square bg-brand-gold/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        
+        <div className="relative z-10 flex flex-col items-center animate-in fade-in zoom-in-95 duration-700">
+          <div className="w-24 h-24 bg-white rounded-[32px] p-5 shadow-2xl shadow-brand-blue/20 mb-8 transform transition-transform hover:scale-105 duration-500">
+            <img src="/images/company_logo.png" alt="Result Logo" className="w-full h-full object-contain" />
+          </div>
+          <div className="flex flex-col items-center">
+            <h2 className="text-2xl font-black text-slate-800 tracking-tighter mb-2">RESULT <span className="text-brand-blue">PORTAL</span></h2>
+            <div className="flex items-center gap-3">
+              <div className="flex gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-brand-blue animate-bounce" style={{ animationDelay: '0s' }}></span>
+                <span className="w-2 h-2 rounded-full bg-brand-blue animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                <span className="w-2 h-2 rounded-full bg-brand-blue animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase">Loading Experience</p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -293,52 +315,82 @@ export default function AppDashboard() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 pb-20 relative">
-      {/* 画面ヘッダー */}
-      <div className="bg-white px-6 pt-12 pb-6 rounded-b-3xl shadow-sm text-center z-10 relative">
-        <p className="text-gray-500 text-xs font-medium mb-1">今日もお疲れ様です</p>
-        <h1 className="text-2xl font-bold text-gray-800">{user?.display_name || 'ゲスト'} <span className="text-sm font-normal text-gray-400">さん</span></h1>
-        {/* 管理者ボタン */}
-        {user && (() => {
-          const r = (user.role || '').toUpperCase();
-          const isAdmin = SUPER_IDS.includes(user.id) || ['ADMIN', 'PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(r);
-          return isAdmin ? (
-            <div className="absolute right-4 top-12 flex flex-col items-end gap-2">
-              <Link href="/admin/dashboard" className="bg-brand-blue text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg shadow-brand-blue/20 hover:bg-brand-deep-blue transition-all active:scale-95">
-                管理画面へ
-              </Link>
-              {isSuperAdmin && (
-                <button
-                  onClick={() => setIsDebugMode(!isDebugMode)}
-                  className={`text-[9px] font-black px-2 py-1 rounded-md border transition-all uppercase tracking-widest ${isDebugMode ? 'bg-brand-gold/10 border-brand-gold/30 text-brand-gold shadow-inner' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
-                >
-                  位置デバッグ: {isDebugMode ? 'ON' : 'OFF'}
-                </button>
-              )}
+    <div className="flex flex-col h-screen bg-white pb-20 relative overflow-x-hidden">
+      {/* ヒーローセクション (Brand Visual) */}
+      <div className="relative w-full h-[280px] shrink-0 overflow-hidden">
+        {/* 背景画像とグラデーション */}
+        <div className="absolute inset-0 z-0">
+          <img src="/images/result_brand_visual.png" alt="" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/90 via-brand-blue/70 to-transparent"></div>
+          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white to-transparent"></div>
+        </div>
+
+        {/* ヘッダーコンテンツ */}
+        <div className="relative z-10 px-6 pt-12">
+          <div className="flex justify-between items-start mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 p-2 shadow-sm">
+                <img src="/images/company_logo.png" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
+              </div>
+              <div>
+                <p className="text-white/60 text-[10px] font-black tracking-widest uppercase mb-0.5">Brand Identity</p>
+                <h1 className="text-lg font-black text-white tracking-tighter">RESULT <span className="text-brand-gold">MEMBER</span></h1>
+              </div>
             </div>
-          ) : null;
-        })()}
+            {user && (() => {
+              const r = (user.role || '').toUpperCase();
+              const isAdmin = SUPER_IDS.includes(user.id) || ['ADMIN', 'PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(r);
+              return isAdmin ? (
+                <div className="flex flex-col items-end gap-2">
+                  <Link href="/admin/dashboard" className="bg-white/20 backdrop-blur-md border border-white/30 text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg hover:bg-white/30 transition-all active:scale-95">
+                    管理画面
+                  </Link>
+                  {isSuperAdmin && (
+                    <button
+                      onClick={() => setIsDebugMode(!isDebugMode)}
+                      className={`text-[8px] font-black px-2 py-0.5 rounded border transition-all uppercase tracking-widest ${isDebugMode ? 'bg-brand-gold text-brand-deep-blue border-brand-gold shadow-lg' : 'bg-white/10 border-white/20 text-white/60'}`}
+                    >
+                      DEBUG: {isDebugMode ? 'ON' : 'OFF'}
+                    </button>
+                  )}
+                </div>
+              ) : null;
+            })()}
+          </div>
+
+          <div className="mt-4 animate-in slide-in-from-left-4 duration-700">
+            <p className="text-white/70 text-xs font-bold mb-1">今日もお疲れ様です</p>
+            <h2 className="text-3xl font-black text-white tracking-tighter">
+              {user?.display_name || 'ゲスト'} <span className="text-sm font-bold text-white/50">さん</span>
+            </h2>
+          </div>
+        </div>
       </div>
 
-      {/* メインコンテンツ */}
-      <div className="flex-1 px-5 mt-6 overflow-y-auto z-0">
+      {/* メインコンテンツ - 少し上に被せる */}
+      <div className="flex-1 px-5 -mt-12 overflow-y-auto z-10 relative pb-10">
         {/* シフト予定エリア */}
         <div className="space-y-3 mb-8">
           {todayShift ? (
-            <div className="bg-white rounded-[24px] p-5 shadow-sm border border-brand-blue/10 flex items-center justify-between transform transition-all active:scale-98 relative overflow-hidden group">
-              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-blue"></div>
+            <div className="bg-white/80 backdrop-blur-xl rounded-[32px] p-6 shadow-xl shadow-slate-200/50 border border-white flex items-center justify-between transform transition-all active:scale-98 relative overflow-hidden group">
+              <div className="absolute left-0 top-0 bottom-0 w-2 bg-brand-blue"></div>
               <div className="pl-3">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <p className="text-brand-blue text-[10px] font-black tracking-widest bg-brand-blue/5 px-2.5 py-1 rounded-full uppercase">本日</p>
-                  <p className="text-slate-800 font-black text-sm">{formatDate(todayShift.date)}</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-pulse"></span>
+                  <p className="text-brand-blue text-[10px] font-black tracking-[0.2em] uppercase">NEXT SESSION</p>
                 </div>
-                <p className="text-slate-800 font-black text-lg tracking-tight">{todayShift.location}</p>
-                <p className="text-slate-400 text-xs font-bold mt-1 flex items-center gap-1.5">
-                  <CalendarClock size={14} className="text-brand-blue" /> {todayShift.start_time.substring(0, 5)} - {todayShift.end_time.substring(0, 5)}
-                </p>
+                <p className="text-slate-800 font-black text-xl tracking-tighter mb-1">{todayShift.location}</p>
+                <div className="flex items-center gap-4">
+                  <p className="text-slate-400 text-[10px] font-black flex items-center gap-1.5">
+                    <CalendarClock size={12} className="text-brand-blue" /> {formatDate(todayShift.date)}
+                  </p>
+                  <p className="text-slate-400 text-[10px] font-black flex items-center gap-1.5">
+                    <Sun size={12} className="text-brand-gold" /> {todayShift.start_time.substring(0, 5)} - {todayShift.end_time.substring(0, 5)}
+                  </p>
+                </div>
               </div>
-              <div className="h-12 w-12 bg-brand-blue/5 rounded-2xl flex items-center justify-center text-brand-blue shrink-0 shadow-inner group-hover:rotate-12 transition-transform">
-                <MapPin size={24} strokeWidth={2.5} />
+              <div className="h-14 w-14 bg-gradient-to-br from-brand-blue to-brand-sky rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-brand-blue/30 group-hover:scale-110 transition-transform">
+                <MapPin size={28} strokeWidth={2.5} />
               </div>
             </div>
           ) : (

@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-blue: #0047AB;
+  --color-brand-gold: #FFB81C;
+  --color-brand-deep-blue: #002D72;
+  --color-brand-sky: #00A3E0;
+}
+
+:root {
+  --background: #fdfdfd;
+  --foreground: #0f172a;
+  --brand-blue: #0047AB;
+  --brand-gold: #FFB81C;
+  --brand-deep-blue: #002D72;
+  --brand-sky: #00A3E0;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(0, 71, 171, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(255, 184, 28, 0.03) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* モバイル向けにスクロールバーを非表示にする */
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-sky) 100%);
+}

@@ -1,0 +1,110 @@
+[
+  {
+    "id": "2dc81889-37db-4037-a154-c02026ec7cb9",
+    "user_id": "c42cb255-d3ad-41cb-9b48-e6ffcd2f6648",
+    "target_date": "2026-02-28",
+    "transport_type": "TRAIN",
+    "departure": "osaka",
+    "arrival": "kyoto",
+    "is_round_trip": true,
+    "amount": 1900,
+    "purpose": "",
+    "created_at": "2026-02-28T15:38:21.261526+00:00"
+  },
+  {
+    "id": "71e639fa-a17c-4cc0-be2b-5c3a13ec5b91",
+    "user_id": "87e75b91-210c-41bb-9cc3-cc7850d473d4",
+    "target_date": "2026-03-01",
+    "transport_type": "TRAIN",
+    "departure": "osaka",
+    "arrival": "kyoto",
+    "is_round_trip": true,
+    "amount": 1990,
+    "purpose": "",
+    "created_at": "2026-02-28T15:19:11.354805+00:00"
+  },
+  {
+    "id": "423bf1b4-98ea-45cd-b3f9-86005e53c8fe",
+    "user_id": "87e75b91-210c-41bb-9cc3-cc7850d473d4",
+    "target_date": "2026-02-27",
+    "transport_type": "TRAIN",
+    "departure": "oosaka",
+    "arrival": "kyoto",
+    "is_round_trip": true,
+    "amount": 1900,
+    "purpose": "",
+    "created_at": "2026-02-28T15:14:46.411165+00:00"
+  },
+  {
+    "id": "7c6b751c-1f44-4b16-a148-7324cdf9dd4c",
+    "user_id": "87e75b91-210c-41bb-9cc3-cc7850d473d4",
+    "target_date": "2026-02-28",
+    "transport_type": "TRAIN",
+    "departure": "大阪",
+    "arrival": "京都",
+    "is_round_trip": true,
+    "amount": 1900,
+    "purpose": "",
+    "created_at": "2026-02-28T15:14:22.888723+00:00"
+  },
+  {
+    "id": "bc68088f-6319-4dc6-8069-21892ae4f9ac",
+    "user_id": "87e75b91-210c-41bb-9cc3-cc7850d473d4",
+    "target_date": "2026-02-28",
+    "transport_type": "TRAIN",
+    "departure": "大阪",
+    "arrival": "京都",
+    "is_round_trip": true,
+    "amount": 1260,
+    "purpose": "",
+    "created_at": "2026-02-28T14:58:15.255346+00:00"
+  },
+  {
+    "id": "adc05e87-85a7-4566-b9c3-e33ec02f383a",
+    "user_id": "87e75b91-210c-41bb-9cc3-cc7850d473d4",
+    "target_date": "2026-02-28",
+    "transport_type": "TRAIN",
+    "departure": "大阪",
+    "arrival": "京都",
+    "is_round_trip": true,
+    "amount": 1000,
+    "purpose": "",
+    "created_at": "2026-02-28T13:05:51.098022+00:00"
+  },
+  {
+    "id": "e710193b-fd6b-4868-9dee-6e8e9c7f8abf",
+    "user_id": "87e75b91-210c-41bb-9cc3-cc7850d473d4",
+    "target_date": "2026-02-28",
+    "transport_type": "TRAIN",
+    "departure": "大阪",
+    "arrival": "京都",
+    "is_round_trip": true,
+    "amount": 990,
+    "purpose": "kyouto",
+    "created_at": "2026-02-28T12:59:31.786163+00:00"
+  },
+  {
+    "id": "7c156389-fb2f-415f-ab16-bd909c546cb3",
+    "user_id": "87e75b91-210c-41bb-9cc3-cc7850d473d4",
+    "target_date": "2026-02-28",
+    "transport_type": "TRAIN",
+    "departure": "あ",
+    "arrival": "あ",
+    "is_round_trip": true,
+    "amount": 680,
+    "purpose": "a",
+    "created_at": "2026-02-28T12:58:40.683582+00:00"
+  },
+  {
+    "id": "0d58481f-95f1-4969-93f0-e7c157a0f095",
+    "user_id": "87e75b91-210c-41bb-9cc3-cc7850d473d4",
+    "target_date": "2026-02-28",
+    "transport_type": "TRAIN",
+    "departure": "大阪",
+    "arrival": "京都",
+    "is_round_trip": true,
+    "amount": 600,
+    "purpose": "",
+    "created_at": "2026-02-28T12:49:20.725236+00:00"
+  }
+]

@@ -1,0 +1,633 @@
+"use client";
+import React, { useState, useEffect, useCallback } from 'react';
+import { Home, CalendarClock, Receipt, Settings, Plus, Train, Bus, Hotel, ChevronRight, Bookmark, Pencil, Trash2, X, FileText } from 'lucide-react';
+import Link from 'next/link';
+import { useLiff } from '@/components/LiffProvider';
+import { getMonthlyExpenses, saveExpense, updateExpense, deleteExpense, ExpenseRecord, ExpenseTemplateRecord, getExpenseTemplates, saveExpenseTemplate, deleteExpenseTemplate } from '@/lib/api/expense';
+
+export default function ExpenseManagement() {
+    const { user, loading: liffLoading } = useLiff();
+    const [activeTab, setActiveTab] = useState('list'); // 'list' or 'new'
+
+    const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const [templates, setTemplates] = useState<ExpenseTemplateRecord[]>([]);
+    const [isSaveTemplate, setIsSaveTemplate] = useState(false);
+    const [templateName, setTemplateName] = useState('');
+
+    const [date, setDate] = useState(() => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    });
+    const [transport, setTransport] = useState<any>('TRAIN');
+    const [departure, setDeparture] = useState('');
+    const [arrival, setArrival] = useState('');
+    const [isRoundTrip, setIsRoundTrip] = useState(true);
+    const [amount, setAmount] = useState('');
+    const [purpose, setPurpose] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    // 編集モード用State
+    const [editId, setEditId] = useState<string | null>(null);
+
+    // 確認モーダル用State
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [pendingConfirm, setPendingConfirm] = useState<{ message: string, action: () => void } | null>(null);
+
+    const fetchExpenses = useCallback(async () => {
+        if (!user) return;
+        setIsLoading(true);
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const yearMonth = `${year}-${month}`; // Local timezone "YYYY-MM"
+        const res = await getMonthlyExpenses(user.id, yearMonth);
+        if (res.success && res.data) {
+            setExpenses(res.data);
+        }
+        const tRes = await getExpenseTemplates(user.id);
+        if (tRes.success && tRes.data) {
+            setTemplates(tRes.data);
+        }
+        setIsLoading(false);
+    }, [user]);
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        fetchExpenses();
+    }, [fetchExpenses]);
+
+    const handleEdit = (item: ExpenseRecord) => {
+        setDate(item.target_date);
+        setTransport(item.transport_type);
+        setDeparture(item.departure);
+        setArrival(item.arrival);
+        setIsRoundTrip(item.is_round_trip);
+        setAmount(item.amount.toString());
+        setPurpose(item.purpose || '');
+        setEditId(item.id || null);
+        setActiveTab('new');
+    };
+
+    const handleDelete = async (id: string | undefined) => {
+        if (!id || !user) return;
+        setPendingConfirm({
+            message: 'この交通費データを削除してもよろしいですか？',
+            action: async () => {
+                setIsLoading(true);
+                const res = await deleteExpense(id);
+                if (res.success) {
+                    fetchExpenses();
+                } else {
+                    alert('削除に失敗しました。');
+                    setIsLoading(false);
+                }
+            }
+        });
+    };
+
+    const handleDeleteTemplate = async (id: string | undefined) => {
+        if (!id || !user) return;
+        setPendingConfirm({
+            message: 'このよく使う経路を削除してもよろしいですか？',
+            action: async () => {
+                const res = await deleteExpenseTemplate(id);
+                if (res.success) {
+                    setTemplates(templates.filter(t => t.id !== id));
+                } else {
+                    alert('経路の削除に失敗しました。');
+                }
+            }
+        });
+    };
+
+    const handleSave = async () => {
+        if (!user || isSaving) return;
+
+        // 宿泊の場合は到着地は必須ではない
+        const isHotel = transport === 'HOTEL';
+        if (!departure || (!isHotel && !arrival) || !amount) {
+            alert("出発（宿泊先）、到着、金額は必須です。");
+            return;
+        }
+
+        setIsSaving(true);
+        const numAmount = parseInt(amount, 10);
+
+        const record: ExpenseRecord = {
+            user_id: user.id,
+            target_date: date,
+            transport_type: transport,
+            departure,
+            arrival,
+            is_round_trip: isRoundTrip,
+            amount: isNaN(numAmount) ? 0 : numAmount,
+            purpose
+        };
+
+        let res;
+        if (editId) {
+            res = await updateExpense(editId, record);
+        } else {
+            res = await saveExpense(record);
+        }
+
+        if (res.success && !editId && isSaveTemplate) {
+            const tName = templateName.trim() || `${departure}〜${arrival}`;
+            await saveExpenseTemplate({
+                user_id: user.id,
+                template_name: tName,
+                transport_type: transport,
+                departure: departure,
+                arrival: arrival,
+                is_round_trip: isRoundTrip,
+                amount: isNaN(numAmount) ? 0 : numAmount
+            });
+        }
+
+        setIsSaving(false);
+
+        if (res.success) {
+            // 成功したら一覧に戻してリロード
+            setDeparture('');
+            setArrival('');
+            setAmount('');
+            setPurpose('');
+            setIsSaveTemplate(false);
+            setTemplateName('');
+            setEditId(null);
+            setShowConfirm(false); // 保存完了後にモーダルを閉じる
+            setActiveTab('list');
+            fetchExpenses();
+        } else {
+            alert("保存に失敗しました。");
+        }
+    };
+
+    const now = new Date();
+    const currentMonthStr = `${now.getFullYear()}年 ${now.getMonth() + 1}月`;
+    const totalAmount = expenses.reduce((sum, item) => sum + item.amount, 0);
+
+    if (liffLoading) {
+        return <div className="flex h-screen items-center justify-center bg-slate-50 pb-20"><div className="animate-spin w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full shadow-lg"></div></div>;
+    }
+
+    return (
+        <div className="flex flex-col h-screen bg-gray-50 pb-20 relative">
+            {/* 画面ヘッダー */}
+            <div className="bg-white px-5 pt-12 pb-4 shadow-sm z-10 sticky top-0 border-b border-slate-100">
+                <h1 className="text-2xl font-black text-slate-800 flex items-center gap-3 mb-6 tracking-tighter">
+                    <div className="p-2 bg-brand-blue/5 text-brand-blue rounded-xl shadow-inner">
+                        <Receipt size={24} strokeWidth={2.5} />
+                    </div>
+                    交通費精算
+                </h1>
+
+                {/* タブ切り替え */}
+                <div className="flex">
+                    <button
+                        onClick={() => {
+                            setActiveTab('list');
+                            setEditId(null);
+                        }}
+                        className={`flex-1 pb-3 text-xs font-black text-center border-b-2 transition-all uppercase tracking-widest ${activeTab === 'list' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-300'}`}
+                    >
+                        利用履歴
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('new')}
+                        className={`flex-1 pb-3 text-xs font-black text-center border-b-2 transition-all uppercase tracking-widest ${activeTab === 'new' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-300'}`}
+                    >
+                        {editId ? '編集' : '新規入力'}
+                    </button>
+                </div>
+                {/* Excel出力ボタン (モバイル版はアラート表示) */}
+                <button 
+                    onClick={() => alert('Excel出力はPC版からのみ対応しています。詳細はお問い合わせください。')}
+                    className="absolute top-12 right-5 p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition-colors"
+                    title="Excel出力"
+                >
+                    <FileText size={20} strokeWidth={2.5} />
+                </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 z-0">
+                {activeTab === 'list' ? (
+                    /* 履歴一覧タブ */
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        {/* サマリーカード */}
+                        <div className="bg-brand-blue rounded-[32px] p-6 text-white shadow-xl shadow-brand-blue/20 mb-10 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700"></div>
+                            <p className="text-brand-blue-light text-[10px] font-black mb-1 uppercase tracking-widest opacity-80">{currentMonthStr} 合計</p>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-4xl font-black tracking-tighter">¥{totalAmount.toLocaleString()}</span>
+                            </div>
+                            <div className="mt-6 flex justify-between items-center text-[10px] text-white/60 font-black border-t border-white/10 pt-4 uppercase tracking-wider">
+                                <span>件数: {expenses.length} 件</span>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-between items-end mb-4">
+                            <h2 className="text-sm font-bold text-gray-700">今月の入力履歴</h2>
+                        </div>
+
+                        {/* 履歴リスト */}
+                        {isLoading ? (
+                            <div className="flex justify-center p-5"><div className="animate-spin w-5 h-5 border-2 border-brand-blue border-t-transparent rounded-full"></div></div>
+                        ) : expenses.length === 0 ? (
+                            <div className="text-center p-5 text-gray-400 text-sm">今月の登録データはありません</div>
+                        ) : (
+                            <div className="space-y-3">
+                                {expenses.map((item) => {
+                                    const itemDate = new Date(item.target_date);
+                                    const dateStr = `${itemDate.getMonth() + 1}/${itemDate.getDate()}`;
+                                    return (
+                                        <div key={item.id} className="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 active:scale-[0.98] transition-all group">
+                                            <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 rounded-2xl bg-brand-blue/5 flex items-center justify-center text-brand-blue shadow-inner group-hover:-rotate-6 transition-transform">
+                                                        {item.transport_type === 'TRAIN' ? <Train size={24} strokeWidth={2.5} /> : item.transport_type === 'HOTEL' ? <Hotel size={24} strokeWidth={2.5} /> : (item.transport_type === 'COMMUTER_PASS' || item.transport_type === 'COMMUTER_USE') ? <Bookmark size={24} strokeWidth={2.5} /> : <Bus size={24} strokeWidth={2.5} />}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] text-slate-400 font-black mb-1 uppercase tracking-widest">{dateStr} • {item.transport_type === 'HOTEL' ? '宿泊' : item.is_round_trip ? '往復' : '片道'}</p>
+                                                        <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+                                                            <span className="truncate max-w-[80px]">{item.departure}</span> 
+                                                            {item.transport_type !== 'HOTEL' && <><ChevronRight size={14} className="text-slate-300 shrink-0" /> <span className="truncate max-w-[80px]">{item.arrival}</span></>}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-black text-slate-800 text-xl tracking-tighter">¥{item.amount.toLocaleString()}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-end gap-3">
+                                                <button onClick={() => handleEdit(item)} className="px-4 py-2 bg-slate-50 text-slate-600 font-black rounded-xl text-[10px] flex items-center gap-1.5 hover:bg-brand-blue/5 hover:text-brand-blue transition-all uppercase tracking-widest border border-slate-100">
+                                                    <Pencil size={12} strokeWidth={2.5} /> 編集
+                                                </button>
+                                                <button onClick={() => handleDelete(item.id)} className="px-4 py-2 bg-slate-50 text-slate-400 font-black rounded-xl text-[10px] flex items-center gap-1.5 hover:bg-rose-50 hover:text-rose-500 transition-all uppercase tracking-widest border border-slate-100">
+                                                    <Trash2 size={12} strokeWidth={2.5} /> 削除
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    /* 新規入力フォームタブ */
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        {templates.length > 0 && !editId && (
+                            <div className="mb-5">
+                                <label className="block text-xs font-bold text-gray-500 mb-2 ml-1">よく使う経路を呼び出す</label>
+                                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none w-full">
+                                    {templates.map((t) => (
+                                        <div key={t.id} className="relative flex-shrink-0 flex group">
+                                            <button
+                                                onClick={() => {
+                                                    setTransport(t.transport_type);
+                                                    setDeparture(t.departure);
+                                                    setArrival(t.arrival);
+                                                    setIsRoundTrip(t.is_round_trip);
+                                                    setAmount(t.amount.toString());
+                                                }}
+                                                className="whitespace-nowrap bg-white border border-brand-blue/20 text-brand-blue font-bold text-xs py-2 pl-3 pr-8 rounded-lg shadow-sm active:bg-brand-blue/5 transition-colors flex items-center gap-1.5"
+                                            >
+                                                <Bookmark size={14} />
+                                                {t.template_name}
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteTemplate(t.id);
+                                                }}
+                                                className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-red-500 rounded-full transition-colors"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+
+                            <div className="space-y-5">
+                                {/* 利用日 */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">利用日</label>
+                                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all font-medium" />
+                                </div>
+
+                                {/* 交通機関 */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">交通機関・種別</label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        <button
+                                            onClick={() => setTransport('TRAIN')}
+                                            className={`${transport === 'TRAIN' ? 'bg-brand-blue/5 border-brand-blue text-brand-blue' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
+                                        >
+                                            <Train size={18} /> 電車
+                                        </button>
+                                        <button
+                                            onClick={() => setTransport('BUS')}
+                                            className={`${transport === 'BUS' ? 'bg-brand-blue/5 border-brand-blue text-brand-blue' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
+                                        >
+                                            <Bus size={18} /> バス
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setTransport('COMMUTER_PASS');
+                                                setIsRoundTrip(false);
+                                            }}
+                                            className={`${transport === 'COMMUTER_PASS' ? 'bg-brand-blue/5 border-brand-blue text-brand-blue' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
+                                        >
+                                            <Bookmark size={18} /> 定期券
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setTransport('HOTEL');
+                                                setIsRoundTrip(false);
+                                                setArrival('');
+                                            }}
+                                            className={`${transport === 'HOTEL' ? 'bg-brand-blue/5 border-brand-blue text-brand-blue' : 'bg-white border-gray-100 text-gray-400'} border-2 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold transition-all text-sm`}
+                                        >
+                                            <Hotel size={18} /> 宿泊
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* 定期利用の個別切り替え (電車・バスの時のみ) */}
+                                {(transport === 'TRAIN' || transport === 'BUS') && (
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => {
+                                                const currentType = transport as string;
+                                                setTransport((currentType === 'COMMUTER_USE' ? 'TRAIN' : 'COMMUTER_USE') as any);
+                                                if (currentType !== 'COMMUTER_USE') {
+                                                    setAmount('0');
+                                                    setPurpose('定期利用');
+                                                }
+                                            }}
+                                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${transport === 'COMMUTER_USE' ? 'bg-brand-blue border-brand-blue text-white' : 'bg-white border-brand-blue/10 text-brand-blue'}`}
+                                        >
+                                            {transport === 'COMMUTER_USE' ? '✓ 定期利用中' : 'この移動を「定期利用」にする'}
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* 区間 (宿泊時は名称・備考等に変更) */}
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 relative">
+                                    {(transport !== 'HOTEL' && transport !== 'COMMUTER_PASS') && <div className="absolute left-6 top-9 bottom-9 w-px bg-gray-300 border-dashed border-l"></div>}
+
+                                    <div className="flex items-center gap-3 relative z-10">
+                                        <div className="w-4 h-4 rounded-full border-4 border-brand-blue bg-white shadow-sm flex-shrink-0"></div>
+                                        <input type="text" value={departure} onChange={(e) => setDeparture(e.target.value)} placeholder={transport === 'HOTEL' ? "宿泊先 (例: アパホテル)" : transport === 'COMMUTER_PASS' ? "定期区間 (例: 吹田〜大阪)" : "出発 (例: JR吹田)"} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-brand-blue text-sm font-medium" />
+                                    </div>
+
+                                    {(transport !== 'HOTEL' && transport !== 'COMMUTER_PASS') && (
+                                        <div className="flex items-center gap-3 relative z-10 mt-4">
+                                            <div className="w-4 h-4 rounded-full border-4 border-rose-500 bg-white shadow-sm flex-shrink-0"></div>
+                                            <input type="text" value={arrival} onChange={(e) => setArrival(e.target.value)} placeholder="到着 (例: JR大阪)" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-brand-blue text-sm font-medium" />
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-4">
+                                    {/* 片道復路 / 宿泊日数 / 定期期間 */}
+                                    {transport === 'HOTEL' ? (
+                                        <div className="flex-[2]">
+                                            <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">宿泊日数</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    value={arrival.replace('泊', '')}
+                                                    onChange={(e) => setArrival(e.target.value ? `${e.target.value}泊` : '')}
+                                                    placeholder="1"
+                                                    min="1"
+                                                    className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 font-medium text-center"
+                                                />
+                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm pointer-events-none">泊</span>
+                                            </div>
+                                        </div>
+                                    ) : transport === 'COMMUTER_PASS' ? (
+                                        <div className="flex-[3]">
+                                            <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">定期有効期限 (終了日)</label>
+                                            <input type="date" value={arrival} onChange={(e) => setArrival(e.target.value)} className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 font-medium text-sm" />
+                                        </div>
+                                    ) : (
+                                        <div className="flex-[2]">
+                                            <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">区分</label>
+                                            <select
+                                                value={isRoundTrip ? 'ROUND_TRIP' : 'ONE_WAY'}
+                                                onChange={(e) => setIsRoundTrip(e.target.value === 'ROUND_TRIP')}
+                                                disabled={transport === 'COMMUTER_USE'}
+                                                className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 appearance-none font-medium disabled:opacity-50"
+                                            >
+                                                <option value="ROUND_TRIP">往復</option>
+                                                <option value="ONE_WAY">片道</option>
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    {/* 金額 */}
+                                    <div className="flex-[3]">
+                                        <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">金額 (円)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">¥</span>
+                                            <input
+                                                type="number"
+                                                value={amount}
+                                                onChange={(e) => setAmount(e.target.value)}
+                                                disabled={transport === 'COMMUTER_USE'}
+                                                placeholder="0"
+                                                className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl pl-9 pr-4 py-3 outline-none focus:border-emerald-500 font-black text-lg disabled:opacity-75"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* 目的 */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">目的 / 備考</label>
+                                    <input
+                                        type="text"
+                                        value={purpose}
+                                        onChange={(e) => setPurpose(e.target.value)}
+                                        placeholder={transport === 'COMMUTER_PASS' ? "例: JR線・阪急線" : "例: 店舗出勤のため"}
+                                        className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 text-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* テンプレート登録オプション (新規時のみ) */}
+                            {!editId && (
+                                <div className="mt-6 pt-5 border-t border-gray-100">
+                                    <label className="flex items-center gap-2 cursor-pointer mb-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={isSaveTemplate}
+                                            onChange={(e) => setIsSaveTemplate(e.target.checked)}
+                                            className="w-5 h-5 rounded text-emerald-500 focus:ring-emerald-500 border-gray-300 accent-emerald-500"
+                                        />
+                                        <span className="text-sm font-bold text-gray-700">次回から使えるよう経路を保存する</span>
+                                    </label>
+                                    {isSaveTemplate && (
+                                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                                            <input
+                                                type="text"
+                                                value={templateName}
+                                                onChange={(e) => setTemplateName(e.target.value)}
+                                                placeholder="ルート名 (例: 梅田ルート)"
+                                                className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-brand-blue text-sm font-bold"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* 保存ボタン (確認モーダルを開く) */}
+                            <button
+                                onClick={() => setShowConfirm(true)}
+                                disabled={isSaving || !amount || !departure || (transport !== 'HOTEL' && !arrival)}
+                                className="w-full bg-brand-blue hover:bg-brand-deep-blue active:scale-95 disabled:opacity-50 text-white font-black py-5 rounded-[24px] mt-10 shadow-xl shadow-brand-blue/20 transition-all flex justify-center items-center gap-3 text-lg"
+                            >
+                                <Plus size={24} strokeWidth={3} /> {editId ? '更新内容を確認する' : '入力内容を確認する'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* --- カスタム確認（削除等）モーダル --- */}
+            {pendingConfirm && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="p-6 text-center border-b border-gray-100">
+                            <h3 className="font-bold text-lg text-gray-800">確認</h3>
+                            <p className="text-sm text-gray-600 mt-2 font-medium">{pendingConfirm.message}</p>
+                        </div>
+                        <div className="p-4 flex gap-3 bg-white">
+                            <button
+                                onClick={() => setPendingConfirm(null)}
+                                className="flex-1 py-3.5 bg-gray-100 text-gray-500 font-bold rounded-xl active:bg-gray-200 transition-colors"
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                onClick={() => {
+                                    pendingConfirm.action();
+                                    setPendingConfirm(null);
+                                }}
+                                className="flex-1 py-3.5 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl active:bg-rose-700 transition-all shadow-md shadow-rose-200"
+                            >
+                                実行する
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- 確認モーダル (登録前セルフチェック) --- */}
+            {showConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="p-6 text-center border-b border-gray-100">
+                            <h3 className="font-bold text-lg text-gray-800">{editId ? '以下の内容で更新しますか？' : '以下の内容で登録しますか？'}</h3>
+                            <p className="text-xs text-rose-500 mt-1 font-bold">※間違いがないか必ずご確認ください</p>
+                        </div>
+
+                        <div className="p-6 bg-gray-50/50 space-y-4">
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span className="text-xs font-bold text-gray-400">利用日</span>
+                                <span className="text-sm font-bold text-gray-800">{new Date(date).toLocaleDateString('ja-JP')}</span>
+                            </div>
+
+                            <div>
+                                <span className="text-xs font-bold text-gray-400 block mb-1">{transport === 'HOTEL' ? '宿泊箇所等' : '区間'}</span>
+                                <div className="bg-white border border-gray-100 rounded-lg p-3 flex items-center justify-center gap-2 shadow-sm">
+                                    <span className="font-bold text-gray-800 text-sm truncate max-w-[40%]">{departure}</span>
+                                    {transport !== 'HOTEL' && (
+                                        <>
+                                            <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
+                                            <span className="font-bold text-gray-800 text-sm truncate max-w-[40%]">{arrival}</span>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                             <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span className="text-xs font-bold text-gray-400">種別</span>
+                                <span className="text-sm font-bold text-gray-800 flex items-center gap-1">
+                                    {transport === 'TRAIN' ? <Train size={14} /> : transport === 'HOTEL' ? <Hotel size={14} /> : transport === 'COMMUTER_PASS' ? <Bookmark size={14} /> : <Bus size={14} />}
+                                    {transport === 'TRAIN' ? '電車' : transport === 'HOTEL' ? '宿泊' : transport === 'COMMUTER_PASS' ? '定期券購入' : transport === 'COMMUTER_USE' ? '定期利用(0円)' : 'バス'}
+                                </span>
+                            </div>
+
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span className="text-xs font-bold text-gray-400">区分</span>
+                                <span className="text-sm font-bold text-brand-blue bg-brand-blue/5 px-2 py-0.5 rounded">
+                                    {transport === 'HOTEL' ? '宿泊' : transport === 'COMMUTER_PASS' ? '定期券' : transport === 'COMMUTER_USE' ? '定期利用' : isRoundTrip ? '往復' : '片道'}
+                                </span>
+                            </div>
+
+                            <div className="flex justify-between items-end pt-2">
+                                <span className="text-xs font-bold text-gray-400 mb-1">精算金額</span>
+                                <span className="text-2xl font-black text-gray-900 tracking-tight">
+                                    ¥{parseInt(amount).toLocaleString() || 0}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="p-4 flex gap-3 bg-white">
+                            <button
+                                onClick={() => setShowConfirm(false)}
+                                disabled={isSaving}
+                                className="flex-1 py-3.5 bg-gray-100 text-gray-500 font-bold rounded-xl active:bg-gray-200 transition-colors"
+                            >
+                                NO (戻る)
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="flex-1 py-3.5 bg-brand-blue hover:bg-brand-deep-blue text-white font-bold rounded-xl active:bg-brand-deep-blue transition-all flex justify-center items-center shadow-md shadow-brand-blue/20"
+                            >
+                                {isSaving ? (
+                                    <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                                ) : (
+                                    editId ? 'YES (上書き更新)' : 'YES (登録)'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* フローティングボトムナビゲーション */}
+            <div className="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-slate-100 px-6 pt-3 pb-8 flex justify-around items-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
+                <Link href="/" className="flex flex-col items-center text-slate-400 hover:text-brand-blue transition-all active:scale-90">
+                    <div className="p-2 hover:bg-slate-50 rounded-xl mb-1">
+                        <Home size={22} strokeWidth={2.5} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">ホーム</span>
+                </Link>
+                <Link href="/shift" className="flex flex-col items-center text-slate-400 hover:text-brand-blue transition-all active:scale-90">
+                    <div className="p-2 hover:bg-slate-50 rounded-xl mb-1">
+                        <CalendarClock size={22} strokeWidth={2.5} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">シフト</span>
+                </Link>
+                <Link href="/expense" className="flex flex-col items-center text-brand-blue transition-transform active:scale-90">
+                    <div className="p-2 bg-brand-blue/10 rounded-xl mb-1">
+                        <Receipt size={22} strokeWidth={3} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">交通費</span>
+                </Link>
+            </div>
+        </div>
+    );
+}

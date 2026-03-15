@@ -266,26 +266,23 @@ export default function AppDashboard() {
   if (liffLoading || isLoadingData) {
     return (
       <div className="flex flex-col h-screen items-center justify-center bg-white relative overflow-hidden">
-        {/* 背景の装飾 */}
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-          <img src="/images/result_brand_visual.png" alt="" className="w-full h-full object-cover" />
-        </div>
-        <div className="absolute top-[-20%] right-[-10%] w-[80%] aspect-square bg-brand-blue/10 rounded-full blur-3xl animate-pulse"></div>
+        {/* 背景の装飾 - グラデーションのみ */}
+        <div className="absolute top-[-20%] right-[-10%] w-[80%] aspect-square bg-brand-blue/5 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-[-20%] left-[-10%] w-[80%] aspect-square bg-brand-gold/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
         
         <div className="relative z-10 flex flex-col items-center animate-in fade-in zoom-in-95 duration-700">
-          <div className="w-24 h-24 bg-white rounded-[32px] p-5 shadow-2xl shadow-brand-blue/20 mb-8 transform transition-transform hover:scale-105 duration-500">
+          <div className="w-24 h-24 bg-white rounded-[32px] p-5 shadow-2xl shadow-brand-blue/10 mb-8 transform transition-transform hover:scale-105 duration-500 border border-slate-50">
             <img src="/images/company_logo.png" alt="Result Logo" className="w-full h-full object-contain" />
           </div>
           <div className="flex flex-col items-center">
             <h2 className="text-2xl font-black text-slate-800 tracking-tighter mb-2">RESULT <span className="text-brand-blue">PORTAL</span></h2>
             <div className="flex items-center gap-3">
               <div className="flex gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-brand-blue animate-bounce" style={{ animationDelay: '0s' }}></span>
-                <span className="w-2 h-2 rounded-full bg-brand-blue animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                <span className="w-2 h-2 rounded-full bg-brand-blue animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-bounce" style={{ animationDelay: '0s' }}></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-bounce" style={{ animationDelay: '0.4s' }}></span>
               </div>
-              <p className="text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase">Loading Experience</p>
+              <p className="text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase">Loading</p>
             </div>
           </div>
         </div>
@@ -316,25 +313,26 @@ export default function AppDashboard() {
 
   return (
     <div className="flex flex-col h-screen bg-white pb-20 relative overflow-x-hidden">
-      {/* ヒーローセクション (Brand Visual) */}
-      <div className="relative w-full h-[280px] shrink-0 overflow-hidden">
-        {/* 背景画像とグラデーション */}
+      {/* ヒーローセクション (Brand Simple) */}
+      <div className="relative w-full h-[240px] shrink-0 overflow-hidden bg-brand-blue">
+        {/* 背景グラデーション */}
         <div className="absolute inset-0 z-0">
-          <img src="/images/result_brand_visual.png" alt="" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/90 via-brand-blue/70 to-transparent"></div>
-          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-blue via-brand-blue to-brand-deep-blue"></div>
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent"></div>
+          {/* 控えめなアクセントサークル */}
+          <div className="absolute top-[-20%] left-[-10%] w-[60%] aspect-square bg-white/5 rounded-full blur-3xl"></div>
         </div>
 
         {/* ヘッダーコンテンツ */}
         <div className="relative z-10 px-6 pt-12">
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 p-2 shadow-sm">
-                <img src="/images/company_logo.png" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
+              <div className="w-12 h-12 rounded-2xl bg-white p-2.5 shadow-xl border border-white/20">
+                <img src="/images/company_logo.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
               <div>
-                <p className="text-white/60 text-[10px] font-black tracking-widest uppercase mb-0.5">Brand Identity</p>
-                <h1 className="text-lg font-black text-white tracking-tighter">RESULT <span className="text-brand-gold">MEMBER</span></h1>
+                <p className="text-white/50 text-[10px] font-black tracking-[0.2em] uppercase mb-0.5">Official Portal</p>
+                <h1 className="text-xl font-black text-white tracking-tighter">RESULT <span className="text-brand-gold">MEMBER</span></h1>
               </div>
             </div>
             {user && (() => {
@@ -342,13 +340,13 @@ export default function AppDashboard() {
               const isAdmin = SUPER_IDS.includes(user.id) || ['ADMIN', 'PRESIDENT', 'EXECUTIVE', 'MANAGER'].includes(r);
               return isAdmin ? (
                 <div className="flex flex-col items-end gap-2">
-                  <Link href="/admin/dashboard" className="bg-white/20 backdrop-blur-md border border-white/30 text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg hover:bg-white/30 transition-all active:scale-95">
+                  <Link href="/admin/dashboard" className="bg-white text-brand-blue text-[10px] font-black px-4 py-2 rounded-full shadow-lg hover:bg-slate-50 transition-all active:scale-95">
                     管理画面
                   </Link>
                   {isSuperAdmin && (
                     <button
                       onClick={() => setIsDebugMode(!isDebugMode)}
-                      className={`text-[8px] font-black px-2 py-0.5 rounded border transition-all uppercase tracking-widest ${isDebugMode ? 'bg-brand-gold text-brand-deep-blue border-brand-gold shadow-lg' : 'bg-white/10 border-white/20 text-white/60'}`}
+                      className={`text-[8px] font-black px-2 py-0.5 rounded border transition-all uppercase tracking-widest ${isDebugMode ? 'bg-brand-gold text-brand-deep-blue border-brand-gold shadow-lg' : 'bg-white/10 border-white/20 text-white/50'}`}
                     >
                       DEBUG: {isDebugMode ? 'ON' : 'OFF'}
                     </button>
@@ -358,10 +356,10 @@ export default function AppDashboard() {
             })()}
           </div>
 
-          <div className="mt-4 animate-in slide-in-from-left-4 duration-700">
-            <p className="text-white/70 text-xs font-bold mb-1">今日もお疲れ様です</p>
+          <div className="mt-2 animate-in slide-in-from-left-4 duration-700">
+            <p className="text-white/60 text-xs font-bold mb-0.5">今日もお疲れ様です</p>
             <h2 className="text-3xl font-black text-white tracking-tighter">
-              {user?.display_name || 'ゲスト'} <span className="text-sm font-bold text-white/50">さん</span>
+              {user?.display_name || 'ゲスト'} <span className="text-sm font-bold text-white/40">さん</span>
             </h2>
           </div>
         </div>

@@ -3,12 +3,13 @@ import { Users, CalendarClock, Receipt, LayoutDashboard, Settings, LogOut, Shiel
 import Link from 'next/link';
 import { ReactNode } from 'react';
 import LiffProvider, { useLiff } from '@/components/LiffProvider';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { getRoleDisplayLabel, isAdminUser } from '@/lib/utils/auth';
 
 function AdminLayoutContent({ children }: { children: ReactNode }) {
     const { user, loading } = useLiff();
     const router = useRouter();
+    const pathname = usePathname();
 
     if (loading) {
         return (
@@ -87,19 +88,19 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
 
                 <nav className="flex-1 px-4 py-8 space-y-2 relative">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full blur-3xl -z-10 pointer-events-none"></div>
-                    <Link href="/admin/dashboard" className="flex items-center gap-3 px-4 py-3.5 bg-brand-blue/10 text-brand-blue rounded-xl font-black text-sm transition-all group border border-brand-blue/10">
+                    <Link href="/admin/dashboard" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl font-black text-sm transition-all group border ${pathname === '/admin/dashboard' ? 'bg-brand-blue/10 text-brand-blue border-brand-blue/10' : 'text-slate-500 hover:bg-slate-50 hover:text-brand-blue border-transparent'}`}>
                         <LayoutDashboard size={18} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform" />
                         概要サマリー
                     </Link>
-                    <Link href="/admin/shifts" className="flex items-center gap-3 px-4 py-3.5 text-slate-500 hover:bg-slate-50 hover:text-brand-blue rounded-xl font-black text-sm transition-all group">
+                    <Link href="/admin/shifts" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl font-black text-sm transition-all group border ${pathname === '/admin/shifts' ? 'bg-brand-blue/10 text-brand-blue border-brand-blue/10' : 'text-slate-500 hover:bg-slate-50 hover:text-brand-blue border-transparent'}`}>
                         <CalendarClock size={18} strokeWidth={2.5} className="group-hover:scale-110 group-hover:text-brand-blue transition-all" />
                         シフト・勤怠管理
                     </Link>
-                    <Link href="/admin/expenses" className="flex items-center gap-3 px-4 py-3.5 text-slate-500 hover:bg-slate-50 hover:text-brand-blue rounded-xl font-black text-sm transition-all group">
+                    <Link href="/admin/expenses" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl font-black text-sm transition-all group border ${pathname === '/admin/expenses' ? 'bg-brand-blue/10 text-brand-blue border-brand-blue/10' : 'text-slate-500 hover:bg-slate-50 hover:text-brand-blue border-transparent'}`}>
                         <Receipt size={18} strokeWidth={2.5} className="group-hover:scale-110 group-hover:text-brand-blue transition-all" />
                         交通費・経費管理
                     </Link>
-                    <Link href="/admin/staff" className="flex items-center gap-3 px-4 py-3.5 text-slate-500 hover:bg-slate-50 hover:text-brand-blue rounded-xl font-black text-sm transition-all group">
+                    <Link href="/admin/staff" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl font-black text-sm transition-all group border ${pathname.includes('/admin/staff') ? 'bg-brand-blue/10 text-brand-blue border-brand-blue/10' : 'text-slate-500 hover:bg-slate-50 hover:text-brand-blue border-transparent'}`}>
                         <Users size={18} strokeWidth={2.5} className="group-hover:scale-110 group-hover:text-brand-blue transition-all" />
                         スタッフ一覧
                     </Link>
@@ -150,8 +151,11 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
                 <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 py-4 px-10 flex justify-between items-center hidden md:flex sticky top-0 z-40">
                     <div className="flex items-center gap-4">
                         <div className="h-8 w-1 bg-brand-blue rounded-full"></div>
-                        <h2 className="text-xl font-black text-slate-800 tracking-tighter">
-                            DASHBOARD <span className="text-slate-300 font-thin mx-2">/</span> <span className="text-brand-blue text-sm uppercase tracking-[0.2em] font-black">概要サマリー</span>
+                        <h2 className="text-xl font-black text-slate-800 tracking-tighter uppercase">
+                            {pathname === '/admin/dashboard' && <>DASHBOARD <span className="text-slate-300 font-thin mx-2">/</span> <span className="text-brand-blue text-sm tracking-[0.2em]">概要サマリー</span></>}
+                            {pathname === '/admin/shifts' && <>SHIFTS <span className="text-slate-300 font-thin mx-2">/</span> <span className="text-brand-blue text-sm tracking-[0.2em]">シフト・勤怠管理</span></>}
+                            {pathname === '/admin/expenses' && <>EXPENSES <span className="text-slate-300 font-thin mx-2">/</span> <span className="text-brand-blue text-sm tracking-[0.2em]">交通費・経費管理</span></>}
+                            {pathname.includes('/admin/staff') && <>STAFF <span className="text-slate-300 font-thin mx-2">/</span> <span className="text-brand-blue text-sm tracking-[0.2em]">スタッフ一覧</span></>}
                         </h2>
                     </div>
                     <div className="flex items-center gap-6">
